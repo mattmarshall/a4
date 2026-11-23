@@ -464,6 +464,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-23-add-paper-view`
 - `2026-11-23-add-a4-sheet-element`
 - `2026-11-23-add-sheet-model-plugins`
+- `2026-11-23-add-semantic-overlaps`
 
 ```bash
 openspec list --specs
