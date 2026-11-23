@@ -181,6 +181,14 @@ is the one that matters, *because* it alone prevents a repeat.
 - **Teaching:** a before-and-after compare shows narrative context faster
   than any style guide.
 
+## The page as an object
+
+The 3D view treats the page as a physical sheet. It folds into a letter in
+thirds, curls at the corner, and catches the light, and it stays editable the
+whole time. That literalizes A4's premise: context the size of a page you can
+hold. The rendering comes from the same grid model that drives the metrics,
+so the folded letter is the page the agent gets.
+
 ## Possible next steps
 
 - **Reams:** multi-page stacks with a page budget and a table of contents.

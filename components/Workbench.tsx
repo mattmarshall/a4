@@ -21,10 +21,11 @@ import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
 import { MetricsPanel } from "./MetricsPanel";
+import { PaperView } from "./PaperView";
 import { Sheet } from "./Sheet";
 import { useLibrary, type Slot } from "./useLibrary";
 
-type Mode = "single" | "compare";
+type Mode = "single" | "compare" | "paper";
 type Zoom = { kind: "fit" } | { kind: "fixed"; mm: number };
 type Toast = { message: string; tone: "info" | "warn" };
 
@@ -164,7 +165,7 @@ export function Workbench() {
     if (isPresetId(p)) setPresetId(p);
     if (isLensId(l)) setLens(l);
     if (g !== null) setShowGrid(g === "1");
-    if (m === "single" || m === "compare") setMode(m);
+    if (m === "single" || m === "compare" || m === "paper") setMode(m);
     if (lb !== null) setShowLibrary(lb === "1");
     else if (window.innerWidth < 1100) setShowLibrary(false);
     setSettingsReady(true);
@@ -186,6 +187,19 @@ export function Workbench() {
     else void lib.closeSlotB();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, mode]);
+
+  useEffect(() => {
+    const carried = carriedSelection.current;
+    if (!carried) return;
+    carriedSelection.current = null;
+    const id = requestAnimationFrame(() => {
+      const el = document.getElementById("sheet-a") as HTMLTextAreaElement | null;
+      if (!el) return;
+      el.setSelectionRange(carried.start, carried.end);
+      if (carried.focused) el.focus({ preventScroll: true });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [mode]);
 
   // Ctrl/Cmd+S saves now instead of opening the browser's save dialog.
   useEffect(() => {
@@ -310,10 +324,15 @@ export function Workbench() {
     }
   }
 
+  // Switching views remounts the page-A textarea; carry its selection across.
+  const carriedSelection = useRef<{ start: number; end: number; focused: boolean } | null>(null);
+
   function setModeAndFit(next: Mode) {
+    const el = document.getElementById("sheet-a") as HTMLTextAreaElement | null;
+    if (el) carriedSelection.current = { start: el.selectionStart, end: el.selectionEnd, focused: document.activeElement === el };
     setMode(next);
     setZoom({ kind: "fit" });
-    if (next === "single") setActive("a");
+    if (next !== "compare") setActive("a");
   }
 
   function trashPage(name: PageName) {
@@ -406,6 +425,14 @@ export function Workbench() {
               </button>
               <button type="button" aria-pressed={mode === "compare"} onClick={() => setModeAndFit("compare")}>
                 Compare
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "paper"}
+                onClick={() => setModeAndFit("paper")}
+                title="Fold, curl, and light the page in 3D (WebGPU)"
+              >
+                3D
               </button>
             </div>
           </div>
@@ -537,12 +564,33 @@ export function Workbench() {
               Couldn’t open page storage: {lib.failure}
             </div>
           ) : null}
-          {mode === "single" ? (
+          {mode !== "compare" ? (
             <div className="docbar">
               <PageNameField name={lib.slotA.name} onRename={(input) => lib.renamePage(lib.slotA.name!, input)} />
               <SaveStatusPill status={lib.slotA.status} />
             </div>
           ) : null}
+          {mode === "paper" ? (
+            <div className="paper-stage">
+              <PaperView text={textA} spec={spec} lens={lens} analysis={analysisA} textareaId="sheet-a" />
+              {/* The real editor stays mounted (invisible) so typing, IME, undo, and autosave are unchanged. */}
+              <div className="paper-offstage">
+                <Sheet
+                  id="sheet-a"
+                  label={lib.slotA.name ?? "Page A"}
+                  text={textA}
+                  onChange={(t) => lib.edit("a", t)}
+                  onFocus={() => setActive("a")}
+                  spec={spec}
+                  lens={lens}
+                  showGrid={false}
+                  mm={mm}
+                  analysis={analysisA}
+                  hidden={!ready || !lib.slotA.name}
+                />
+              </div>
+            </div>
+          ) : (
           <div className="sheets">
             <div className="sheet-col">
               {mode === "compare" ? (
@@ -595,6 +643,7 @@ export function Workbench() {
               </div>
             ) : null}
           </div>
+          )}
         </main>
 
         <aside className="sidebar" aria-label="Page analysis">

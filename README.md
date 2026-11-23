@@ -54,6 +54,40 @@ pnpm dev          # http://localhost:5173
 - **Privacy**: everything runs in the browser, and nothing is sent to a
   server.
 
+## 3D paper view
+
+**3D** in the view control renders page A as a sheet of paper, using WebGPU.
+You can fold it into a letter, curl the bottom-right corner, tilt it, turn it,
+and light it from any side. You can also keep editing it.
+
+- **Texture from the model** (`lib/paper/texture.ts`): the page is painted
+  from A4's own grid (cells, rows, lens colors, rulers, gauge, caret,
+  selection), one character per cell, so positions match the flat sheet
+  exactly. The browser can't run shaders over DOM pixels, and Chrome's
+  experimental HTML-in-Canvas API maps hit testing with a single flat matrix,
+  which can't follow a folded sheet.
+- **Deformations** (`lib/paper/deform.ts`): two folds with rounded creases at
+  99 mm and 198 mm (the letter fold), and a cylinder curl from the corner.
+  Each is an isometry, so the paper never stretches, and tests check that.
+  Curl and fold are exclusive. The WGSL in `lib/paper/shader.ts` mirrors the
+  TypeScript.
+- **Shading** (`lib/paper/renderer.ts`):
+  - Diffuse light plus a soft highlight.
+  - Paper grain and darker creases.
+  - A plain back side.
+  - A planar shadow on the desk, using `min` blending so overlapping layers
+    don't double-darken.
+  - 4× MSAA.
+- **Editing**: the real textarea stays mounted but invisible, and keeps focus.
+  A click on the sheet becomes a ray, which hits the nearest triangle of the
+  CPU copy of the deformed mesh. The hit gives a paper position in millimeters,
+  then a grid cell, then a text offset, and `setSelectionRange` puts the caret
+  there. Dragging selects. Typing, undo, IME, and autosave work the same as in
+  the flat view, and the caret stays put when you switch views. Clicks on the
+  desk turn the camera, and clicks on the back of the paper do nothing.
+- **Without WebGPU** the 3D view explains why, and the other views are
+  unaffected.
+
 ## Pages, storage, and autosave
 
 The library holds any number of pages. You can search, create (blank or from
