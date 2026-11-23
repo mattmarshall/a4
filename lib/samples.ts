@@ -40,7 +40,7 @@ How to use it:
 Rule of thumb: if it does not fit on one page, it is not one idea. Split it
 into pages that each serve a single purpose, and give the agent the stack.
 
-Clear this page, or pick a template from the toolbar to start writing.
+Every page saves itself as a .md file in this browser. Use New to start one.
 `;
 
 export const TEMPLATES: PageTemplate[] = [

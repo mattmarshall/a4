@@ -111,7 +111,7 @@ export function ComparePanel({
             ⇄ Swap A and B
           </button>
           <button type="button" className="btn btn-outline" onClick={onCopyAToB}>
-            Copy A → B
+            Duplicate A into B
           </button>
         </div>
       </section>
@@ -135,7 +135,8 @@ export function ComparePanel({
 
       <section className="panel-section panel-foot">
         Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A, write
-        the narrative in B, and keep B once it is lower on syntax and tokens without losing facts.
+        the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either page
+        from the menu above its sheet.
       </section>
     </>
   );

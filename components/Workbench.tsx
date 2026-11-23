@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { analyze, compressibility } from "@/lib/analyze";
+import type { SaveStatus } from "@/lib/autosave";
 import { isLensId, LENSES, type LensId } from "@/lib/lenses";
 import {
   DEFAULT_PRESET,
@@ -14,17 +15,27 @@ import {
 } from "@/lib/page-spec";
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
 import { KEYS, readKey, writeKey } from "@/lib/storage";
+import type { PageName } from "@/lib/store";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
+import { LibraryPanel } from "./LibraryPanel";
 import { MetricsPanel } from "./MetricsPanel";
 import { Sheet } from "./Sheet";
+import { useLibrary, type Slot } from "./useLibrary";
 
 type Mode = "single" | "compare";
-type PageKey = "a" | "b";
 type Zoom = { kind: "fit" } | { kind: "fixed"; mm: number };
+type Toast = { message: string; tone: "info" | "warn" };
 
 const ZOOM_STEPS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 const MIN_MM = 1.2;
+
+const STATUS_LABEL: Record<SaveStatus, string> = {
+  saved: "Saved",
+  unsaved: "Unsaved changes",
+  saving: "Saving…",
+  error: "Save failed · retrying",
+};
 
 function useCompressibility(text: string): number | null {
   const [value, setValue] = useState<number | null>(null);
@@ -67,59 +78,125 @@ function useOutsideClose(open: boolean, close: () => void) {
   return ref;
 }
 
+export function SaveStatusPill({ status }: { status: SaveStatus }) {
+  return (
+    <span className="save-pill" data-status={status} role="status" aria-live="polite">
+      {STATUS_LABEL[status]}
+    </span>
+  );
+}
+
+function PageNameField({ name, onRename }: { name: PageName | null; onRename: (input: string) => Promise<string | null> }) {
+  const [value, setValue] = useState(name ?? "");
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    setValue(name ?? "");
+    setError(null);
+  }, [name]);
+  async function commit(next: string) {
+    if (!name || next === name) return;
+    const message = await onRename(next);
+    if (message) {
+      setError(message);
+      setValue(name);
+    }
+  }
+  function onKey(e: ReactKeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") e.currentTarget.blur();
+    if (e.key === "Escape") {
+      setValue(name ?? "");
+      e.currentTarget.blur();
+    }
+  }
+  return (
+    <span className="name-field">
+      <input
+        className="page-name"
+        aria-label="Page name"
+        value={value}
+        maxLength={80}
+        disabled={!name}
+        onChange={(e) => {
+          setValue(e.target.value);
+          setError(null);
+        }}
+        onKeyDown={onKey}
+        onBlur={(e) => void commit(e.currentTarget.value)}
+      />
+      {error ? <span className="name-error">{error}</span> : null}
+    </span>
+  );
+}
+
 export function Workbench() {
-  const [ready, setReady] = useState(false);
-  const [textA, setTextA] = useState(WELCOME);
-  const [textB, setTextB] = useState("");
   const [presetId, setPresetId] = useState<PresetId>(DEFAULT_PRESET);
   const [lens, setLens] = useState<LensId>("ink");
   const [showGrid, setShowGrid] = useState(false);
   const [mode, setMode] = useState<Mode>("single");
-  const [active, setActive] = useState<PageKey>("a");
+  const [showLibrary, setShowLibrary] = useState(true);
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [active, setActive] = useState<Slot>("a");
   const [zoom, setZoom] = useState<Zoom>({ kind: "fit" });
   const [deskWidth, setDeskWidth] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
   const deskRef = useRef<HTMLDivElement>(null);
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   const menuRef = useOutsideClose(menuOpen, closeMenu);
 
-  const spec = PRESETS[presetId];
+  const notify = useCallback((message: string, tone: "info" | "warn" = "info") => {
+    setToast({ message, tone });
+    window.setTimeout(() => setToast((t) => (t?.message === message ? null : t)), tone === "warn" ? 8000 : 2600);
+  }, []);
 
-  // Restore saved state after mount (the page is prerendered with defaults).
+  const lib = useLibrary(notify);
+  const spec = PRESETS[presetId];
+  const ready = lib.ready && settingsReady;
+
+  // Restore view settings after mount (the page is prerendered with defaults).
   useEffect(() => {
-    const a = readKey(KEYS.textA);
-    const b = readKey(KEYS.textB);
     const p = readKey(KEYS.preset);
     const l = readKey(KEYS.lens);
     const g = readKey(KEYS.grid);
     const m = readKey(KEYS.mode);
-    if (a !== null) setTextA(a);
-    if (b !== null) setTextB(b);
+    const lb = readKey(KEYS.library);
     if (isPresetId(p)) setPresetId(p);
     if (isLensId(l)) setLens(l);
     if (g !== null) setShowGrid(g === "1");
     if (m === "single" || m === "compare") setMode(m);
-    setReady(true);
+    if (lb !== null) setShowLibrary(lb === "1");
+    else if (window.innerWidth < 1100) setShowLibrary(false);
+    setSettingsReady(true);
   }, []);
 
-  // Autosave (text debounced; settings immediately).
   useEffect(() => {
-    if (!ready) return;
-    const t = setTimeout(() => {
-      writeKey(KEYS.textA, textA);
-      writeKey(KEYS.textB, textB);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [ready, textA, textB]);
-
-  useEffect(() => {
-    if (!ready) return;
+    if (!settingsReady) return;
     writeKey(KEYS.preset, presetId);
     writeKey(KEYS.lens, lens);
     writeKey(KEYS.grid, showGrid ? "1" : "0");
     writeKey(KEYS.mode, mode);
-  }, [ready, presetId, lens, showGrid, mode]);
+    writeKey(KEYS.library, showLibrary ? "1" : "0");
+  }, [settingsReady, presetId, lens, showGrid, mode, showLibrary]);
+
+  // Keep slot B open exactly while comparing.
+  useEffect(() => {
+    if (!ready) return;
+    if (mode === "compare") void lib.ensureSlotB();
+    else void lib.closeSlotB();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, mode]);
+
+  // Ctrl/Cmd+S saves now instead of opening the browser's save dialog.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        void lib.flushAll().then(() => notify("Saved"));
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lib, notify]);
 
   // Track available desk width for fit-to-width zoom.
   useEffect(() => {
@@ -149,73 +226,55 @@ export function Workbench() {
     setZoom({ kind: "fixed", mm: next * PX_PER_MM_ACTUAL });
   }
 
+  const textA = lib.slotA.text;
+  const textB = lib.slotB.text;
   const analysisA = useMemo(() => analyze(textA, spec), [textA, spec]);
   const analysisB = useMemo(() => analyze(textB, spec), [textB, spec]);
   const compressA = useCompressibility(textA);
   const compressB = useCompressibility(textB);
 
-  const target: PageKey = mode === "compare" ? active : "a";
-  const targetText = target === "a" ? textA : textB;
-  const setTarget = target === "a" ? setTextA : setTextB;
+  const target: Slot = mode === "compare" ? active : "a";
+  const targetSlot = target === "a" ? lib.slotA : lib.slotB;
 
-  const notify = useCallback((msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast((t) => (t === msg ? null : t)), 1800);
-  }, []);
-
-  function confirmReplace(page: PageKey, current: string, next: string, what: string): boolean {
-    if (current.trim() === "" || current === next) return true;
-    return window.confirm(`Replace the text on page ${page.toUpperCase()} with ${what}?`);
-  }
-
-  function loadTemplate(id: string) {
-    const t = TEMPLATES.find((x) => x.id === id);
+  async function newPage(desired: string, text: string) {
     setMenuOpen(false);
-    if (!t || !confirmReplace(target, targetText, t.text, `the ${t.name} template`)) return;
-    setTarget(t.text);
+    const name = await lib.createPage(desired, text, target);
+    if (name) notify(`Created “${name}”.`);
   }
 
-  function loadPair(id: string) {
+  async function loadPair(id: string) {
+    setMenuOpen(false);
     const p = SAMPLE_PAIRS.find((x) => x.id === id);
-    setMenuOpen(false);
     if (!p) return;
-    const dirty = (textA.trim() !== "" && textA !== p.a && textA !== WELCOME) || (textB.trim() !== "" && textB !== p.b);
-    if (dirty && !window.confirm(`Replace pages A and B with the “${p.name}” sample?`)) return;
-    setTextA(p.a);
-    setTextB(p.b);
     setMode("compare");
     setZoom({ kind: "fit" });
-  }
-
-  function loadWelcome() {
-    setMenuOpen(false);
-    if (!confirmReplace(target, targetText, WELCOME, "the welcome page")) return;
-    setTarget(WELCOME);
+    await lib.createPage("Incident (JSON)", p.a, "a");
+    await lib.createPage("Incident (narrative)", p.b, "b");
   }
 
   function clearPage() {
     setMenuOpen(false);
-    if (targetText === "") return;
-    if (!window.confirm(`Clear page ${target.toUpperCase()}?`)) return;
-    setTarget("");
+    if (!targetSlot.name || targetSlot.text === "") return;
+    if (!window.confirm(`Clear all text on “${targetSlot.name}”?`)) return;
+    lib.edit(target, "");
     document.getElementById(`sheet-${target}`)?.focus();
   }
 
   async function copyText() {
     try {
-      await navigator.clipboard.writeText(targetText);
-      notify(`Copied page ${target.toUpperCase()} (${targetText.length.toLocaleString("en-US")} characters)`);
+      await navigator.clipboard.writeText(targetSlot.text);
+      notify(`Copied “${targetSlot.name}” (${targetSlot.text.length.toLocaleString("en-US")} characters)`);
     } catch {
-      notify("Copy failed: clipboard access was blocked");
+      notify("Copy failed: clipboard access was blocked", "warn");
     }
   }
 
   function downloadText() {
-    const blob = new Blob([targetText], { type: "text/plain;charset=utf-8" });
+    const blob = new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${slugFromText(targetText)}.txt`;
+    a.download = `${slugFromText(targetSlot.name ?? "")}.md`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -228,6 +287,28 @@ export function Workbench() {
     if (next === "single") setActive("a");
   }
 
+  function trashPage(name: PageName) {
+    if (window.confirm(`Move “${name}” to the trash? You can restore it from the trash.`)) void lib.trashPage(name);
+  }
+
+  function slotPicker(slot: Slot) {
+    const state = slot === "a" ? lib.slotA : lib.slotB;
+    return (
+      <select
+        className="select slot-select"
+        aria-label={`Page in slot ${slot.toUpperCase()}`}
+        value={state.name ?? ""}
+        onChange={(e) => void lib.openInSlot(slot, e.target.value as PageName)}
+      >
+        {lib.pages.map((p) => (
+          <option key={p.name} value={p.name}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
   return (
     <div className="app">
       <header className="topbar">
@@ -237,8 +318,18 @@ export function Workbench() {
         </Link>
 
         <div className="toolbar" role="toolbar" aria-label="Page controls">
+          <button
+            type="button"
+            className="btn btn-outline"
+            aria-pressed={showLibrary}
+            onClick={() => setShowLibrary((s) => !s)}
+            title="Show or hide the page library"
+          >
+            ☰ Pages
+          </button>
+
           <div className="tool-group" title={spec.blurb}>
-            <span className="tool-label">Page</span>
+            <span className="tool-label">Grid</span>
             <select
               className="select"
               aria-label="Page preset"
@@ -278,7 +369,7 @@ export function Workbench() {
               onClick={() => setShowGrid((g) => !g)}
               title="Show the cell grid"
             >
-              Grid
+              Cells
             </button>
             <div className="seg" role="group" aria-label="View">
               <button type="button" aria-pressed={mode === "single"} onClick={() => setModeAndFit("single")}>
@@ -329,13 +420,24 @@ export function Workbench() {
               aria-expanded={menuOpen}
               onClick={() => setMenuOpen((o) => !o)}
             >
-              Templates ▾
+              New ▾
             </button>
             {menuOpen ? (
               <div className="menu-list" role="menu">
-                <div className="menu-heading">Narrative templates</div>
+                <button type="button" role="menuitem" className="menu-item" onClick={() => void newPage("Untitled", "")}>
+                  <strong>Blank page</strong>
+                  <span>Start from an empty sheet</span>
+                </button>
+                <div className="menu-sep" />
+                <div className="menu-heading">From a narrative template</div>
                 {TEMPLATES.map((t) => (
-                  <button key={t.id} type="button" role="menuitem" className="menu-item" onClick={() => loadTemplate(t.id)}>
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="menuitem"
+                    className="menu-item"
+                    onClick={() => void newPage(t.name, t.text)}
+                  >
                     <strong>{t.name}</strong>
                     <span>{t.blurb}</span>
                   </button>
@@ -343,19 +445,19 @@ export function Workbench() {
                 <div className="menu-sep" />
                 <div className="menu-heading">Worked samples</div>
                 {SAMPLE_PAIRS.map((p) => (
-                  <button key={p.id} type="button" role="menuitem" className="menu-item" onClick={() => loadPair(p.id)}>
+                  <button key={p.id} type="button" role="menuitem" className="menu-item" onClick={() => void loadPair(p.id)}>
                     <strong>{p.name}</strong>
-                    <span>{p.blurb}</span>
+                    <span>Creates two pages and opens Compare</span>
                   </button>
                 ))}
-                <button type="button" role="menuitem" className="menu-item" onClick={loadWelcome}>
+                <button type="button" role="menuitem" className="menu-item" onClick={() => void newPage("Welcome", WELCOME)}>
                   <strong>Welcome page</strong>
                   <span>What A4 is, written as one page</span>
                 </button>
                 <div className="menu-sep" />
                 <button type="button" role="menuitem" className="menu-item" onClick={clearPage}>
-                  <strong>Clear page {target.toUpperCase()}</strong>
-                  <span>Start from a blank sheet</span>
+                  <strong>Clear “{targetSlot.name ?? "page"}”</strong>
+                  <span>Erase this page’s text (autosaved)</span>
                 </button>
               </div>
             ) : null}
@@ -363,7 +465,7 @@ export function Workbench() {
           <button type="button" className="btn btn-outline" onClick={copyText}>
             Copy
           </button>
-          <button type="button" className="btn btn-outline" onClick={downloadText}>
+          <button type="button" className="btn btn-outline" onClick={downloadText} title="Download this page as a .md file">
             Download
           </button>
           <button type="button" className="btn btn-outline" onClick={() => window.print()}>
@@ -375,48 +477,89 @@ export function Workbench() {
         </div>
       </header>
 
-      <div className="workspace">
+      <div className={`workspace${showLibrary ? " with-library" : ""}`}>
+        {showLibrary ? (
+          <LibraryPanel
+            pages={lib.pages}
+            trash={lib.trash}
+            open={{ a: lib.slotA.name, b: mode === "compare" ? lib.slotB.name : null }}
+            compare={mode === "compare"}
+            activeSlot={target}
+            storage={lib.storage}
+            onOpen={(name, slot) => {
+              setActive(slot);
+              void lib.openInSlot(slot, name);
+              if (window.innerWidth < 1100) setShowLibrary(false);
+            }}
+            onNew={() => void newPage("Untitled", "")}
+            onRename={lib.renamePage}
+            onDuplicate={(name) => void lib.duplicatePage(name)}
+            onTrash={trashPage}
+            onRestore={(id) => void lib.restorePage(id)}
+            onPurge={(ids) => void lib.purgePages(ids)}
+          />
+        ) : null}
+
         <main className="desk" ref={deskRef}>
+          {lib.failure ? (
+            <div className="banner" role="alert">
+              Couldn’t open page storage: {lib.failure}
+            </div>
+          ) : null}
+          {mode === "single" ? (
+            <div className="docbar">
+              <PageNameField name={lib.slotA.name} onRename={(input) => lib.renamePage(lib.slotA.name!, input)} />
+              <SaveStatusPill status={lib.slotA.status} />
+            </div>
+          ) : null}
           <div className="sheets">
             <div className="sheet-col">
               {mode === "compare" ? (
                 <div className="sheet-caption">
-                  <b>A</b> {analysisA.verdict} · ≈{analysisA.tokens.toLocaleString("en-US")} tokens
-                  {active === "a" ? " · editing" : ""}
+                  <b>A</b>
+                  {slotPicker("a")}
+                  <SaveStatusPill status={lib.slotA.status} />
+                  <span>
+                    {analysisA.verdict} · ≈{analysisA.tokens.toLocaleString("en-US")} tokens
+                  </span>
                 </div>
               ) : null}
               <Sheet
                 id="sheet-a"
-                label="Page A"
+                label={lib.slotA.name ?? "Page A"}
                 text={textA}
-                onChange={setTextA}
+                onChange={(t) => lib.edit("a", t)}
                 onFocus={() => setActive("a")}
                 spec={spec}
                 lens={lens}
                 showGrid={showGrid}
                 mm={mm}
                 analysis={analysisA}
-                hidden={!ready}
+                hidden={!ready || !lib.slotA.name}
               />
             </div>
             {mode === "compare" ? (
               <div className="sheet-col">
                 <div className="sheet-caption">
-                  <b>B</b> {analysisB.verdict} · ≈{analysisB.tokens.toLocaleString("en-US")} tokens
-                  {active === "b" ? " · editing" : ""}
+                  <b>B</b>
+                  {slotPicker("b")}
+                  <SaveStatusPill status={lib.slotB.status} />
+                  <span>
+                    {analysisB.verdict} · ≈{analysisB.tokens.toLocaleString("en-US")} tokens
+                  </span>
                 </div>
                 <Sheet
                   id="sheet-b"
-                  label="Page B"
+                  label={lib.slotB.name ?? "Page B"}
                   text={textB}
-                  onChange={setTextB}
+                  onChange={(t) => lib.edit("b", t)}
                   onFocus={() => setActive("b")}
                   spec={spec}
                   lens={lens}
                   showGrid={showGrid}
                   mm={mm}
                   analysis={analysisB}
-                  hidden={!ready}
+                  hidden={!ready || !lib.slotB.name}
                 />
               </div>
             ) : null}
@@ -431,13 +574,9 @@ export function Workbench() {
               compressA={compressA}
               compressB={compressB}
               lens={lens}
-              onSwap={() => {
-                setTextA(textB);
-                setTextB(textA);
-              }}
+              onSwap={() => void lib.swapSlots()}
               onCopyAToB={() => {
-                if (!confirmReplace("b", textB, textA, "a copy of page A")) return;
-                setTextB(textA);
+                if (lib.slotA.name) void lib.duplicatePage(lib.slotA.name, "b");
               }}
             />
           ) : (
@@ -447,8 +586,8 @@ export function Workbench() {
       </div>
 
       {toast ? (
-        <div className="toast" role="status">
-          {toast}
+        <div className="toast" role="status" data-tone={toast.tone}>
+          {toast.message}
         </div>
       ) : null}
     </div>

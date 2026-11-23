@@ -51,8 +51,51 @@ pnpm dev          # http://localhost:5173
   and findings. Thresholds live in `THRESHOLDS` and are pinned by the specs.
 - **Lenses** (`lib/lenses.ts`): Ink, Syntax, Repetition, Structure, and
   Tokens. They are presentation only and never change the text.
-- **Privacy**: everything runs in the browser. Pages autosave to
-  `localStorage` (`a4:*` keys), and nothing is sent to a server.
+- **Privacy**: everything runs in the browser, and nothing is sent to a
+  server.
+
+## Pages, storage, and autosave
+
+The library holds any number of pages. You can search, create (blank or from
+a template), rename, duplicate, delete to the trash, restore, and delete
+permanently. Each page is stored as a Markdown file whose content is exactly
+the page text, so a file can be handed to an agent as is.
+
+```
+<Origin Private File System>/
+  a4/
+    pages/<page name>.md    one file per page
+    trash/<page name>.<deleted-at>.md
+```
+
+- **Typed store** (`lib/store/`): every backend implements the `PageStore`
+  contract in `lib/store/types.ts`. That contract covers list, read, create,
+  write, rename, trash, restore, and purge. It uses validated `PageName`
+  values, content-hash `Revision`s for conflict detection, and typed errors.
+  The backends are:
+  - `OpfsPageStore`, the default.
+  - `KeyValuePageStore` over `localStorage`, used where OPFS writable files
+    are unavailable. Its pages move into OPFS once OPFS is available.
+  - `MemoryPageStore`.
+
+  A new backend must pass the shared suite in
+  `lib/store/testing/contract.ts`.
+- **Autosave** (`lib/autosave/`):
+  - Every edit is journaled to `localStorage` synchronously, per tab and
+    page.
+  - The page is saved 600 ms after typing pauses, and at least every 4 s
+    while typing continues.
+  - Saves also happen on tab hide, page switch, and Ctrl/Cmd+S.
+  - Failed saves retry with backoff.
+  - If another tab saved first, your text is kept as a "(conflict …)" copy.
+  - Drafts left by a crashed or closed tab are recovered on the next load.
+- **Cross-tab**: a `BroadcastChannel` tells other tabs to refresh, and an idle
+  tab reloads a page another tab saved.
+- **Durability**: on the first edit, A4 asks the browser for persistent storage
+  (`navigator.storage.persist()`). The library footer shows the active backend
+  and whether storage is persistent.
+- **Upgrading**: text from the earlier single-page version (`a4:text:a` and
+  `a4:text:b`) is imported as pages on first load. The old keys are kept.
 
 ## Deploy to a4.marsh.build
 
@@ -108,6 +151,10 @@ The living specs are in `openspec/specs/`: `page-grid`, `sheet-editor`,
 `page-export`, and `hosting`. The change that introduced them (proposal,
 design, and tasks) is archived at
 `openspec/changes/archive/2026-11-23-add-a4-workbench/`.
+
+In flight: `openspec/changes/add-page-library/`. It adds the page library,
+OPFS storage, and autosave, with the new `page-library`, `page-storage`, and
+`autosave` capabilities.
 
 ```bash
 openspec list --specs

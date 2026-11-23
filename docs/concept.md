@@ -184,9 +184,14 @@ is the one that matters, *because* it alone prevents a repeat.
 ## Possible next steps
 
 - **Reams:** multi-page stacks with a page budget and a table of contents.
+  The library already stores pages under `a4/pages/`, so a ream could become a
+  sibling folder (`a4/reams/<name>/`) without migrating existing pages.
 - **Page lint:** a CLI that runs the same analysis over context files in CI.
 - **Exact token counts:** optional, model-specific tokenizers loaded on
   demand.
+- **More storage backends:** a user-chosen folder (File System Access API)
+  or a server. Either would implement the `PageStore` contract and pass the
+  shared contract tests.
 - **Share links:** needs a page-format decision first; the project default is
   protobuf.
 - **Assisted rewrites:** opt-in suggestions that turn a dump into a narrative
