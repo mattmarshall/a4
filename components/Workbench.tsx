@@ -269,16 +269,30 @@ export function Workbench() {
     }
   }
 
-  function downloadText() {
-    const blob = new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" });
+  function saveFile(blob: Blob, fileName: string) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${slugFromText(targetSlot.name ?? "")}.md`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function downloadText() {
+    saveFile(new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" }), `${slugFromText(targetSlot.name ?? "")}.md`);
+  }
+
+  async function exportAll() {
+    try {
+      const archive = await lib.exportAll();
+      if (!archive) return;
+      saveFile(new Blob([archive.bytes as BlobPart], { type: "application/zip" }), archive.fileName);
+      notify(`Exported ${archive.count} page${archive.count === 1 ? "" : "s"} to ${archive.fileName}`);
+    } catch (error) {
+      notify(`Export failed: ${error instanceof Error ? error.message : String(error)}`, "warn");
+    }
   }
 
   function setModeAndFit(next: Mode) {
@@ -497,6 +511,7 @@ export function Workbench() {
             onTrash={trashPage}
             onRestore={(id) => void lib.restorePage(id)}
             onPurge={(ids) => void lib.purgePages(ids)}
+            onExportAll={() => void exportAll()}
           />
         ) : null}
 

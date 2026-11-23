@@ -74,6 +74,7 @@ export function LibraryPanel({
   onTrash,
   onRestore,
   onPurge,
+  onExportAll,
 }: {
   pages: PageSummary[];
   trash: TrashEntry[];
@@ -88,6 +89,7 @@ export function LibraryPanel({
   onTrash: (name: PageName) => void;
   onRestore: (id: TrashId) => void;
   onPurge: (ids: TrashId[]) => void;
+  onExportAll: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<PageName | null>(null);
@@ -171,6 +173,16 @@ export function LibraryPanel({
         })}
         {visible.length === 0 ? <li className="lib-empty">{query ? "No pages match." : "No pages yet."}</li> : null}
       </ul>
+
+      <button
+        type="button"
+        className="btn btn-outline lib-export"
+        onClick={onExportAll}
+        disabled={pages.length === 0}
+        title="Download every page as .md files in one .zip"
+      >
+        ⇩ Export all ({pages.length}) as .zip
+      </button>
 
       <div className="lib-trash">
         <button type="button" className="lib-trash-toggle" aria-expanded={showTrash} onClick={() => setShowTrash((s) => !s)}>

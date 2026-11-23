@@ -94,6 +94,11 @@ the page text, so a file can be handed to an agent as is.
 - **Durability**: on the first edit, A4 asks the browser for persistent storage
   (`navigator.storage.persist()`). The library footer shows the active backend
   and whether storage is persistent.
+- **Export**: **Export all** in the library first saves any pending edits.
+  It then downloads `a4-pages-<date>.zip`, which holds
+  `a4-pages-<date>/<page name>.md` for every page, with the trash left out.
+  The zip encoder (`lib/zip.ts`) has no dependencies: it uses the browser's
+  `CompressionStream("deflate-raw")` and writes UTF-8 file names.
 - **Upgrading**: text from the earlier single-page version (`a4:text:a` and
   `a4:text:b`) is imported as pages on first load. The old keys are kept.
 

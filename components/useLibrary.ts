@@ -19,6 +19,7 @@ import {
   type SaveStatus,
   type SessionEvent,
 } from "@/lib/autosave";
+import { buildLibraryArchive, type LibraryArchive } from "@/lib/export";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
 import { browserKeyValue, KEYS, readKey, writeKey } from "@/lib/storage";
 import {
@@ -476,6 +477,14 @@ export function useLibrary(notify: Notify) {
     await openInSlot("a", b);
   }, [openInSlot]);
 
+  /** Save pending edits, then zip every page (not the trash). */
+  const exportAll = useCallback(async (): Promise<LibraryArchive | null> => {
+    const b = bootRef.current;
+    if (!b) return null;
+    await flushAll();
+    return buildLibraryArchive(b.store);
+  }, [flushAll]);
+
   return {
     ready,
     failure,
@@ -496,5 +505,6 @@ export function useLibrary(notify: Notify) {
     closeSlotB,
     swapSlots,
     flushAll,
+    exportAll,
   };
 }
