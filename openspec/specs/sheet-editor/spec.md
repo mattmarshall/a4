@@ -67,14 +67,15 @@ actual-size setting at 1 CSS millimeter per sheet millimeter.
 - **THEN** the sheet renders 210 CSS millimeters wide
 
 ### Requirement: Autosave
-The system SHALL save page text and the active preset and lens in browser
-storage and restore them on reload. If storage is unavailable, editing SHALL
-continue to work without saving.
+The system SHALL save the active preset, lens, grid, view mode, and open
+pages in browser storage and restore them on reload. Page text SHALL be
+persisted by the page store under the autosave guarantees. If browser storage
+is unavailable, editing SHALL continue to work.
 
 #### Scenario: Reload restores the page
 - **GIVEN** the user has typed text on the sheet
 - **WHEN** the user reloads the page
-- **THEN** the same text, preset, and lens are restored
+- **THEN** the same page, text, preset, and lens are restored
 
 #### Scenario: Storage is blocked
 - **GIVEN** browser storage throws on access

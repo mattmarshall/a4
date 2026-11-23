@@ -24,25 +24,31 @@ SHALL be Noisy or Overflowing and the narrative version SHALL be neither.
 
 #### Scenario: Loading the comparison demo
 - **WHEN** the user loads the JSON-versus-narrative demo
-- **THEN** compare mode opens with the JSON sample on page A and the narrative sample on page B
+- **THEN** two new pages holding the JSON and narrative samples are created and compare mode opens with the JSON page in slot A and the narrative page in slot B
 
 ### Requirement: Safe loading
-Loading a template or sample into a page that has text SHALL ask for
-confirmation first, and SHALL not change the page if the user declines.
+Loading a template or sample SHALL create new pages and SHALL NOT change the
+text of any existing page.
 
 #### Scenario: Declining a template
-- **GIVEN** page A has text
-- **WHEN** the user picks a template and declines the confirmation
-- **THEN** page A's text is unchanged
+- **GIVEN** page "Brief" is open with text
+- **WHEN** the user opens the templates menu and dismisses it without choosing
+- **THEN** no page is created and "Brief" is unchanged
+
+#### Scenario: Template creates a page
+- **GIVEN** page "Brief" is open with text
+- **WHEN** the user picks a template
+- **THEN** a new page holding the template is created and opened, and "Brief" is unchanged
 
 ### Requirement: Welcome page
-On a first visit with no saved text, page A SHALL contain a welcome page that
-explains A4, written as a one-page narrative that fits the Terminal page.
+On a first visit with an empty library and nothing to migrate, the system SHALL
+create a page named "Welcome" containing a welcome text that explains A4,
+written as a one-page narrative that fits the Terminal page, and open it.
 
 #### Scenario: First visit
-- **GIVEN** a browser with no saved A4 text
+- **GIVEN** a browser with no saved A4 pages
 - **WHEN** the user opens the workbench
-- **THEN** page A shows the welcome page and its verdict is not Overflowing
+- **THEN** the "Welcome" page is open and its verdict is not Overflowing
 
 ### Requirement: Why A4 explainer
 The system SHALL serve an explainer at /why that defines the problem A4

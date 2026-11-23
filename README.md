@@ -146,15 +146,19 @@ redeploy a previous Worker version from the Workers dashboard.
 ## OpenSpec
 
 Requirements are managed with [OpenSpec](https://github.com/Fission-AI/OpenSpec).
-The living specs are in `openspec/specs/`: `page-grid`, `sheet-editor`,
-`density-analysis`, `visual-lenses`, `page-comparison`, `narrative-guidance`,
-`page-export`, and `hosting`. The change that introduced them (proposal,
-design, and tasks) is archived at
-`openspec/changes/archive/2026-11-23-add-a4-workbench/`.
+The living specs are in `openspec/specs/`:
 
-In flight: `openspec/changes/add-page-library/`. It adds the page library,
-OPFS storage, and autosave, with the new `page-library`, `page-storage`, and
-`autosave` capabilities.
+- **The page:** `page-grid`, `sheet-editor`, `density-analysis`,
+  `visual-lenses`, and `page-comparison`.
+- **Guidance and export:** `narrative-guidance` and `page-export`.
+- **Pages and storage:** `page-library`, `page-storage`, and `autosave`.
+- **Deployment:** `hosting`.
+
+The changes that produced these specs, each with its proposal, design, and
+tasks, are archived under `openspec/changes/archive/`:
+
+- `2026-11-23-add-a4-workbench`
+- `2026-11-23-add-page-library`
 
 ```bash
 openspec list --specs
