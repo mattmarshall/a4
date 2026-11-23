@@ -164,6 +164,7 @@ tasks, are archived under `openspec/changes/archive/`:
 
 - `2026-11-23-add-a4-workbench`
 - `2026-11-23-add-page-library`
+- `2026-11-23-add-zip-export`
 
 ```bash
 openspec list --specs
