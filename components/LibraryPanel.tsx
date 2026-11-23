@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type KeyboardEvent } from "react";
+import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import type { PageName, PageSummary, TrashEntry, TrashId } from "@/lib/store";
 import type { Slot, StorageInfo } from "./useLibrary";
 
@@ -75,6 +75,7 @@ export function LibraryPanel({
   onRestore,
   onPurge,
   onExportAll,
+  onImport,
 }: {
   pages: PageSummary[];
   trash: TrashEntry[];
@@ -90,10 +91,12 @@ export function LibraryPanel({
   onRestore: (id: TrashId) => void;
   onPurge: (ids: TrashId[]) => void;
   onExportAll: () => void;
+  onImport: (file: File) => void;
 }) {
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<PageName | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   const now = Date.now();
 
   const visible = useMemo(() => {
@@ -174,15 +177,36 @@ export function LibraryPanel({
         {visible.length === 0 ? <li className="lib-empty">{query ? "No pages match." : "No pages yet."}</li> : null}
       </ul>
 
-      <button
-        type="button"
-        className="btn btn-outline lib-export"
-        onClick={onExportAll}
-        disabled={pages.length === 0}
-        title="Download every page as .md files in one .zip"
-      >
-        ⇩ Export all ({pages.length}) as .zip
-      </button>
+      <div className="lib-transfer">
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={onExportAll}
+          disabled={pages.length === 0}
+          title="Download every page as .md files in one .zip"
+        >
+          ⇩ Export all ({pages.length}) as .zip
+        </button>
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => fileInput.current?.click()}
+          title="Add the .md and .txt files in a .zip as pages. Existing pages are never changed."
+        >
+          ⇧ Import .zip
+        </button>
+        <input
+          ref={fileInput}
+          type="file"
+          accept=".zip,application/zip,application/x-zip-compressed"
+          hidden
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) onImport(file);
+          }}
+        />
+      </div>
 
       <div className="lib-trash">
         <button type="button" className="lib-trash-toggle" aria-expanded={showTrash} onClick={() => setShowTrash((s) => !s)}>

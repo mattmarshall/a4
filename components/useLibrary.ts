@@ -20,6 +20,7 @@ import {
   type SessionEvent,
 } from "@/lib/autosave";
 import { buildLibraryArchive, type LibraryArchive } from "@/lib/export";
+import { importZip, type ImportReport } from "@/lib/import";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
 import { browserKeyValue, KEYS, readKey, writeKey } from "@/lib/storage";
 import {
@@ -485,6 +486,22 @@ export function useLibrary(notify: Notify) {
     return buildLibraryArchive(b.store);
   }, [flushAll]);
 
+  /** Import pages from a zip. Never changes existing pages. @throws ZipError */
+  const importArchive = useCallback(
+    async (bytes: Uint8Array): Promise<ImportReport | null> => {
+      const b = bootRef.current;
+      if (!b) return null;
+      try {
+        return await importZip(b.store, bytes);
+      } finally {
+        // Refresh even after a partial import so every created page is visible.
+        await refresh();
+        broadcast("");
+      }
+    },
+    [broadcast, refresh],
+  );
+
   return {
     ready,
     failure,
@@ -506,5 +523,6 @@ export function useLibrary(notify: Notify) {
     swapSlots,
     flushAll,
     exportAll,
+    importArchive,
   };
 }

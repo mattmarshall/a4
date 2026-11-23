@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { analyze, compressibility } from "@/lib/analyze";
 import type { SaveStatus } from "@/lib/autosave";
+import { describeImport } from "@/lib/import";
 import { isLensId, LENSES, type LensId } from "@/lib/lenses";
 import {
   DEFAULT_PRESET,
@@ -295,6 +296,20 @@ export function Workbench() {
     }
   }
 
+  async function importFile(file: File) {
+    if (file.size > 100 * 1024 * 1024) {
+      notify(`Couldn’t import “${file.name}”: files over 100 MB aren’t supported.`, "warn");
+      return;
+    }
+    try {
+      const report = await lib.importArchive(new Uint8Array(await file.arrayBuffer()));
+      if (!report) return;
+      notify(describeImport(report), report.skipped.length || report.created.some((c) => c.renamedFrom) ? "warn" : "info");
+    } catch (error) {
+      notify(`Couldn’t import “${file.name}”: ${error instanceof Error ? error.message : String(error)}`, "warn");
+    }
+  }
+
   function setModeAndFit(next: Mode) {
     setMode(next);
     setZoom({ kind: "fit" });
@@ -512,6 +527,7 @@ export function Workbench() {
             onRestore={(id) => void lib.restorePage(id)}
             onPurge={(ids) => void lib.purgePages(ids)}
             onExportAll={() => void exportAll()}
+            onImport={(file) => void importFile(file)}
           />
         ) : null}
 

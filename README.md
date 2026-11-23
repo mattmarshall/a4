@@ -99,6 +99,22 @@ the page text, so a file can be handed to an agent as is.
   `a4-pages-<date>/<page name>.md` for every page, with the trash left out.
   The zip encoder (`lib/zip.ts`) has no dependencies: it uses the browser's
   `CompressionStream("deflate-raw")` and writes UTF-8 file names.
+- **Import**: **Import .zip** turns every `.md` and `.txt` file in an archive
+  into a page named after the file. Folders inside the archive are ignored,
+  and text is normalized the same way as pasted text. Import never changes an
+  existing page:
+  - A file whose name and text both match an existing page is reported as
+    unchanged, so re-importing an export creates no duplicates.
+  - A file whose name matches but whose text differs comes in as "Brief 2".
+
+  Import skips `__MACOSX/` metadata, hidden files, other file types, binary
+  files, and damaged entries, and reports what it did. The reader
+  (`lib/unzip.ts`) has no dependencies. It refuses archives that are not zips,
+  use Zip64, hold more than 5,000 entries, or expand to more than 50 MB, and it
+  checks these limits before inflating anything. While inflating, it stops at
+  each entry's declared size and verifies every checksum. Tests run it against
+  archives made by Info-ZIP, macOS Finder (`ditto`), and Python
+  (`lib/fixtures/`).
 - **Upgrading**: text from the earlier single-page version (`a4:text:a` and
   `a4:text:b`) is imported as pages on first load. The old keys are kept.
 
