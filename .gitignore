@@ -1,0 +1,12 @@
+node_modules
+.env*
+.next
+next-env.d.ts
+/dist/
+.vinext/
+.cloudflare/
+.wrangler/
+.DS_Store
+*.log
+.claude/settings.local.json
+*.tsbuildinfo
