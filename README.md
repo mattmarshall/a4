@@ -207,6 +207,7 @@ The living specs are in `openspec/specs/`:
   `visual-lenses`, and `page-comparison`.
 - **Guidance and export:** `narrative-guidance` and `page-export`.
 - **Pages and storage:** `page-library`, `page-storage`, and `autosave`.
+- **3D:** `paper-view`.
 - **Deployment:** `hosting`.
 
 The changes that produced these specs, each with its proposal, design, and
@@ -216,6 +217,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-23-add-page-library`
 - `2026-11-23-add-zip-export`
 - `2026-11-23-add-zip-import`
+- `2026-11-23-add-paper-view`
 
 ```bash
 openspec list --specs
