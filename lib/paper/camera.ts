@@ -91,6 +91,13 @@ export interface CameraOptions {
   /** Degrees of rotation around the vertical axis. */
   yaw: number;
   aspect: number;
+  /**
+   * Zoom as CSS pixels per millimeter at the sheet (an untilted sheet then
+   * appears 210 × pxPerMm CSS px wide). Needs `cssHeight`. Omit to fit.
+   */
+  pxPerMm?: number | null;
+  /** The canvas's CSS height in pixels (for `pxPerMm`). */
+  cssHeight?: number;
 }
 
 export interface Camera {
@@ -101,13 +108,14 @@ export interface Camera {
 
 export const FOV_Y = (30 * Math.PI) / 180;
 
-export function camera({ tilt, yaw, aspect }: CameraOptions): Camera {
+export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight }: CameraOptions): Camera {
   const t = (tilt * Math.PI) / 180;
   const w = (yaw * Math.PI) / 180;
   const margin = 18;
   const fitH = (PAPER_H / 2 + margin) / Math.tan(FOV_Y / 2);
   const fitW = (PAPER_W / 2 + margin) / (Math.tan(FOV_Y / 2) * aspect);
-  const dist = Math.max(fitH, fitW);
+  const dist =
+    pxPerMm && cssHeight ? cssHeight / (2 * Math.tan(FOV_Y / 2) * pxPerMm) : Math.max(fitH, fitW);
   const eye: Vec3 = [dist * Math.sin(t) * Math.sin(w), dist * Math.cos(t), dist * Math.sin(t) * Math.cos(w)];
   const target: Vec3 = [0, 0, 0];
   const f = normalize(sub(target, eye));

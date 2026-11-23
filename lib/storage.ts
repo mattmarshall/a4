@@ -14,6 +14,7 @@ export const KEYS = {
   lens: "lens",
   grid: "grid",
   mode: "mode",
+  render: "render",
   openA: "open:a",
   openB: "open:b",
   library: "library",

@@ -7,7 +7,10 @@
 import { camera, rayFromNdc, type Camera } from "./camera.ts";
 import { buildMesh, deformMesh, type PaperMesh, type Pose } from "./deform.ts";
 import { raycast, type PaperHit } from "./pick.ts";
+import { getGpuDevice, WebGpuUnavailableError } from "./gpu.ts";
 import { PAPER_WGSL } from "./shader.ts";
+
+export { WebGpuUnavailableError };
 
 export interface View {
   tilt: number;
@@ -24,13 +27,6 @@ const SAMPLES = 4;
 const BUFFER = { COPY_DST: 0x0008, INDEX: 0x0010, VERTEX: 0x0020, UNIFORM: 0x0040 } as const;
 const TEXTURE = { COPY_DST: 0x02, TEXTURE_BINDING: 0x04, RENDER_ATTACHMENT: 0x10 } as const;
 const STAGE = { VERTEX: 0x1, FRAGMENT: 0x2 } as const;
-
-export class WebGpuUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "WebGpuUnavailableError";
-  }
-}
 
 export class PaperRenderer {
   readonly canvas: HTMLCanvasElement;
@@ -53,6 +49,7 @@ export class PaperRenderer {
   #view: View = { tilt: 0, yaw: 0, lightAzimuth: 225, lightElevation: 55 };
   #desk: [number, number, number] = [0.91, 0.9, 0.87];
   #camera: Camera | null = null;
+  #zoom: number | null = null;
   #positions: Float32Array | null = null;
 
   private constructor(canvas: HTMLCanvasElement, device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
@@ -121,14 +118,10 @@ export class PaperRenderer {
   }
 
   static async create(canvas: HTMLCanvasElement): Promise<PaperRenderer> {
-    const gpu = typeof navigator !== "undefined" ? navigator.gpu : undefined;
-    if (!gpu) throw new WebGpuUnavailableError("This browser doesn’t provide WebGPU.");
-    const adapter = await gpu.requestAdapter();
-    if (!adapter) throw new WebGpuUnavailableError("WebGPU is present, but no graphics adapter is available.");
-    const device = await adapter.requestDevice();
+    const device = await getGpuDevice();
     const context = canvas.getContext("webgpu") as GPUCanvasContext | null;
     if (!context) throw new WebGpuUnavailableError("Couldn’t create a WebGPU canvas context.");
-    const format = gpu.getPreferredCanvasFormat();
+    const format = navigator.gpu.getPreferredCanvasFormat();
     context.configure({ device, format, alphaMode: "opaque" });
     return new PaperRenderer(canvas, device, context, format);
   }
@@ -164,6 +157,11 @@ export class PaperRenderer {
     this.#view = view;
   }
 
+  /** CSS px per mm at the sheet, or null to fit. */
+  setZoom(pxPerMm: number | null): void {
+    this.#zoom = pxPerMm;
+  }
+
   setDeskColor(rgb: [number, number, number]): void {
     this.#desk = rgb;
   }
@@ -191,7 +189,13 @@ export class PaperRenderer {
   render(): void {
     if (!this.#bindGroup || !this.#msaa || !this.#depth) return;
     const aspect = this.canvas.width / this.canvas.height;
-    this.#camera = camera({ tilt: this.#view.tilt, yaw: this.#view.yaw, aspect });
+    this.#camera = camera({
+      tilt: this.#view.tilt,
+      yaw: this.#view.yaw,
+      aspect,
+      pxPerMm: this.#zoom,
+      cssHeight: this.canvas.clientHeight,
+    });
     const data = new Float32Array(32);
     data.set(this.#camera.viewProj, 0);
     data.set([...this.#camera.eye, 1], 16);
@@ -243,6 +247,6 @@ export class PaperRenderer {
     this.#indexBuffer.destroy();
     this.#uniforms.destroy();
     this.#context.unconfigure();
-    this.#device.destroy();
+    // The device is shared across sheets (gpu.ts); it is not destroyed here.
   }
 }

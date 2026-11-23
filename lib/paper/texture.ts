@@ -1,13 +1,14 @@
 /**
- * Paint the page into a 2D canvas from A4's own model (grid geometry, visual
- * rows, lens segments), for use as the 3D sheet's texture. Characters are
- * placed per cell, so grid positions match the DOM sheet exactly even where
- * glyph rasterization differs.
+ * Paint a page from A4's own model (grid geometry, visual rows, lens segments)
+ * into a 2D canvas. Used both as the 3D sheet's texture and, in flat
+ * rendering, as the visible sheet under a transparent textarea. Characters are
+ * placed per cell, so grid positions are exact.
  */
 
 import type { Analysis } from "../analyze.ts";
 import { segmentsFor, type LensId } from "../lenses.ts";
 import { fontSizeMm, type PageSpec } from "../page-spec.ts";
+import type { VisualRow } from "../text.ts";
 import { PAPER_H, PAPER_W } from "./deform.ts";
 import { caretCell } from "./pick.ts";
 
@@ -17,7 +18,7 @@ interface CellStyle {
   weight?: number;
 }
 
-/** Mirrors the lens classes in app/globals.css. */
+/** Mirrors the lens colors of the original DOM sheet. */
 const CLASS_STYLE: Record<string, CellStyle> = {
   "lens-dim": { color: "#8f8a80" },
   "lens-syn": { color: "#c2410c", background: "rgba(194, 65, 12, 0.08)", weight: 600 },
@@ -41,6 +42,7 @@ const BAND: Record<string, string> = {
 const INK = "#1d1c1a";
 const PAPER = "#fdfcf8";
 const RULER = "#b3ada0";
+const CRIT = "#b42318";
 
 export interface PaintOptions {
   text: string;
@@ -51,29 +53,89 @@ export interface PaintOptions {
   fontFamily: string;
   pxPerMm: number;
   selection: { start: number; end: number; focused: boolean };
+  /** Paint rows past the page into an overflow zone below the paper (flat rendering). */
+  overflow?: boolean;
+  /** Draw the cell grid. */
+  grid?: boolean;
+  /**
+   * "texture": the painter draws caret and selection (3D).
+   * "flat": a native textarea draws them, so the painter doesn't.
+   */
+  chrome?: "texture" | "flat";
 }
 
-export function textureSize(pxPerMm: number): { width: number; height: number } {
-  return { width: Math.round(PAPER_W * pxPerMm), height: Math.round(PAPER_H * pxPerMm) };
+/** Height in mm of the painted surface (taller than A4 when overflow rows are painted). */
+export function paintedHeightMm(spec: PageSpec, rowsTotal: number, overflow: boolean): number {
+  if (!overflow || rowsTotal <= spec.rows) return PAPER_H;
+  return Math.max(PAPER_H, spec.marginY + rowsTotal * spec.cellH + 10);
 }
 
-export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintOptions): void {
+export function textureSize(pxPerMm: number, heightMm: number = PAPER_H): { width: number; height: number } {
+  return { width: Math.round(PAPER_W * pxPerMm), height: Math.round(heightMm * pxPerMm) };
+}
+
+/** Rows to print: the page's visual rows (no overflow), as top offsets in mm. */
+export function printRows(rows: readonly VisualRow[], text: string, spec: PageSpec): { topMm: number; text: string }[] {
+  return rows.slice(0, spec.rows).map((r, i) => ({ topMm: spec.marginY + i * spec.cellH, text: text.slice(r.start, r.end) }));
+}
+
+export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintOptions): { heightMm: number } {
   const { spec, analysis, text, pxPerMm: k } = o;
-  const { width, height } = textureSize(k);
+  const chrome = o.chrome ?? "texture";
+  const heightMm = paintedHeightMm(spec, analysis.rowsTotal, o.overflow ?? false);
+  const { width, height } = textureSize(k, heightMm);
   if (canvas.width !== width) canvas.width = width;
   if (canvas.height !== height) canvas.height = height;
   const ctx = canvas.getContext("2d") as CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
-  if (!ctx) return;
+  if (!ctx) return { heightMm };
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, width, height);
   ctx.fillStyle = PAPER;
-  ctx.fillRect(0, 0, width, height);
+  ctx.fillRect(0, 0, width, Math.round(PAPER_H * k));
 
   const cw = spec.cellW * k;
   const ch = spec.cellH * k;
   const left = spec.marginX * k;
   const top = spec.marginY * k;
-  const visibleRows = Math.min(spec.rows, analysis.rows.length);
+  const rowsShown = o.overflow ? analysis.rows.length : Math.min(spec.rows, analysis.rows.length);
+
+  // Overflow zone (flat rendering): hatched, from the page's last row down.
+  if (o.overflow && analysis.rowsTotal > spec.rows) {
+    const zoneTop = top + spec.rows * ch;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, zoneTop, width, height - zoneTop);
+    ctx.clip();
+    ctx.fillStyle = "rgba(180, 35, 24, 0.06)";
+    ctx.fillRect(0, zoneTop, width, height - zoneTop);
+    ctx.strokeStyle = "rgba(180, 35, 24, 0.12)";
+    ctx.lineWidth = 1.5 * k;
+    for (let x = -height; x < width; x += 3 * k) {
+      ctx.beginPath();
+      ctx.moveTo(x, height);
+      ctx.lineTo(x + (height - zoneTop), zoneTop);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.fillStyle = CRIT;
+    ctx.fillRect(0, zoneTop, width, Math.max(1, 0.4 * k));
+  }
+
+  if (o.grid) {
+    ctx.strokeStyle = "rgba(59, 91, 140, 0.14)";
+    ctx.lineWidth = Math.max(1, 0.08 * k);
+    ctx.beginPath();
+    for (let c = 0; c <= spec.cols; c++) {
+      ctx.moveTo(left + c * cw, top);
+      ctx.lineTo(left + c * cw, top + spec.rows * ch);
+    }
+    for (let r = 0; r <= spec.rows; r++) {
+      ctx.moveTo(left, top + r * ch);
+      ctx.lineTo(left + spec.cols * cw, top + r * ch);
+    }
+    ctx.stroke();
+  }
 
   // Per-character style from the active lens.
   const styleAt: (CellStyle | undefined)[] = new Array(text.length);
@@ -84,9 +146,8 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
     offset += seg.text.length;
   }
 
-  // Structure lens row bands.
   if (o.lens === "structure") {
-    for (let i = 0; i < visibleRows; i++) {
+    for (let i = 0; i < rowsShown; i++) {
       const band = BAND[analysis.lineKinds[analysis.rows[i].line] ?? ""];
       if (!band) continue;
       ctx.fillStyle = band;
@@ -94,11 +155,10 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
     }
   }
 
-  // Selection.
   const { start, end, focused } = o.selection;
-  if (focused && end > start) {
+  if (chrome === "texture" && focused && end > start) {
     ctx.fillStyle = "rgba(59, 130, 246, 0.28)";
-    for (let i = 0; i < visibleRows; i++) {
+    for (let i = 0; i < rowsShown; i++) {
       const r = analysis.rows[i];
       const a = Math.max(start, r.start);
       const b = Math.min(end, r.end);
@@ -106,8 +166,7 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
     }
   }
 
-  // Cell backgrounds, then glyphs (one cell at a time).
-  for (let i = 0; i < visibleRows; i++) {
+  for (let i = 0; i < rowsShown; i++) {
     const r = analysis.rows[i];
     for (let j = r.start; j < r.end; j++) {
       const bg = styleAt[j]?.background;
@@ -127,7 +186,7 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
   // CSS half-leading: the content area is centered in the line box.
   const baseline = (ch - (ascent + descent)) / 2 + ascent;
   let currentWeight = 400;
-  for (let i = 0; i < visibleRows; i++) {
+  for (let i = 0; i < rowsShown; i++) {
     const r = analysis.rows[i];
     const y = top + i * ch + baseline;
     for (let j = r.start; j < r.end; j++) {
@@ -144,8 +203,7 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
     }
   }
 
-  // Caret.
-  if (focused && start === end) {
+  if (chrome === "texture" && focused && start === end) {
     const cell = caretCell(analysis.rows, start);
     if (cell && cell.row < spec.rows) {
       ctx.fillStyle = INK;
@@ -173,20 +231,24 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
   // Margin ink gauge.
   const gaugeX = left + spec.cols * cw + 2 * k;
   const gaugeW = Math.min(10, spec.marginX - 4) * k;
-  for (let i = 0; i < visibleRows; i++) {
+  for (let i = 0; i < rowsShown; i++) {
     const row = analysis.rows[i];
     if (row.ink === 0) continue;
     const frac = Math.min(1, row.ink / spec.cols);
-    ctx.fillStyle = frac >= 0.85 ? "rgba(29, 28, 26, 0.55)" : "rgba(29, 28, 26, 0.3)";
+    ctx.fillStyle =
+      i >= spec.rows ? "rgba(180, 35, 24, 0.7)" : frac >= 0.85 ? "rgba(29, 28, 26, 0.55)" : "rgba(29, 28, 26, 0.3)";
     ctx.fillRect(gaugeX, top + i * ch + ch * 0.29, gaugeW * frac, ch * 0.42);
   }
 
-  // Overflow note in the bottom margin.
   if (analysis.overflow > 0) {
-    ctx.fillStyle = "#b42318";
+    ctx.fillStyle = CRIT;
     ctx.font = `600 ${2.6 * k}px ${o.fontFamily}`;
     ctx.textAlign = "right";
     ctx.textBaseline = "middle";
-    ctx.fillText(`▼ ${analysis.overflow} rows over the page`, left + spec.cols * cw, top + spec.rows * ch + (spec.marginY * k) / 2);
+    const label = `▼ ${analysis.overflow} ${analysis.overflow === 1 ? "row" : "rows"} over the page`;
+    const y = o.overflow ? top + spec.rows * ch - 1.6 * k : top + spec.rows * ch + (spec.marginY * k) / 2;
+    ctx.fillText(label, left + spec.cols * cw, y);
   }
+
+  return { heightMm };
 }

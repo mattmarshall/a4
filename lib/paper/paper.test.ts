@@ -235,3 +235,26 @@ test("the fold animation: bottom up, top down, hold, unfold, end flat", () => {
     prev = p;
   }
 });
+
+test("camera zoom: an untilted sheet spans 210 × pxPerMm CSS px", async () => {
+  const cssHeight = 800;
+  const aspect = 1.2;
+  const cssWidth = cssHeight * aspect;
+  for (const pxPerMm of [2, 3.7795, 5]) {
+    const cam = camera({ tilt: 0, yaw: 0, aspect, pxPerMm, cssHeight });
+    const [l] = projectToNdc(cam, [-PAPER_W / 2, 0, 0]);
+    const [r] = projectToNdc(cam, [PAPER_W / 2, 0, 0]);
+    const widthPx = ((r - l) / 2) * cssWidth;
+    assert.ok(Math.abs(widthPx - PAPER_W * pxPerMm) / (PAPER_W * pxPerMm) < 0.02, `${pxPerMm}: ${widthPx}`);
+  }
+});
+
+test("print rows: page rows only, positioned on the grid", async () => {
+  const { printRows } = await import("./texture.ts");
+  const text = `${"x".repeat(170)}\n${Array.from({ length: 70 }, (_, i) => `line ${i}`).join("\n")}`;
+  const rows = layoutRows(text, T.cols);
+  const out = printRows(rows, text, T);
+  assert.equal(out.length, T.rows);
+  assert.deepEqual(out.slice(0, 3).map((r) => r.text.length), [80, 80, 10]);
+  assert.ok(Math.abs(out[1].topMm - (T.marginY + T.cellH)) < 1e-9);
+});

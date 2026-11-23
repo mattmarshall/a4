@@ -17,15 +17,17 @@ import {
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
 import { KEYS, readKey, writeKey } from "@/lib/storage";
 import type { PageName } from "@/lib/store";
+import { FLAT, type Pose } from "@/lib/paper/deform";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
 import { MetricsPanel } from "./MetricsPanel";
-import { PaperView } from "./PaperView";
-import { Sheet } from "./Sheet";
+import { A4Sheet, type A4SheetHandle } from "./A4Sheet";
+import { DEFAULT_VIEW, SheetControls, type SheetView } from "./SheetControls";
 import { useLibrary, type Slot } from "./useLibrary";
 
-type Mode = "single" | "compare" | "paper";
+type Mode = "single" | "compare";
+type Render = "3d" | "flat";
 type Zoom = { kind: "fit" } | { kind: "fixed"; mm: number };
 type Toast = { message: string; tone: "info" | "warn" };
 
@@ -138,6 +140,12 @@ export function Workbench() {
   const [showLibrary, setShowLibrary] = useState(true);
   const [settingsReady, setSettingsReady] = useState(false);
   const [active, setActive] = useState<Slot>("a");
+  const [render, setRender] = useState<Render>("3d");
+  const [gpuMissing, setGpuMissing] = useState(false);
+  const [poses, setPoses] = useState<Record<Slot, Pose>>({ a: FLAT, b: FLAT });
+  const [view, setView] = useState<SheetView>(DEFAULT_VIEW);
+  const sheetA = useRef<A4SheetHandle>(null);
+  const sheetB = useRef<A4SheetHandle>(null);
   const [zoom, setZoom] = useState<Zoom>({ kind: "fit" });
   const [deskWidth, setDeskWidth] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -165,7 +173,11 @@ export function Workbench() {
     if (isPresetId(p)) setPresetId(p);
     if (isLensId(l)) setLens(l);
     if (g !== null) setShowGrid(g === "1");
-    if (m === "single" || m === "compare" || m === "paper") setMode(m);
+    // "paper" was the old separate 3D mode; 3D is now how every sheet renders.
+    if (m === "single" || m === "compare") setMode(m);
+    else if (m === "paper") setMode("single");
+    const r = readKey(KEYS.render);
+    if (r === "3d" || r === "flat") setRender(r);
     if (lb !== null) setShowLibrary(lb === "1");
     else if (window.innerWidth < 1100) setShowLibrary(false);
     setSettingsReady(true);
@@ -177,8 +189,9 @@ export function Workbench() {
     writeKey(KEYS.lens, lens);
     writeKey(KEYS.grid, showGrid ? "1" : "0");
     writeKey(KEYS.mode, mode);
+    writeKey(KEYS.render, render);
     writeKey(KEYS.library, showLibrary ? "1" : "0");
-  }, [settingsReady, presetId, lens, showGrid, mode, showLibrary]);
+  }, [settingsReady, presetId, lens, showGrid, mode, render, showLibrary]);
 
   // Keep slot B open exactly while comparing.
   useEffect(() => {
@@ -187,19 +200,6 @@ export function Workbench() {
     else void lib.closeSlotB();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, mode]);
-
-  useEffect(() => {
-    const carried = carriedSelection.current;
-    if (!carried) return;
-    carriedSelection.current = null;
-    const id = requestAnimationFrame(() => {
-      const el = document.getElementById("sheet-a") as HTMLTextAreaElement | null;
-      if (!el) return;
-      el.setSelectionRange(carried.start, carried.end);
-      if (carried.focused) el.focus({ preventScroll: true });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [mode]);
 
   // Ctrl/Cmd+S saves now instead of opening the browser's save dialog.
   useEffect(() => {
@@ -272,7 +272,7 @@ export function Workbench() {
     if (!targetSlot.name || targetSlot.text === "") return;
     if (!window.confirm(`Clear all text on “${targetSlot.name}”?`)) return;
     lib.edit(target, "");
-    document.getElementById(`sheet-${target}`)?.focus();
+    (target === "a" ? sheetA : sheetB).current?.focus();
   }
 
   async function copyText() {
@@ -324,12 +324,16 @@ export function Workbench() {
     }
   }
 
-  // Switching views remounts the page-A textarea; carry its selection across.
-  const carriedSelection = useRef<{ start: number; end: number; focused: boolean } | null>(null);
+  const effectiveRender: Render = gpuMissing ? "flat" : render;
+
+  function onSheetRender(reported: "3d" | "flat") {
+    if (reported === "flat" && render === "3d" && !gpuMissing) {
+      setGpuMissing(true);
+      notify("3D needs WebGPU, which this browser doesn’t provide, so sheets are shown flat.", "warn");
+    }
+  }
 
   function setModeAndFit(next: Mode) {
-    const el = document.getElementById("sheet-a") as HTMLTextAreaElement | null;
-    if (el) carriedSelection.current = { start: el.selectionStart, end: el.selectionEnd, focused: document.activeElement === el };
     setMode(next);
     setZoom({ kind: "fit" });
     if (next !== "compare") setActive("a");
@@ -426,13 +430,19 @@ export function Workbench() {
               <button type="button" aria-pressed={mode === "compare"} onClick={() => setModeAndFit("compare")}>
                 Compare
               </button>
+            </div>
+            <div className="seg" role="group" aria-label="Rendering">
               <button
                 type="button"
-                aria-pressed={mode === "paper"}
-                onClick={() => setModeAndFit("paper")}
-                title="Fold, curl, and light the page in 3D (WebGPU)"
+                aria-pressed={effectiveRender === "3d"}
+                disabled={gpuMissing}
+                onClick={() => setRender("3d")}
+                title={gpuMissing ? "3D needs WebGPU" : "Render sheets in 3D (WebGPU)"}
               >
                 3D
+              </button>
+              <button type="button" aria-pressed={effectiveRender === "flat"} onClick={() => setRender("flat")}>
+                Flat
               </button>
             </div>
           </div>
@@ -564,86 +574,69 @@ export function Workbench() {
               Couldn’t open page storage: {lib.failure}
             </div>
           ) : null}
-          {mode !== "compare" ? (
+          {mode === "single" ? (
             <div className="docbar">
               <PageNameField name={lib.slotA.name} onRename={(input) => lib.renamePage(lib.slotA.name!, input)} />
               <SaveStatusPill status={lib.slotA.status} />
             </div>
           ) : null}
-          {mode === "paper" ? (
-            <div className="paper-stage">
-              <PaperView text={textA} spec={spec} lens={lens} analysis={analysisA} textareaId="sheet-a" />
-              {/* The real editor stays mounted (invisible) so typing, IME, undo, and autosave are unchanged. */}
-              <div className="paper-offstage">
-                <Sheet
-                  id="sheet-a"
-                  label={lib.slotA.name ?? "Page A"}
-                  text={textA}
-                  onChange={(t) => lib.edit("a", t)}
-                  onFocus={() => setActive("a")}
-                  spec={spec}
-                  lens={lens}
-                  showGrid={false}
-                  mm={mm}
-                  analysis={analysisA}
-                  hidden={!ready || !lib.slotA.name}
-                />
-              </div>
-            </div>
-          ) : (
-          <div className="sheets">
-            <div className="sheet-col">
-              {mode === "compare" ? (
-                <div className="sheet-caption">
-                  <b>A</b>
-                  {slotPicker("a")}
-                  <SaveStatusPill status={lib.slotA.status} />
-                  <span>
-                    {analysisA.verdict} · ≈{analysisA.tokens.toLocaleString("en-US")} tokens
-                  </span>
-                </div>
-              ) : null}
-              <Sheet
-                id="sheet-a"
-                label={lib.slotA.name ?? "Page A"}
-                text={textA}
-                onChange={(t) => lib.edit("a", t)}
-                onFocus={() => setActive("a")}
-                spec={spec}
-                lens={lens}
-                showGrid={showGrid}
-                mm={mm}
-                analysis={analysisA}
-                hidden={!ready || !lib.slotA.name}
-              />
-            </div>
-            {mode === "compare" ? (
-              <div className="sheet-col">
-                <div className="sheet-caption">
-                  <b>B</b>
-                  {slotPicker("b")}
-                  <SaveStatusPill status={lib.slotB.status} />
-                  <span>
-                    {analysisB.verdict} · ≈{analysisB.tokens.toLocaleString("en-US")} tokens
-                  </span>
-                </div>
-                <Sheet
-                  id="sheet-b"
-                  label={lib.slotB.name ?? "Page B"}
-                  text={textB}
-                  onChange={(t) => lib.edit("b", t)}
-                  onFocus={() => setActive("b")}
-                  spec={spec}
-                  lens={lens}
-                  showGrid={showGrid}
-                  mm={mm}
-                  analysis={analysisB}
-                  hidden={!ready || !lib.slotB.name}
-                />
-              </div>
-            ) : null}
+          {effectiveRender === "3d" ? (
+            <SheetControls
+              active={target}
+              compare={mode === "compare"}
+              pose={poses[target]}
+              onPose={(pose) => setPoses((p) => ({ ...p, [target]: pose }))}
+              view={view}
+              onView={setView}
+              onFold={() => (target === "a" ? sheetA : sheetB).current?.fold()}
+              onReset={() => {
+                setPoses({ a: FLAT, b: FLAT });
+                setView(DEFAULT_VIEW);
+              }}
+            />
+          ) : null}
+          <div className={`sheets render-${effectiveRender}`}>
+            {(["a", "b"] as const)
+              .filter((slot) => slot === "a" || mode === "compare")
+              .map((slot) => {
+                const state = slot === "a" ? lib.slotA : lib.slotB;
+                const analysis = slot === "a" ? analysisA : analysisB;
+                return (
+                  <div key={slot} className="sheet-col" data-active={mode === "compare" && target === slot ? "" : undefined}>
+                    {mode === "compare" ? (
+                      <div className="sheet-caption">
+                        <b>{slot.toUpperCase()}</b>
+                        {slotPicker(slot)}
+                        <SaveStatusPill status={state.status} />
+                        <span>
+                          {analysis.verdict} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
+                        </span>
+                      </div>
+                    ) : null}
+                    <A4Sheet
+                      ref={slot === "a" ? sheetA : sheetB}
+                      className={!ready || !state.name ? "sheet-hidden" : undefined}
+                      value={state.text}
+                      onValue={(t) => lib.edit(slot, t)}
+                      onFocus={() => setActive(slot)}
+                      onRender={onSheetRender}
+                      onViewChange={({ tilt, turn }) => setView((v) => ({ ...v, tilt, turn }))}
+                      onPoseChange={(pose) => setPoses((p) => ({ ...p, [slot]: pose }))}
+                      preset={presetId}
+                      lens={lens}
+                      render={effectiveRender}
+                      pose={poses[slot]}
+                      tilt={view.tilt}
+                      turn={view.turn}
+                      light={view.light}
+                      zoom={zoom.kind === "fit" ? null : zoom.mm}
+                      grid={showGrid}
+                      label={`${state.name ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
+                    />
+                  </div>
+                );
+              })}
           </div>
-          )}
         </main>
 
         <aside className="sidebar" aria-label="Page analysis">
