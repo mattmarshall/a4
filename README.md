@@ -57,9 +57,37 @@ pnpm dev          # http://localhost:5173
 ## Deploy to a4.marsh.build
 
 The Worker is defined in `cloudflare.config.ts` (name `a4`,
-`domains: ["a4.marsh.build"]`). Deploying creates the custom-domain DNS
-record and certificate. This requires the `marsh.build` zone to be on the
-deploying Cloudflare account.
+`domains: ["a4.marsh.build"]`). A deploy uploads a new Worker version,
+promotes it, and applies the custom domain. That requires the `marsh.build`
+zone to be on the deploying Cloudflare account.
+
+### Continuous deployment (GitHub Actions)
+
+`.github/workflows/deploy.yml` runs test, typecheck, and build on every push
+and pull request. On pushes to `main` (or a manual run on `main`), it then runs
+`pnpm run deploy` and smoke-tests `/`, `/why`, and a 404 on the live site.
+
+The deploy job needs two repository secrets:
+
+- `CLOUDFLARE_ACCOUNT_ID`: the account that owns the `marsh.build` zone.
+- `CLOUDFLARE_API_TOKEN`: an API token created in the Cloudflare dashboard
+  (My Profile → API Tokens) from the **Edit Cloudflare Workers** template.
+  Scope it to that account and the `marsh.build` zone, and add
+  **Zone → DNS → Edit** for the custom domain.
+
+```bash
+gh secret set CLOUDFLARE_ACCOUNT_ID --repo mattmarshall/a4
+```
+
+```bash
+gh secret set CLOUDFLARE_API_TOKEN --repo mattmarshall/a4
+```
+
+Each command prompts for the value, so it never lands in shell history. If
+the secrets are missing, the deploy job fails with a message that says so.
+Pull requests never deploy.
+
+### Manual deploy
 
 ```bash
 pnpm exec cf auth login
@@ -69,10 +97,8 @@ pnpm exec cf auth login
 pnpm run deploy
 ```
 
-For CI, set `CLOUDFLARE_API_TOKEN` (Workers Scripts: Edit, plus Zone DNS: Edit
-and Workers Routes: Edit on `marsh.build`) and `CLOUDFLARE_ACCOUNT_ID`
-instead of logging in. To roll back, deploy a previous version from the
-Workers dashboard.
+Use `run`: bare `pnpm deploy` is a built-in pnpm command. To roll back,
+redeploy a previous Worker version from the Workers dashboard.
 
 ## OpenSpec
 

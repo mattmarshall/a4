@@ -28,7 +28,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "start": "vite preview",
-    "test": "node --test lib/",
+    "test": "node --test 'lib/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "check": "pnpm test && pnpm typecheck && pnpm build",
     "deploy": "vinext-cloudflare deploy"
