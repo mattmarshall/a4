@@ -11,12 +11,26 @@ import { BUNDLED_CARDS, formatBytes } from "@/lib/models/cards";
 import type { FindingResult } from "@/lib/models/host";
 import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
 import { SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
+import { cellValue, RESTATE_SIMILARITY, SIMILARITY_FLOOR } from "@/lib/models/semantic/similarity";
+import { heatFill } from "@/lib/paper/heat";
 import type { ModelsState } from "./useModels";
 
 export function whereItRuns(card: ModelCard): string {
   if (card.sendsTextOffDevice) return `Sends the page to ${card.destinationHost}, only after you confirm each request`;
   if (card.placement === Placement.BROWSER) return "Runs in your browser; page text stays on this device";
   return "Runs on this device";
+}
+
+/** A swatch showing the exact tint a similarity gets on the sheet. */
+export function HeatSwatch({ similarity }: { similarity: number }) {
+  const fill = heatFill(cellValue(similarity));
+  return (
+    <span
+      className="heat-swatch"
+      aria-hidden="true"
+      style={{ backgroundImage: fill ? `linear-gradient(${fill}, ${fill})` : undefined }}
+    />
+  );
 }
 
 export interface SemanticSummary {
@@ -102,21 +116,33 @@ export function ModelsPanel({
                     {summary.sheet ? `Sheet ${summary.sheet}: ` : ""}
                     {summary.stale
                       ? "Rescoring…"
-                      : summary.restating === 0
-                        ? `No restatements among ${summary.units} sentences and fields.`
-                        : `${summary.restating} of ${summary.units} sentences and fields restate another.`}
+                      : `${summary.restating === 0 ? "None" : summary.restating} of ${summary.units} sentences and fields restate another (${RESTATE_SIMILARITY.toFixed(2)} or more).`}
                   </span>
-                  {summary.pairs.length && !summary.stale ? (
-                    <ol className="restate-list">
-                      {summary.pairs.map((pair, i) => (
-                        <li key={i}>
-                          <button type="button" className="restate-pair" onClick={() => onSelectPair(pair)} title="Select the later sentence">
-                            <span className="num">{pair.value.toFixed(2)}</span>
-                            <span>{pair.label}</span>
-                          </button>
-                        </li>
-                      ))}
-                    </ol>
+                  {!summary.stale ? (
+                    summary.pairs.length ? (
+                      <>
+                        <span className="model-status">Closest pairs, most similar first:</span>
+                        <ol className="restate-list">
+                          {summary.pairs.map((pair, i) => (
+                            <li key={i}>
+                              <button
+                                type="button"
+                                className="restate-pair"
+                                data-restates={pair.value >= RESTATE_SIMILARITY ? "" : undefined}
+                                onClick={() => onSelectPair(pair)}
+                                title="Select the later sentence"
+                              >
+                                <HeatSwatch similarity={pair.value} />
+                                <span className="num">{pair.value.toFixed(2)}</span>
+                                <span>{pair.label}</span>
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      </>
+                    ) : (
+                      <span className="model-status">No pairs score {SIMILARITY_FLOOR.toFixed(2)} or more.</span>
+                    )
                   ) : null}
                 </div>
               ) : null}

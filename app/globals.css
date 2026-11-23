@@ -1176,7 +1176,8 @@ select {
 
 .restate-pair {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto auto 1fr;
+  align-items: center;
   gap: 8px;
   width: 100%;
   padding: 5px 8px;
@@ -1267,7 +1268,20 @@ select {
 
 .swatch-model-heat {
   width: 48px;
-  background: linear-gradient(90deg, rgba(109, 40, 217, 0), rgba(109, 40, 217, 0.5));
+  background: linear-gradient(90deg, rgba(109, 40, 217, 0), rgba(109, 40, 217, 0.5)), var(--paper);
+}
+
+/* The exact sheet tint for a pair's similarity, over paper. */
+.heat-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background-color: var(--paper);
+}
+
+.restate-pair[data-restates] .num {
+  font-weight: 600;
 }
 
 /* ------------------------------------------------------------------------

@@ -55,20 +55,32 @@ function twoUnits(): { text: string; units: Unit[] } {
 
 test("model lens values: below the floor every cell holds 0", () => {
   const { text, units } = twoUnits();
-  const score = scoreUnits(text, units, withSimilarity(0.62), T);
+  const score = scoreUnits(text, units, withSimilarity(0.55), T);
   assert.equal(score.values.length, 60 * 80);
   assert.ok(score.values.every((v) => v === 0));
   assert.equal(score.restating, 0);
+  assert.equal(score.pairs.length, 0, "pairs below the floor aren't listed");
 });
 
-test("model lens values: a 0.91 match fills each unit's cells with 0.7", () => {
+test("model lens values: a partial restatement at 0.68 gets a light tint and is listed, but doesn't count as restating", () => {
   const { text, units } = twoUnits();
-  const score = scoreUnits(text, units, withSimilarity(0.91), T);
-  assert.ok(Math.abs(cellValue(0.91) - 0.7) < 1e-9);
+  const score = scoreUnits(text, units, withSimilarity(0.68), T);
+  assert.ok(Math.abs(cellValue(0.68) - 0.2) < 1e-9);
+  assert.ok(Math.abs(score.values[0] - 0.2) < 1e-5);
+  assert.equal(score.restating, 0);
+  assert.equal(score.pairs.length, 1);
+  assert.ok(Math.abs(score.pairs[0].similarity - 0.68) < 1e-5);
+  assert.equal(score.pairs[0].b, 1, "the later unit is b");
+});
+
+test("model lens values: a 0.90 match fills each unit's cells with 0.75", () => {
+  const { text, units } = twoUnits();
+  const score = scoreUnits(text, units, withSimilarity(0.9), T);
+  assert.ok(Math.abs(cellValue(0.9) - 0.75) < 1e-9);
   // Row 0 holds unit 0 ("First sentence goes here."), row 1 holds unit 1.
   for (const [row, unit] of [[0, units[0]], [1, units[1]]] as const) {
     const len = unit.end - unit.start;
-    for (let c = 0; c < len; c++) assert.ok(Math.abs(score.values[row * 80 + c] - 0.7) < 1e-5);
+    for (let c = 0; c < len; c++) assert.ok(Math.abs(score.values[row * 80 + c] - 0.75) < 1e-5);
     assert.equal(score.values[row * 80 + len], 0);
   }
   assert.equal(score.restating, 2);

@@ -159,7 +159,7 @@ servePort(
           { name: "restating", value: scored.restating },
         ],
         findings: scored.pairs.map((pair) => ({
-          kind: "restates",
+          kind: "similar",
           spans: [span(pair.a), span(pair.b)],
           value: pair.similarity,
           label: units[pair.b].text,

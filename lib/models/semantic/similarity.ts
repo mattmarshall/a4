@@ -9,12 +9,16 @@ import type { Unit } from "./units.ts";
 
 /** Similarity at which a unit counts as restating another. */
 export const RESTATE_SIMILARITY = 0.85;
-/** Similarity below which a unit's cells hold 0. */
-export const SIMILARITY_FLOOR = 0.7;
-/** Most restating pairs listed in the summary. */
+/**
+ * Where the scale starts: below this a unit's cells hold 0 and its pairs
+ * aren't listed. Unrelated sentences score far lower (under 0.2 in
+ * calibration), so they stay clear.
+ */
+export const SIMILARITY_FLOOR = 0.6;
+/** Most pairs listed in the summary. */
 export const MAX_PAIRS = 5;
 
-export interface RestatingPair {
+export interface SimilarPair {
   /** Index of the earlier unit. */
   a: number;
   /** Index of the later unit, the one to consider cutting. */
@@ -29,13 +33,13 @@ export interface SemanticScore {
   cols: number;
   /** Each unit's highest similarity to another non-identical unit. */
   best: number[];
-  /** Units that restate at least one other. */
+  /** Units that restate at least one other (similarity of 0.85 or more). */
   restating: number;
-  /** The most similar restating pairs, most similar first. */
-  pairs: RestatingPair[];
+  /** The closest pairs at or above the floor, most similar first. */
+  pairs: SimilarPair[];
 }
 
-/** A unit's value from its best similarity: clamp((s − 0.70) / 0.30, 0, 1). */
+/** A unit's value from its best similarity: clamp((s − 0.60) / 0.40, 0, 1). */
 export function cellValue(similarity: number): number {
   return Math.min(1, Math.max(0, (similarity - SIMILARITY_FLOOR) / (1 - SIMILARITY_FLOOR)));
 }
@@ -62,14 +66,14 @@ export function scoreUnits(
   const rows = Math.max(shape.rows, rowsLaid.length);
   const values = new Float32Array(rows * shape.cols);
   const best = units.map(() => 0);
-  const candidates: RestatingPair[] = [];
+  const candidates: SimilarPair[] = [];
   for (let i = 0; i < units.length; i++) {
     for (let j = i + 1; j < units.length; j++) {
       if (sameText(units[i], units[j])) continue; // duplicate lines are reported elsewhere
       const s = dot(vectors[i], vectors[j]);
       if (s > best[i]) best[i] = s;
       if (s > best[j]) best[j] = s;
-      if (s >= RESTATE_SIMILARITY) candidates.push({ a: i, b: j, similarity: s });
+      if (s >= SIMILARITY_FLOOR) candidates.push({ a: i, b: j, similarity: s });
     }
   }
   units.forEach((unit, i) => {

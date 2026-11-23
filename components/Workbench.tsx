@@ -314,7 +314,13 @@ export function Workbench() {
   const sheetLens = modelLens ? (`model:${modelLens}` as const) : lens;
   const modelLegend =
     modelLens === SEMANTIC_REPETITION_ID
-      ? { plane: "Semantic repetition", plugin: SEMANTIC_REPETITION_CARD.name, model: SEMANTIC_REPETITION_CARD.model }
+      ? {
+          plane: "Semantic repetition",
+          plugin: SEMANTIC_REPETITION_CARD.name,
+          model: SEMANTIC_REPETITION_CARD.model,
+          scale: "similarity 0.60 → 1.00",
+          note: "Darker means closer in meaning. 0.85 or more counts as restating.",
+        }
       : null;
   const semanticAvailable = models.status[SEMANTIC_REPETITION_ID] === "ready";
 
@@ -328,7 +334,7 @@ export function Workbench() {
       sheet: mode === "compare" ? target.toUpperCase() : "",
       restating: value("restating"),
       units: value("units"),
-      pairs: result.findings.filter((f) => f.kind === "restates"),
+      pairs: result.findings.filter((f) => f.kind === "similar"),
       stale: result.planes[0]?.text !== text || result.preset !== spec.id,
     };
   })();

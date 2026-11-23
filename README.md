@@ -249,20 +249,25 @@ thing in different words, which the string-based Repetition lens can't see.
 
 - **Using it.** In the sidebar's Models list, choose **Download (38.0 MB)**
   once. Then turn on the **Semantic** lens, next to the built-in lenses.
-  - The sheet tints each unit by how closely it restates another.
-  - The sidebar says how many units restate another, and lists up to 5 pairs
-    with their similarity. Selecting a pair selects the later sentence, the
-    one to consider cutting.
+  - The sheet tints each unit on a continuous scale by how close its nearest
+    match is in meaning: faint at 0.60 (loosely related) up to the darkest
+    at 1.0 (the same idea). Unrelated text stays clear.
+  - The sidebar counts the units that restate another (0.85 or more). It also
+    lists the 5 closest pairs on the page at 0.60 or more, each with its
+    similarity and a swatch of its tint. Selecting a pair selects the later
+    sentence, the one to consider cutting.
   - While the lens is on, the page is rescored 1,500 ms after you stop typing.
     Until then the sheet shows Ink rather than stale values.
 - **Units.** A unit is a sentence in a prose paragraph (a list item starts a
   new paragraph), or a whole structured or heading line. Units with fewer
   than 12 non-whitespace characters are skipped.
-- **Thresholds.** A unit restates another at a cosine similarity of 0.85 or
-  more. Its cells hold `clamp((s − 0.70) / 0.30, 0, 1)`, where `s` is its
-  highest similarity, so unrelated text stays untinted. Units identical apart
+- **Scale.** A unit's cells hold `clamp((s − 0.60) / 0.40, 0, 1)`, where `s`
+  is its highest cosine similarity to another unit. It counts as restating at
+  0.85 or more. A shorter sentence that repeats part of a longer one often
+  lands between those (about 0.7), so it shows as a lighter tint and in the
+  list, without being counted as a restatement. Units identical apart
   from case and whitespace don't count, since duplicate lines are reported
-  already. Calibration data is in the change's `calibration.md`.
+  already. Calibration data is in the archived changes' `calibration.md` files.
 - **Privacy.** Everything runs in a Web Worker in your browser, and scoring
   makes no network request.
 - **What the download contains:**

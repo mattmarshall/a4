@@ -75,6 +75,10 @@ export interface ModelLegend {
   plane: string;
   plugin: string;
   model?: string;
+  /** What 0 and 1 mean for this plane, e.g. "similarity 0.60 → 1.00". */
+  scale?: string;
+  /** A note on the scale, e.g. where a threshold sits. */
+  note?: string;
 }
 
 export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend | null }) {
@@ -86,8 +90,13 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
         </div>
         <div className="legend-row">
           <span className="swatch swatch-model-heat" />
-          <span>0 → 1</span>
+          <span>{model.scale ?? "0 → 1"}</span>
         </div>
+        {model.note ? (
+          <div className="legend-row" style={{ color: "var(--muted)" }}>
+            {model.note}
+          </div>
+        ) : null}
         <div className="legend-row">
           <span>
             <strong>{model.plane}</strong> · {model.plugin} plugin{model.model ? `, ${model.model}` : ""}

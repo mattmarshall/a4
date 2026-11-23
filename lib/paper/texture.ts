@@ -69,16 +69,9 @@ export interface PaintOptions {
   heat?: { values: Float32Array; cols: number };
 }
 
-/** The strongest model-lens tint, at a value of 1. */
-export const HEAT_RGB = "109, 40, 217";
-export const HEAT_MAX_ALPHA = 0.5;
-
-/** Fill style for a model-lens value, or null for no tint. */
-export function heatFill(value: number): string | null {
-  const v = Math.min(1, Math.max(0, value));
-  if (!(v > 0)) return null;
-  return `rgba(${HEAT_RGB}, ${(HEAT_MAX_ALPHA * v).toFixed(4)})`;
-}
+// Model-lens tint; shared with the UI's swatches, so it lives in its own module.
+export { HEAT_MAX_ALPHA, HEAT_RGB, heatFill } from "./heat.ts";
+import { heatFill } from "./heat.ts";
 
 /** Height in mm of the painted surface (taller than A4 when overflow rows are painted). */
 export function paintedHeightMm(spec: PageSpec, rowsTotal: number, overflow: boolean): number {
