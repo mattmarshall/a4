@@ -59,7 +59,10 @@ export default function ElementPage() {
             <td>
               <code>preset</code> · <code>lens</code>
             </td>
-            <td>terminal, pica, elite, dense · ink, syntax, repetition, structure, tokens</td>
+            <td>
+              terminal, pica, elite, dense · ink, syntax, repetition, structure, tokens, or{" "}
+              <code>model:&lt;name&gt;</code> for a plane
+            </td>
           </tr>
           <tr>
             <td>
@@ -84,7 +87,8 @@ export default function ElementPage() {
       <p>
         Events: <code>input</code> (composed), <code>a4-focus</code>, <code>a4-render</code> (&quot;3d&quot; or
         &quot;flat&quot;), <code>a4-viewchange</code>, <code>a4-posechange</code>. Methods: <code>focus()</code>,{" "}
-        <code>fold()</code>, <code>setSelectionRange()</code>. Styling hooks: <code>--a4-font</code>,{" "}
+        <code>fold()</code>, <code>setSelectionRange()</code>, <code>setPlane(name, {"{ text, values }"})</code>,{" "}
+        <code>removePlane(name)</code>. Styling hooks: <code>--a4-font</code>,{" "}
         <code>--a4-desk</code>, <code>--a4-3d-height</code>, <code>--a4-radius</code>, <code>--a4-shadow</code>.
       </p>
     </main>

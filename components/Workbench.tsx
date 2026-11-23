@@ -22,7 +22,13 @@ import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
 import { MetricsPanel } from "./MetricsPanel";
+import { FitToPage } from "./FitToPage";
+import { ModelsPanel, type SemanticSummary } from "./ModelsPanel";
 import { A4Sheet, type A4SheetHandle } from "./A4Sheet";
+import { useModels } from "./useModels";
+import type { A4Plane } from "@/lib/element/a4-sheet";
+import type { FindingResult, ScoreResult, TransformResult } from "@/lib/models/host";
+import { SEMANTIC_REPETITION_CARD, SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
 import { DEFAULT_VIEW, SheetControls, type SheetView } from "./SheetControls";
 import { useLibrary, type Slot } from "./useLibrary";
 
@@ -30,6 +36,9 @@ type Mode = "single" | "compare";
 type Render = "3d" | "flat";
 type Zoom = { kind: "fit" } | { kind: "fixed"; mm: number };
 type Toast = { message: string; tone: "info" | "warn" };
+
+/** Rescore a model lens this long after the author stops typing. */
+const RESCORE_MS = 1500;
 
 const ZOOM_STEPS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 const MIN_MM = 1.2;
@@ -251,6 +260,106 @@ export function Workbench() {
   const target: Slot = mode === "compare" ? active : "a";
   const targetSlot = target === "a" ? lib.slotA : lib.slotB;
 
+  // --- Models -------------------------------------------------------------
+  // A model lens replaces the built-in lens while it's on; only built-in
+  // lenses are saved in settings, since planes don't survive a reload.
+  const models = useModels();
+  const [modelLens, setModelLens] = useState<string | null>(null);
+  const [scored, setScored] = useState<Record<Slot, (ScoreResult & { preset: PresetId }) | null>>({ a: null, b: null });
+  const slotsShown: Slot[] = mode === "compare" ? ["a", "b"] : ["a"];
+
+  const scoreSlot = useCallback(
+    async (slot: Slot, text: string) => {
+      try {
+        const result = await models.score(SEMANTIC_REPETITION_ID, text, spec);
+        setScored((s) => ({ ...s, [slot]: { ...result, preset: spec.id } }));
+      } catch (error) {
+        notify(`Semantic repetition: ${error instanceof Error ? error.message : String(error)}`, "warn");
+      }
+    },
+    [models.score, spec, notify], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  function chooseLens(id: LensId) {
+    setModelLens(null);
+    setLens(id);
+  }
+
+  function showSemantic() {
+    setModelLens(SEMANTIC_REPETITION_ID);
+    for (const slot of slotsShown) void scoreSlot(slot, slot === "a" ? textA : textB);
+  }
+
+  // While the Semantic repetition lens is on, rescore each shown page 1,500 ms
+  // after its text (or the preset) stops changing.
+  useEffect(() => {
+    if (modelLens !== SEMANTIC_REPETITION_ID || models.status[SEMANTIC_REPETITION_ID] !== "ready") return;
+    const timers = slotsShown.map((slot) => {
+      const text = slot === "a" ? textA : textB;
+      const current = scored[slot];
+      if (current && current.preset === spec.id && current.planes[0]?.text === text) return 0;
+      return window.setTimeout(() => void scoreSlot(slot, text), RESCORE_MS);
+    });
+    return () => timers.forEach((t) => t && clearTimeout(t));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelLens, models.status, textA, textB, spec.id, mode, scoreSlot]);
+
+  function planesFor(slot: Slot): Record<string, A4Plane> | undefined {
+    const result = scored[slot];
+    if (!result || result.preset !== spec.id) return undefined;
+    return Object.fromEntries(result.planes.map((p) => [p.pluginId, { text: p.text, values: p.values, label: p.label }]));
+  }
+  const planesA = useMemo(() => planesFor("a"), [scored.a, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const planesB = useMemo(() => planesFor("b"), [scored.b, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const sheetLens = modelLens ? (`model:${modelLens}` as const) : lens;
+  const modelLegend =
+    modelLens === SEMANTIC_REPETITION_ID
+      ? { plane: "Semantic repetition", plugin: SEMANTIC_REPETITION_CARD.name, model: SEMANTIC_REPETITION_CARD.model }
+      : null;
+  const semanticAvailable = models.status[SEMANTIC_REPETITION_ID] === "ready";
+
+  const semanticSummary: SemanticSummary | null = (() => {
+    if (modelLens !== SEMANTIC_REPETITION_ID) return null;
+    const result = scored[target];
+    const text = target === "a" ? textA : textB;
+    if (!result) return { sheet: mode === "compare" ? target.toUpperCase() : "", restating: 0, units: 0, pairs: [], stale: true };
+    const value = (name: string) => result.scores.find((x) => x.name === name)?.value ?? 0;
+    return {
+      sheet: mode === "compare" ? target.toUpperCase() : "",
+      restating: value("restating"),
+      units: value("units"),
+      pairs: result.findings.filter((f) => f.kind === "restates"),
+      stale: result.planes[0]?.text !== text || result.preset !== spec.id,
+    };
+  })();
+
+  // Fit to page: the result opens as B, beside its source as A.
+  async function openFitResult(sourceName: string, result: TransformResult) {
+    setMode("compare");
+    setZoom({ kind: "fit" });
+    if (lib.slotA.name !== sourceName) {
+      if (lib.slotB.name === sourceName) await lib.swapSlots();
+      else await lib.openInSlot("a", sourceName as PageName);
+    }
+    const name = await lib.createPage(`${sourceName} (fit)`, result.text, "b");
+    setActive("b");
+    if (!name) return;
+    notify(
+      result.fits
+        ? `Created “${name}”: it fits in ${result.rowsUsed} of ${result.rowsAllowed} rows.`
+        : `Created “${name}”, but it’s still over by ${result.overBy} rows after ${result.attempts} attempts.`,
+      result.fits ? "info" : "warn",
+    );
+  }
+
+  function selectLaterUnit(pair: FindingResult) {
+    const later = pair.spans[pair.spans.length - 1];
+    const el = (target === "a" ? sheetA : sheetB).current?.element();
+    if (!el || !later) return;
+    el.focus();
+    el.setSelectionRange(later.start, later.end);
+  }
+
   async function newPage(desired: string, text: string) {
     setMenuOpen(false);
     const name = await lib.createPage(desired, text, target);
@@ -403,13 +512,24 @@ export function Workbench() {
                 <button
                   key={l.id}
                   type="button"
-                  aria-pressed={lens === l.id}
+                  aria-pressed={!modelLens && lens === l.id}
                   title={l.hint}
-                  onClick={() => setLens(l.id)}
+                  onClick={() => chooseLens(l.id)}
                 >
                   {l.name}
                 </button>
               ))}
+              {semanticAvailable ? (
+                <button
+                  type="button"
+                  className="lens-model"
+                  aria-pressed={modelLens === SEMANTIC_REPETITION_ID}
+                  title="Model lens: sentences and fields that restate one another (runs in your browser)"
+                  onClick={showSemantic}
+                >
+                  Semantic
+                </button>
+              ) : null}
             </div>
           </div>
 
@@ -623,7 +743,8 @@ export function Workbench() {
                       onViewChange={({ tilt, turn }) => setView((v) => ({ ...v, tilt, turn }))}
                       onPoseChange={(pose) => setPoses((p) => ({ ...p, [slot]: pose }))}
                       preset={presetId}
-                      lens={lens}
+                      lens={sheetLens}
+                      planes={slot === "a" ? planesA : planesB}
                       render={effectiveRender}
                       pose={poses[slot]}
                       tilt={view.tilt}
@@ -647,14 +768,30 @@ export function Workbench() {
               compressA={compressA}
               compressB={compressB}
               lens={lens}
+              modelLegend={modelLegend}
               onSwap={() => void lib.swapSlots()}
               onCopyAToB={() => {
                 if (lib.slotA.name) void lib.duplicatePage(lib.slotA.name, "b");
               }}
             />
           ) : (
-            <MetricsPanel analysis={analysisA} spec={spec} lens={lens} compress={compressA} />
+            <MetricsPanel analysis={analysisA} spec={spec} lens={lens} modelLegend={modelLegend} compress={compressA} />
           )}
+          <ModelsPanel
+            models={models}
+            semanticActive={modelLens === SEMANTIC_REPETITION_ID}
+            onScore={() => showSemantic()}
+            summary={semanticSummary}
+            onSelectPair={selectLaterUnit}
+            fit={
+              <FitToPage
+                page={{ name: targetSlot.name, text: targetSlot.text }}
+                spec={spec}
+                host={models.host}
+                onResult={openFitResult}
+              />
+            }
+          />
         </aside>
       </div>
 

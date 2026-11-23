@@ -5,7 +5,6 @@
  */
 
 import type { PageSpec } from "../page-spec.ts";
-import type { VisualRow } from "../text.ts";
 import { PAPER_H, PAPER_W, type PaperMesh, type Vec3 } from "./deform.ts";
 
 export interface PaperHit {
@@ -79,21 +78,6 @@ export function cellAt(x: number, y: number, spec: PageSpec): { row: number; col
   return { row, col };
 }
 
-/** Text offset for a cell: before its character, or the row's end when the row is shorter. */
-export function caretOffset(rows: readonly VisualRow[], textLength: number, row: number, col: number): number {
-  const r = rows[row];
-  if (!r) return textLength;
-  return r.start + Math.min(col, r.end - r.start);
-}
-
-/** Row and column of a caret offset (wrap boundaries go to the next row). */
-export function caretCell(rows: readonly VisualRow[], offset: number): { row: number; col: number } | null {
-  for (let i = 0; i < rows.length; i++) {
-    const r = rows[i];
-    if (offset < r.start || offset > r.end) continue;
-    const next = rows[i + 1];
-    if (offset === r.end && next && next.line === r.line && next.continuation) continue;
-    return { row: i, col: offset - r.start };
-  }
-  return null;
-}
+// Offset ↔ cell mapping lives with the grid codec, so the renderers and the
+// tensor views share one implementation.
+export { cellToOffset as caretOffset, offsetToCell as caretCell } from "../tensor/cells.ts";

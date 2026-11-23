@@ -62,6 +62,22 @@ export interface PaintOptions {
    * "flat": a native textarea draws them, so the painter doesn't.
    */
   chrome?: "texture" | "flat";
+  /**
+   * A model lens: one value in [0, 1] per cell of the page's grid (row-major,
+   * `cols` wide). Each cell is tinted in proportion to its value.
+   */
+  heat?: { values: Float32Array; cols: number };
+}
+
+/** The strongest model-lens tint, at a value of 1. */
+export const HEAT_RGB = "109, 40, 217";
+export const HEAT_MAX_ALPHA = 0.5;
+
+/** Fill style for a model-lens value, or null for no tint. */
+export function heatFill(value: number): string | null {
+  const v = Math.min(1, Math.max(0, value));
+  if (!(v > 0)) return null;
+  return `rgba(${HEAT_RGB}, ${(HEAT_MAX_ALPHA * v).toFixed(4)})`;
 }
 
 /** Height in mm of the painted surface (taller than A4 when overflow rows are painted). */
@@ -152,6 +168,21 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
       if (!band) continue;
       ctx.fillStyle = band;
       ctx.fillRect(left, top + i * ch, spec.cols * cw, ch);
+    }
+  }
+
+  if (o.heat) {
+    const { values, cols } = o.heat;
+    // A plane covers the whole grid, not just rows that hold text: tint every
+    // painted row (the page, plus overflow rows when they are painted).
+    const heatRows = Math.min(Math.floor(values.length / cols), o.overflow ? Math.max(spec.rows, rowsShown) : spec.rows);
+    for (let i = 0; i < heatRows; i++) {
+      for (let c = 0; c < Math.min(cols, spec.cols); c++) {
+        const fill = heatFill(values[i * cols + c] ?? 0);
+        if (!fill) continue;
+        ctx.fillStyle = fill;
+        ctx.fillRect(left + c * cw, top + i * ch, cw, ch);
+      }
     }
   }
 

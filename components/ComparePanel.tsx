@@ -2,7 +2,7 @@
 
 import { VERDICT_SUMMARY, type Analysis } from "@/lib/analyze";
 import type { LensId } from "@/lib/lenses";
-import { LensLegend, num, pct, VerdictChip } from "./MetricsPanel";
+import { LensLegend, num, pct, VerdictChip, type ModelLegend } from "./MetricsPanel";
 
 interface Row {
   name: string;
@@ -28,6 +28,7 @@ export function ComparePanel({
   compressA,
   compressB,
   lens,
+  modelLegend,
   onSwap,
   onCopyAToB,
 }: {
@@ -36,6 +37,7 @@ export function ComparePanel({
   compressA: number | null;
   compressB: number | null;
   lens: LensId;
+  modelLegend?: ModelLegend | null;
   onSwap: () => void;
   onCopyAToB: () => void;
 }) {
@@ -130,7 +132,7 @@ export function ComparePanel({
 
       <section className="panel-section">
         <h2 className="panel-title">Lens</h2>
-        <LensLegend lens={lens} />
+        <LensLegend lens={lens} model={modelLegend} />
       </section>
 
       <section className="panel-section panel-foot">

@@ -1,2 +1,8 @@
 allowBuilds:
+  # Ships platform binaries; its install script is only a fallback.
+  '@bufbuild/buf': false
+  # Node-only runtime for transformers.js; the app uses onnxruntime-web in the browser.
+  onnxruntime-node: false
+  # Pulled in by onnxruntime-node; its install script only builds a CLI.
+  protobufjs: false
   workerd: true

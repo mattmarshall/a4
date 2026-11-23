@@ -70,7 +70,32 @@ export function VerdictChip({ verdict }: { verdict: Analysis["verdict"] }) {
   );
 }
 
-export function LensLegend({ lens }: { lens: LensId }) {
+/** The model lens on the sheet: which plane, and which plugin produced it. */
+export interface ModelLegend {
+  plane: string;
+  plugin: string;
+  model?: string;
+}
+
+export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend | null }) {
+  if (model) {
+    return (
+      <div className="legend">
+        <div className="legend-row" style={{ color: "var(--muted)" }}>
+          Model lens: per-cell values from a model. The tint is stronger where the value is higher.
+        </div>
+        <div className="legend-row">
+          <span className="swatch swatch-model-heat" />
+          <span>0 → 1</span>
+        </div>
+        <div className="legend-row">
+          <span>
+            <strong>{model.plane}</strong> · {model.plugin} plugin{model.model ? `, ${model.model}` : ""}
+          </span>
+        </div>
+      </div>
+    );
+  }
   const info = LENSES.find((l) => l.id === lens);
   return (
     <div className="legend">
@@ -117,11 +142,13 @@ export function MetricsPanel({
   analysis: a,
   spec,
   lens,
+  modelLegend,
   compress,
 }: {
   analysis: Analysis;
   spec: PageSpec;
   lens: LensId;
+  modelLegend?: ModelLegend | null;
   compress: number | null;
 }) {
   const t = THRESHOLDS;
@@ -246,7 +273,7 @@ export function MetricsPanel({
 
       <section className="panel-section">
         <h2 className="panel-title">Lens</h2>
-        <LensLegend lens={lens} />
+        <LensLegend lens={lens} model={modelLegend} />
       </section>
 
       <section className="panel-section panel-foot">

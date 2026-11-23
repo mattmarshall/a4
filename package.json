@@ -4,13 +4,19 @@
   "private": true,
   "packageManager": "pnpm@12.4.2",
   "dependencies": {
+    "@anthropic-ai/sdk": "1.12.0",
+    "@bufbuild/protobuf": "2.17.0",
+    "@huggingface/transformers": "4.3.2",
     "@vinext/cloudflare": "^1.4.0",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "react-server-dom-webpack": "^19.3.1",
     "vinext": "^1.4.6"
   },
   "devDependencies": {
+    "@bufbuild/buf": "1.75.0",
+    "@bufbuild/protoc-gen-es": "2.17.0",
     "@cloudflare/vite-plugin": "2.0.0-rc.3",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/node": "^26.6.6",
@@ -30,7 +36,9 @@
     "start": "vite preview",
     "test": "node --test 'lib/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
-    "check": "pnpm test && pnpm typecheck && pnpm build",
+    "proto": "buf lint && buf generate --clean",
+    "proto:check": "buf lint && node scripts/check-proto.ts",
+    "check": "pnpm test && pnpm typecheck && pnpm proto:check && pnpm build",
     "deploy": "vinext-cloudflare deploy"
   },
   "engines": {

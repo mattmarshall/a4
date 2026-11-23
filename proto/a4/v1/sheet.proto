@@ -1,0 +1,84 @@
+// A4 sheet records: one page of agent context as text and as a grid tensor.
+//
+// The page text is the source of truth. The grid is a lossless, fixed-shape
+// view of it: one UTF-16 code unit per cell, laid out exactly as the editor
+// lays out rows (a row breaks after `cols` cells or at a newline).
+
+syntax = "proto3";
+
+package a4.v1;
+
+// The page's grid geometry (see lib/page-spec.ts).
+message PageSpec {
+  // "terminal", "pica", "elite", or "dense".
+  string preset = 1;
+  uint32 cols = 2;
+  uint32 rows = 3;
+  double cell_w_mm = 4;
+  double cell_h_mm = 5;
+  double margin_x_mm = 6;
+  double margin_y_mm = 7;
+}
+
+// The page as a [rows, cols] tensor.
+message Grid {
+  // max(page rows, rows_used): a page that fits always has the preset's shape.
+  uint32 rows = 1;
+  uint32 cols = 2;
+  // Rows the text lays out to. Rows past this are padding.
+  uint32 rows_used = 3;
+  // UTF-16 code units, row-major, rows * cols long. Cells past a row's
+  // length hold 0.
+  repeated uint32 cells = 4;
+  // Characters in each row, `rows` long.
+  repeated uint32 row_lengths = 5;
+  // True when the row continues a wrapped line, `rows` long.
+  repeated bool continuation = 6;
+}
+
+// One page: its spec, its text, and its grid. Readers reject a record whose
+// grid does not decode to its text.
+message Sheet {
+  PageSpec spec = 1;
+  string text = 2;
+  Grid grid = 3;
+}
+
+// A half-open range of UTF-16 offsets into the page text.
+message TextSpan {
+  uint32 start = 1;
+  uint32 end = 2;
+}
+
+// A rectangle of cells.
+message CellRect {
+  uint32 row = 1;
+  uint32 col = 2;
+  uint32 rows = 3;
+  uint32 cols = 4;
+}
+
+// Per-cell values over a grid: shape [rows, cols] or [rows, cols, d].
+message Plane {
+  string name = 1;
+  string label = 2;
+  repeated uint32 shape = 3;
+  repeated float values = 4;
+  // The page text the values were computed for.
+  string text = 5;
+}
+
+enum Granularity {
+  GRANULARITY_UNSPECIFIED = 0;
+  GRANULARITY_SHEET = 1;
+  GRANULARITY_ROW = 2;
+  // A sentence or a field line.
+  GRANULARITY_UNIT = 3;
+  GRANULARITY_TOKEN = 4;
+}
+
+message Embedding {
+  Granularity granularity = 1;
+  TextSpan span = 2;
+  repeated float vector = 3;
+}

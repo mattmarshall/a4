@@ -1123,6 +1123,154 @@ select {
 }
 
 /* ------------------------------------------------------------------------
+   Sidebar: models
+   ------------------------------------------------------------------------ */
+
+.model-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.model-card {
+  display: grid;
+  gap: 3px;
+  padding: 9px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12.5px;
+}
+
+.model-card strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.model-where,
+.model-status {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.model-status progress {
+  display: block;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.model-summary {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.restate-list {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.restate-pair {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.restate-pair:hover {
+  border-color: rgba(109, 40, 217, 0.5);
+}
+
+.restate-pair .num {
+  font-family: var(--font-mono);
+  color: rgb(109, 40, 217);
+}
+
+.seg .lens-model[aria-pressed="true"] {
+  color: rgb(109, 40, 217);
+}
+
+.fit-controls {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fit-key {
+  display: grid;
+  gap: 6px;
+}
+
+.fit-key-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.fit-progress {
+  display: grid;
+  gap: 4px;
+}
+
+.consent-dialog {
+  margin: auto; /* the CSS reset clears the dialog's default centering */
+  max-width: 460px;
+  padding: 20px 22px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel, #1c1b19);
+  color: var(--text);
+}
+
+.consent-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.consent-dialog h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.consent-dialog dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.consent-dialog dt {
+  color: var(--muted);
+}
+
+.consent-dialog dd {
+  margin: 0;
+}
+
+.swatch-model-heat {
+  width: 48px;
+  background: linear-gradient(90deg, rgba(109, 40, 217, 0), rgba(109, 40, 217, 0.5));
+}
+
+/* ------------------------------------------------------------------------
    Lens swatches
    ------------------------------------------------------------------------ */
 

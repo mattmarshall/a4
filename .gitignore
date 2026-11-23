@@ -10,3 +10,4 @@ next-env.d.ts
 *.log
 .claude/settings.local.json
 *.tsbuildinfo
+.dev.vars*

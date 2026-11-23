@@ -258,3 +258,14 @@ test("print rows: page rows only, positioned on the grid", async () => {
   assert.deepEqual(out.slice(0, 3).map((r) => r.text.length), [80, 80, 10]);
   assert.ok(Math.abs(out[1].topMm - (T.marginY + T.cellH)) < 1e-9);
 });
+
+test("model lens tint: none at 0, proportional, strongest at 1, clamped", async () => {
+  const { heatFill, HEAT_MAX_ALPHA } = await import("./texture.ts");
+  assert.equal(heatFill(0), null);
+  assert.equal(heatFill(-1), null);
+  assert.equal(heatFill(Number.NaN), null);
+  const alpha = (fill: string | null) => Number(fill?.match(/, ([\d.]+)\)$/)?.[1]);
+  assert.equal(alpha(heatFill(1)), HEAT_MAX_ALPHA);
+  assert.equal(alpha(heatFill(2)), HEAT_MAX_ALPHA);
+  assert.ok(Math.abs(alpha(heatFill(0.5)) - HEAT_MAX_ALPHA / 2) < 1e-4);
+});

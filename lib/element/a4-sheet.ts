@@ -24,10 +24,23 @@ import { FLAT, PAPER_H, PAPER_W, type Pose } from "../paper/deform.ts";
 import { caretOffset, cellAt } from "../paper/pick.ts";
 import { PaperRenderer } from "../paper/renderer.ts";
 import { paintPage, printRows } from "../paper/texture.ts";
-import { normalizeText, TAB_SPACES } from "../text.ts";
+import { layoutRows, normalizeText, TAB_SPACES } from "../text.ts";
 
 export type A4Render = "3d" | "flat";
 export type A4RenderRequest = A4Render | "auto";
+
+/**
+ * Per-cell values for a model lens: one value in [0, 1] per cell of `text`'s
+ * grid on the sheet's preset (row-major, `cols` wide, max(page rows, rows
+ * used) tall).
+ */
+export interface A4Plane {
+  text: string;
+  values: Float32Array;
+  label?: string;
+}
+
+const MODEL_LENS = "model:";
 
 const DEFAULT_FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
 
@@ -174,6 +187,9 @@ export class A4SheetElement extends HTMLElement {
 
   #spec: PageSpec = PRESETS[DEFAULT_PRESET];
   #lens: LensId = "ink";
+  /** The plane shown by `lens="model:<name>"`, or null for a built-in lens. */
+  #modelLens: string | null = null;
+  readonly #planes = new Map<string, { text: string; values: Float32Array; label: string; cols: number }>();
   #request: A4RenderRequest = "auto";
   #reported: A4Render | null = null;
   #gpu: "unknown" | "ok" | "unavailable" = "unknown";
@@ -306,7 +322,13 @@ export class A4SheetElement extends HTMLElement {
         this.#spec = PRESETS[isPresetId(value) ? value : DEFAULT_PRESET];
         break;
       case "lens":
-        this.#lens = isLensId(value) ? value : "ink";
+        if (value?.startsWith(MODEL_LENS) && value.length > MODEL_LENS.length) {
+          this.#modelLens = value.slice(MODEL_LENS.length);
+          this.#lens = "ink";
+        } else {
+          this.#modelLens = null;
+          this.#lens = isLensId(value) ? value : "ink";
+        }
         break;
       case "render":
         this.#request = value === "3d" || value === "flat" ? value : "auto";
@@ -366,6 +388,44 @@ export class A4SheetElement extends HTMLElement {
   /** The rendering in use: "3d", "flat", or null while undecided. */
   get render(): A4Render | null {
     return this.#reported;
+  }
+
+  /** Cells in `text`'s grid on the current preset. */
+  #cellCount(text: string): number {
+    const { cols, rows } = this.#spec;
+    return Math.max(rows, layoutRows(text, cols).length) * cols;
+  }
+
+  /**
+   * Set a named plane of per-cell values for a model lens. Throws RangeError
+   * when the value count doesn't match the plane text's grid.
+   */
+  setPlane(name: string, plane: A4Plane) {
+    if (!name) throw new RangeError("A plane needs a name.");
+    const expected = this.#cellCount(plane.text);
+    if (!(plane.values instanceof Float32Array) || plane.values.length !== expected) {
+      throw new RangeError(`Plane "${name}" has ${plane.values?.length ?? 0} values; its text's grid has ${expected} cells.`);
+    }
+    this.#planes.set(name, { text: plane.text, values: plane.values, label: plane.label ?? name, cols: this.#spec.cols });
+    this.#schedule();
+  }
+
+  removePlane(name: string) {
+    if (this.#planes.delete(name)) this.#schedule();
+  }
+
+  /** Names of the planes set on this sheet. */
+  get planeNames(): string[] {
+    return [...this.#planes.keys()];
+  }
+
+  /** The active model lens's values, if they still describe this exact text. */
+  #heat(text: string): { values: Float32Array; cols: number } | undefined {
+    if (!this.#modelLens) return undefined;
+    const plane = this.#planes.get(this.#modelLens);
+    if (!plane || plane.text !== text || plane.cols !== this.#spec.cols) return undefined;
+    if (plane.values.length !== this.#cellCount(text)) return undefined;
+    return { values: plane.values, cols: plane.cols };
   }
 
   setSelectionRange(start: number, end: number, direction?: "forward" | "backward" | "none") {
@@ -531,6 +591,7 @@ export class A4SheetElement extends HTMLElement {
         overflow: true,
         grid: this.#grid,
         chrome: "flat",
+        heat: this.#heat(text),
       });
       const w = `${PAPER_W * scale}px`;
       this.#flat.style.width = w;
@@ -557,6 +618,7 @@ export class A4SheetElement extends HTMLElement {
       selection,
       grid: this.#grid,
       chrome: "texture",
+      heat: this.#heat(text),
     });
     renderer.setPage(this.#texture);
     renderer.setPose(this.#pose);

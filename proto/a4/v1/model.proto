@@ -1,0 +1,192 @@
+// The contract every model plugs into. A plugin describes itself with a
+// ModelCard and serves the SheetModelService operations its card declares. The host
+// owns page fit, consent, and what happens to results.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/sheet.proto";
+
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  // A sheet to embeddings.
+  OPERATION_ENCODE = 1;
+  // A sheet to per-cell planes, named scores, and findings.
+  OPERATION_SCORE = 2;
+  // A sheet to a new sheet.
+  OPERATION_TRANSFORM = 3;
+  // Source material to a new sheet.
+  OPERATION_GENERATE = 4;
+}
+
+enum View {
+  VIEW_UNSPECIFIED = 0;
+  VIEW_TEXT = 1;
+  VIEW_GRID = 2;
+  VIEW_PIXELS = 3;
+}
+
+enum Placement {
+  PLACEMENT_UNSPECIFIED = 0;
+  PLACEMENT_BROWSER = 1;
+  PLACEMENT_LOCAL_SERVICE = 2;
+  PLACEMENT_REMOTE = 3;
+}
+
+message ModelCard {
+  string id = 1;
+  string name = 2;
+  string version = 3;
+  string description = 4;
+  repeated Operation operations = 5;
+  repeated View views = 6;
+  // Preset ids the plugin supports. Empty means all.
+  repeated string presets = 7;
+  Placement placement = 8;
+  bool sends_text_off_device = 9;
+  // Where page text goes when sends_text_off_device is true.
+  string destination_host = 10;
+  // Model files the plugin downloads before first use, in bytes.
+  uint64 download_bytes = 11;
+  // The underlying model, for display (e.g. "claude-opus-5-5").
+  string model = 12;
+}
+
+message DescribeRequest {}
+
+message DescribeResponse {
+  ModelCard card = 1;
+}
+
+// Whether a plugin's model files are ready.
+message StatusRequest {}
+
+message StatusResponse {
+  bool ready = 1;
+}
+
+// Download and load the model files. Only sent after the author asks.
+message PrepareRequest {}
+
+message PrepareResponse {
+  uint64 loaded_bytes = 1;
+  uint64 total_bytes = 2;
+  bool ready = 3;
+}
+
+message EncodeRequest {
+  Sheet sheet = 1;
+  Granularity granularity = 2;
+}
+
+message EncodeResponse {
+  repeated Embedding embeddings = 1;
+}
+
+message ScoreRequest {
+  Sheet sheet = 1;
+}
+
+// A named scalar score.
+message Score {
+  string name = 1;
+  double value = 2;
+}
+
+// Something a plugin points out, tied to spans of the text. For example, two
+// sentences that restate each other.
+message Finding {
+  string kind = 1;
+  repeated TextSpan spans = 2;
+  double value = 3;
+  string label = 4;
+}
+
+message ScoreResponse {
+  repeated Plane planes = 1;
+  repeated Score scores = 2;
+  repeated Finding findings = 3;
+}
+
+// How a previous candidate laid out, sent back with a repair request.
+message FitFeedback {
+  uint32 rows_used = 1;
+  uint32 rows_allowed = 2;
+}
+
+message TransformRequest {
+  Sheet sheet = 1;
+  // What to do, e.g. "fit".
+  string instruction = 2;
+  // 1-based attempt number.
+  uint32 attempt = 3;
+  // Set on repair attempts.
+  FitFeedback feedback = 4;
+  // Opaque state from the previous candidate, passed back unchanged.
+  bytes resume = 5;
+}
+
+message GenerateRequest {
+  PageSpec spec = 1;
+  repeated string sources = 2;
+  string instruction = 3;
+  uint32 attempt = 4;
+  FitFeedback feedback = 5;
+  bytes resume = 6;
+}
+
+message Progress {
+  // Characters written so far in this attempt.
+  uint32 characters = 1;
+}
+
+message Candidate {
+  string text = 1;
+  // Opaque plugin state for a repair attempt.
+  bytes resume = 2;
+  // The model that wrote it.
+  string model = 3;
+}
+
+// One event in a Transform stream: progress while writing, then a candidate.
+message TransformResponse {
+  oneof event {
+    Progress progress = 1;
+    Candidate candidate = 2;
+  }
+}
+
+// One event in a Generate stream, shaped like TransformResponse.
+message GenerateResponse {
+  oneof event {
+    Progress progress = 1;
+    Candidate candidate = 2;
+  }
+}
+
+service SheetModelService {
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+  rpc Status(StatusRequest) returns (StatusResponse);
+  rpc Prepare(PrepareRequest) returns (stream PrepareResponse);
+  rpc Encode(EncodeRequest) returns (EncodeResponse);
+  rpc Score(ScoreRequest) returns (ScoreResponse);
+  rpc Transform(TransformRequest) returns (stream TransformResponse);
+  rpc Generate(GenerateRequest) returns (stream GenerateResponse);
+}
+
+// One message on a worker transport. A call is a request frame with an id and
+// method; its reply is one or more frames with the same id, the last with
+// `end` set. An error ends the call.
+message RpcFrame {
+  uint32 id = 1;
+  string method = 2;
+  bytes payload = 3;
+  bool end = 4;
+  RpcError error = 5;
+}
+
+message RpcError {
+  string code = 1;
+  string message = 2;
+}

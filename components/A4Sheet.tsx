@@ -7,7 +7,7 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import type { A4Render, A4RenderRequest, A4SheetElement } from "@/lib/element/a4-sheet";
+import type { A4Plane, A4Render, A4RenderRequest, A4SheetElement } from "@/lib/element/a4-sheet";
 import type { LensId } from "@/lib/lenses";
 import type { PresetId } from "@/lib/page-spec";
 import type { Pose } from "@/lib/paper/deform";
@@ -22,7 +22,10 @@ export interface A4SheetProps {
   value: string;
   onValue: (value: string) => void;
   preset: PresetId;
-  lens: LensId;
+  /** A built-in lens, or `model:<name>` to show the plane named `name`. */
+  lens: LensId | `model:${string}`;
+  /** Model planes by name, shown with `lens="model:<name>"`. */
+  planes?: Readonly<Record<string, A4Plane>>;
   render: A4RenderRequest;
   pose: Pose;
   tilt: number;
@@ -91,6 +94,40 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
     const el = host.current;
     if (el && el.value !== props.value) el.value = props.value;
   }, [props.value]);
+
+  // Planes: set new or changed ones (by identity), remove ones that are gone.
+  const shownPlanes = useRef(new Map<string, A4Plane>());
+  const { planes } = props;
+  useEffect(() => {
+    let cancelled = false;
+    void ensureDefined().then(() => {
+      const el = host.current;
+      if (cancelled || !el) return;
+      syncPlanes(el);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [planes]);
+
+  function syncPlanes(el: A4SheetElement) {
+    const next = planes ?? {};
+    for (const [name, plane] of Object.entries(next)) {
+      if (shownPlanes.current.get(name) === plane) continue;
+      try {
+        el.setPlane(name, plane);
+        shownPlanes.current.set(name, plane);
+      } catch {
+        // A plane for another preset: leave it off rather than crash the page.
+      }
+    }
+    for (const name of [...shownPlanes.current.keys()]) {
+      if (!(name in next)) {
+        el.removePlane(name);
+        shownPlanes.current.delete(name);
+      }
+    }
+  }
 
   // Attributes.
   const { preset, lens, render, pose, tilt, turn, light, zoom, grid, label } = props;
