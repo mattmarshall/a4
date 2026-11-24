@@ -19,6 +19,7 @@ import {
 } from "@/lib/models";
 import { heatFill } from "@/lib/render";
 import { InspectorSection } from "./InspectorSection";
+import styles from "./ModelsPanel.module.css";
 import type { ModelsState } from "./useModels";
 
 /** "38.0 MB" (decimal megabytes, as download sizes are usually given). */
@@ -72,8 +73,8 @@ export function SemanticSummaryView({
   const restates = plane.legend[0]?.value ?? plane.max;
   const pairsLabel = score.findings.find((f) => f.kind === SEMANTIC_NAMES.findings.similar)?.label ?? "";
   return (
-    <div className="model-summary" aria-live="polite">
-      <span className="model-status">
+    <div className={styles.summary} aria-live="polite">
+      <span className={styles.status}>
         {summary.sheet ? `Sheet ${summary.sheet}: ` : ""}
         {summary.stale
           ? "Rescoring…"
@@ -82,19 +83,19 @@ export function SemanticSummaryView({
       {!summary.stale ? (
         summary.pairs.length ? (
           <>
-            <span className="model-status">{pairsLabel}:</span>
-            <ol className="restate-list">
+            <span className={styles.status}>{pairsLabel}:</span>
+            <ol className={styles.pairs}>
               {summary.pairs.map((pair) => (
                 <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
                   <button
                     type="button"
-                    className="restate-pair"
+                    className={styles.pair}
                     data-restates={pair.value >= restates ? "" : undefined}
                     onClick={() => onSelectPair(pair)}
                     title="Select the later sentence"
                   >
                     <HeatSwatch plane={plane} value={pair.value} />
-                    <span className="num">{pair.value.toFixed(2)}</span>
+                    <span className={styles.num}>{pair.value.toFixed(2)}</span>
                     <span>{pair.label}</span>
                   </button>
                 </li>
@@ -102,7 +103,7 @@ export function SemanticSummaryView({
             </ol>
           </>
         ) : (
-          <span className="model-status">No pairs score {plane.min.toFixed(2)} or more.</span>
+          <span className={styles.status}>No pairs score {plane.min.toFixed(2)} or more.</span>
         )
       ) : null}
     </div>
@@ -131,23 +132,23 @@ export function ModelsPanel({
       openWhen={scoreActive}
       className="models"
     >
-      <ul className="model-list">
+      <ul className={styles.list}>
         {BUNDLED_CARDS.map((card) => {
           const status = models.status[card.id];
           const progress = models.progress[card.id];
           const error = models.errors[card.id];
           const size = Number(card.downloadBytes);
           return (
-            <li key={card.id} className="model-card" data-model={card.id} data-status={status ?? ""}>
+            <li key={card.id} className={styles.card} data-model={card.id} data-status={status ?? ""}>
               <strong>{card.name}</strong>
               <span>{card.description}</span>
-              <span className="model-where">{whereItRuns(card)}</span>
-              {card.model ? <span className="model-where">Model: {card.model}</span> : null}
+              <span className={styles.where}>{whereItRuns(card)}</span>
+              {card.model ? <span className={styles.where}>Model: {card.model}</span> : null}
 
-              {status === "checking" ? <span className="model-status">Checking…</span> : null}
+              {status === "checking" ? <span className={styles.status}>Checking…</span> : null}
               {status === "not-downloaded" ? (
                 <>
-                  <span className="model-status">
+                  <span className={styles.status}>
                     Needs a one-time download of {formatBytes(size)}. It’s kept in this browser for later visits.
                   </span>
                   <div className="panel-actions">
@@ -162,7 +163,7 @@ export function ModelsPanel({
                 </>
               ) : null}
               {status === "downloading" ? (
-                <span className="model-status" aria-live="polite">
+                <span className={styles.status} aria-live="polite">
                   Downloading… {formatBytes(progress?.loaded ?? 0)} of {formatBytes(progress?.total || size)}
                   <progress max={progress?.total || size} value={progress?.loaded ?? 0} />
                 </span>
@@ -179,9 +180,9 @@ export function ModelsPanel({
                   </button>
                 </div>
               ) : null}
-              {status === "error" ? <span className="model-status">Couldn’t start this model.</span> : null}
+              {status === "error" ? <span className={styles.status}>Couldn’t start this model.</span> : null}
               {error ? (
-                <span className="model-status" role="alert">
+                <span className={styles.status} role="alert">
                   {error}
                 </span>
               ) : null}

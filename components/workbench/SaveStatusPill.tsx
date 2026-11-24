@@ -9,10 +9,18 @@ const STATUS_LABEL: Record<SaveStatus, string> = {
   error: "Save failed · retrying",
 };
 
-export function SaveStatusPill({ status }: { status: SaveStatus }) {
+/** `compact`: on medium and narrow windows the pill shrinks to its dot (the top bar's). */
+export function SaveStatusPill({ status, compact = false }: { status: SaveStatus; compact?: boolean }) {
   return (
-    <span className="save-pill" data-status={status} role="status" aria-live="polite" title={STATUS_LABEL[status]}>
-      <span className="save-label">{STATUS_LABEL[status]}</span>
+    <span
+      className="save-pill"
+      data-status={status}
+      data-compact={compact ? "" : undefined}
+      role="status"
+      aria-live="polite"
+      title={STATUS_LABEL[status]}
+    >
+      <span className={compact ? "visually-hidden-medium" : undefined}>{STATUS_LABEL[status]}</span>
     </span>
   );
 }

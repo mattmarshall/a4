@@ -32,7 +32,7 @@ pnpm dev          # http://localhost:5173
 | `pnpm lint:code` | Biome: lint TypeScript and JSON, and check their formatting |
 | `pnpm lint:deps` | dependency-cruiser: import boundaries and cycles |
 | `pnpm lint:unused` | knip: unused files and dependencies fail; unused exports are reported |
-| `pnpm lint:css` | stylelint on `app/globals.css` |
+| `pnpm lint:css` | stylelint on every stylesheet in `app/` and `components/` |
 | `pnpm lint:casts` | Fail on a branded id cast outside its parser, or an undocumented `as unknown as` |
 | `pnpm lint:element-types` | Fail if `types/a4-sheet.d.ts` differs from the element's attribute table |
 | `pnpm gen:element-types` | Regenerate `types/a4-sheet.d.ts` from the attribute table (commit the result) |
@@ -45,6 +45,8 @@ pnpm dev          # http://localhost:5173
 | `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation, or `proto/` breaks compatibility with `main` (also runs in CI) |
 | `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
+| `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
+| `node scripts/screenshots.ts compare <a> <b>` | Compare two captures pixel by pixel, and their PDF page counts. Writes `<view>.diff.png` for each view that differs, and exits 1 |
 | `pnpm run deploy` | Deploy the Worker to Cloudflare (see below). Use `run`: bare `pnpm deploy` is a built-in pnpm command |
 
 ### Guardrails
@@ -79,9 +81,11 @@ push and pull request.
   exports are reported. `lib/models/plugins/semantic/calibration-pairs.ts` is kept on
   purpose: it's the fixture set for recalibrating the semantic thresholds by
   hand.
-- **CSS** (`.stylelintrc.json`): duplicate selectors, `!important` outside the
-  print styles, and unknown custom properties fail. Other standard rules are
-  warnings until refactor-styles.
+- **CSS** (`.stylelintrc.json`): the standard rules are all errors, and
+  `!important` and duplicate selectors fail. Two rules of our own
+  (`scripts/stylelint-*.ts`) keep every rule inside a cascade layer and make
+  each `var(--name)` without a fallback name a token that `app/globals.css`,
+  the palette, or the file itself defines. Module classes are camelCase.
 - **Branded ids** (`scripts/cast-report.ts`): page names, file paths,
   revisions, trash ids, and plugin ids are minted only by their parsers, so a
   cast such as `x as PageName` anywhere else fails. `as unknown as` fails too,
@@ -168,6 +172,26 @@ other control is one click away.
   each citing the spec that pins it or marked unspecified.
 - **Lenses** (`lib/analysis/lenses.ts`): Ink, Syntax, Repetition, Structure, and
   Tokens. They are presentation only and never change the text.
+- **Styles** (`app/globals.css`, and a `*.module.css` beside each panel):
+  - Every rule sits in a cascade layer, lowest first: Tailwind's `theme`,
+    `tokens`, `base` (Tailwind's preflight, then ours), `components`,
+    `utilities`, `layout`, and `print`. Tailwind supplies only the preflight.
+    Each module repeats the order statement, since the first stylesheet to
+    load sets the order.
+  - Panels use CSS modules (`styles.item`). The shared primitives (`.btn`,
+    `.seg`, `.select`, `.menu-*`, `.eyebrow`, and the lens swatches) stay
+    global in the `components` layer.
+  - Tokens in `globals.css` name the type sizes (`--text-<px>`), radii,
+    z-indexes, and hover tints. The sheet's colors come from
+    `lib/render/palette.ts`: the build writes them as `--a4-*` properties at
+    the `a4:palette` marker in `globals.css`, and a test fails if one of
+    those colors is written anywhere else.
+  - Breakpoints are defined once, in `components/breakpoints.ts`. CSS writes
+    `@media (--bp-medium)`, `(--bp-narrow)`, or `(--bp-small)`, which the build
+    resolves; scripts call `mediaQuery(name)`. A test fails on a stylesheet
+    that writes its own width query.
+  - Print: `data-print="hide"` hides an element and `data-print="flow"` drops
+    its screen layout, from the last layer, so print needs no `!important`.
 - **Privacy**: everything runs in the browser, and nothing is sent to a
   server.
 

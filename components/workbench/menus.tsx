@@ -49,7 +49,7 @@ export function PageMenu({
     <Menu label="Page" title="New page, copy, download, print">
       {(close) => (
         <>
-          <div className="menu-heading">New</div>
+          <div className="menu-heading eyebrow">New</div>
           <MenuItem close={close} onSelect={() => onNewPage("Untitled", "")}>
             <strong>Blank page</strong>
             <span>Start from an empty sheet</span>
@@ -107,7 +107,7 @@ export function ViewMenu({ layout, gpuMissing }: { layout: Layout; gpuMissing: b
     <Menu label="View" title="Grid, rendering, zoom, pose, focus mode">
       {(close) => (
         <>
-          <div className="menu-heading">Grid</div>
+          <div className="menu-heading eyebrow">Grid</div>
           {PRESET_IDS.map((id) => (
             <MenuItem key={id} kind="radio" checked={presetId === id} close={close} onSelect={() => setPreset(id)}>
               <strong>
@@ -120,7 +120,7 @@ export function ViewMenu({ layout, gpuMissing }: { layout: Layout; gpuMissing: b
             <strong>Show cell grid</strong>
           </MenuItem>
           <div className="menu-sep" />
-          <div className="menu-heading">Rendering</div>
+          <div className="menu-heading eyebrow">Rendering</div>
           <MenuItem
             kind="radio"
             checked={effective === "3d"}
@@ -136,7 +136,7 @@ export function ViewMenu({ layout, gpuMissing }: { layout: Layout; gpuMissing: b
             <strong>Flat</strong>
           </MenuItem>
           <div className="menu-sep" />
-          <div className="menu-heading">Zoom</div>
+          <div className="menu-heading eyebrow">Zoom</div>
           <MenuItem
             kind="radio"
             checked={zoom.kind === "fit"}

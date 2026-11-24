@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import styles from "../prose.module.css";
 
 export const metadata: Metadata = {
   title: "Why A4: one page of context",
@@ -15,15 +16,15 @@ const FIGURE_LINES = [
 
 export default function WhyPage() {
   return (
-    <main className="prose-page">
-      <Link className="back" href="/">
+    <main className={styles.page}>
+      <Link className={styles.back} href="/">
         ← Back to the sheet
       </Link>
 
       <header>
-        <p className="kicker">Why A4</p>
+        <p className={`${styles.kicker} eyebrow`}>Why A4</p>
         <h1>One page of context.</h1>
-        <p className="lede">
+        <p className={styles.lede}>
           A4 is a drafting table for agent context. It quantizes an A4 sheet into monospace cells so you can write the
           context you plan to give an agent, see what it costs, and tell whether it is clear or merely busy.
         </p>
@@ -31,7 +32,7 @@ export default function WhyPage() {
 
       <section>
         <h2>The problem</h2>
-        <div className="callout">
+        <div className={styles.callout}>
           <p>
             Engineers have no visible, intuitive unit for agent context, so context grows until it is expensive,
             diluted, and impossible to review.
@@ -69,7 +70,7 @@ export default function WhyPage() {
           The canonical page is A4, quantized into a grid where one character fills exactly one cell, so the area you
           see is the quantity you spend.
         </p>
-        <figure className="figure" aria-label="The Terminal page: 80 columns by 60 rows">
+        <figure className={styles.figure} aria-label="The Terminal page: 80 columns by 60 rows">
           <figcaption>A4 · 210 × 297 mm</figcaption>
           {FIGURE_LINES.map((line) => (
             <div key={line}>{line}</div>
@@ -98,7 +99,7 @@ export default function WhyPage() {
 
         <h3>Measure it</h3>
         <table>
-          <thead>
+          <thead className="eyebrow">
             <tr>
               <th>Metric</th>
               <th>What it tells you</th>
@@ -186,7 +187,7 @@ export default function WhyPage() {
 
         <h3>Worked example</h3>
         <table>
-          <thead>
+          <thead className="eyebrow">
             <tr>
               <th />
               <th>Incident as JSON</th>
@@ -229,7 +230,7 @@ export default function WhyPage() {
 
         <h3>Page types</h3>
         <table>
-          <thead>
+          <thead className="eyebrow">
             <tr>
               <th>Template</th>
               <th>Use it when</th>
@@ -275,7 +276,7 @@ export default function WhyPage() {
           A4 is not a tokenizer, a prompt optimizer, or an AI rewriter. The thinking stays with you; A4 makes its cost
           and shape visible. Everything runs in your browser, and nothing you write leaves it.
         </p>
-        <Link className="cta" href="/">
+        <Link className={styles.cta} href="/">
           Open the sheet
         </Link>
       </section>

@@ -1,9 +1,31 @@
 {
   "extends": ["stylelint-config-standard"],
-  "defaultSeverity": "warning",
   "rules": {
-    "no-duplicate-selectors": [true, { "severity": "error" }],
-    "declaration-no-important": [true, { "severity": "error" }],
-    "no-unknown-custom-properties": [true, { "severity": "error" }]
-  }
+    "no-duplicate-selectors": true,
+    "declaration-no-important": true,
+    "a4/require-layer": true,
+    "no-unknown-custom-properties": null,
+    "a4/known-tokens": true,
+    "import-notation": "string"
+  },
+  "plugins": ["./scripts/stylelint-require-layer.ts", "./scripts/stylelint-known-tokens.ts"],
+  "overrides": [
+    {
+      "files": ["**/*.module.css"],
+      "rules": {
+        "selector-class-pattern": [
+          "^[a-z][a-zA-Z0-9]*$",
+          {
+            "message": "Name module classes in camelCase, as components read them (styles.someName)."
+          }
+        ],
+        "selector-pseudo-class-no-unknown": [
+          true,
+          {
+            "ignorePseudoClasses": ["global"]
+          }
+        ]
+      }
+    }
+  ]
 }

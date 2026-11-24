@@ -3,6 +3,8 @@ import { relative } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
+import { resolveBreakpoints } from "./components/breakpoints.ts";
+import { paletteCustomProperties } from "./lib/render/palette.ts";
 
 /**
  * The ONNX runtime's JavaScript references WebAssembly builds the app never
@@ -102,6 +104,35 @@ function recordClientChunks(): Plugin {
   };
 }
 
+/**
+ * Two values the app's CSS takes from TypeScript, filled in before PostCSS:
+ * - the sheet palette (lib/render/palette.ts): the a4:palette marker comment
+ *   in app/globals.css becomes `:root { --a4-paper: …; … }`, so the CSS reads
+ *   the colors the painter and the element use instead of copying them;
+ * - the breakpoints (components/breakpoints.ts): `@media (--bp-medium)` and
+ *   the like, in any stylesheet, become their media queries.
+ */
+function a4Css(): Plugin {
+  const marker = "/* a4:palette */";
+  return {
+    name: "a4:css",
+    enforce: "pre",
+    transform(code, id) {
+      const path = id.split("?")[0] ?? "";
+      if (!path.endsWith(".css") || path.includes("/node_modules/")) return null;
+      // The RSC build loads side-effect stylesheets empty; the client build has the text.
+      if (code.trim() === "") return null;
+      let css = resolveBreakpoints(code);
+      if (path.endsWith("/app/globals.css")) {
+        if (!css.includes(marker)) this.error(`app/globals.css has no ${marker} marker for the palette.`);
+        const props = paletteCustomProperties().map(([name, value]) => `${name}: ${value};`);
+        css = css.replace(marker, `:root { ${props.join(" ")} }`);
+      }
+      return css === code ? null : { code: css, map: null };
+    },
+  };
+}
+
 export default defineConfig({
   worker: {
     // ES module workers can code-split, so the inference library loads only
@@ -119,6 +150,7 @@ export default defineConfig({
         childEnvironments: ["ssr"],
       },
     }),
+    a4Css(),
     browserOnlyPlugins(),
     dropUnusedOrtWasm(),
     recordClientChunks(),

@@ -1,0 +1,176 @@
+/* Prose pages (Why A4, the element docs, not found): a readable column, its type, figures, and tables. */
+
+/* The layer order, again: whichever stylesheet loads first sets it. */
+@layer theme, tokens, base, components, utilities, layout, print;
+
+@layer components {
+  .page {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 20px 120px;
+  }
+
+  .page header {
+    margin-bottom: 32px;
+  }
+
+  /* Its own size: .page p would otherwise set the paragraph size over .eyebrow's. */
+  .page .kicker {
+    --eyebrow-tracking: 0.08em;
+    --eyebrow-color: var(--accent);
+
+    font-family: var(--font-mono);
+    font-size: var(--text-12);
+  }
+
+  .page h1 {
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+    margin: 10px 0 14px;
+    font-weight: 600;
+  }
+
+  .page .lede {
+    font-size: var(--text-18);
+    line-height: 1.6;
+    color: var(--muted);
+    margin: 0;
+  }
+
+  .page h2 {
+    font-size: var(--text-22);
+    margin: 44px 0 12px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .page h3 {
+    font-size: var(--text-16);
+    margin: 26px 0 6px;
+    font-weight: 600;
+  }
+
+  .page p,
+  .page li {
+    font-size: var(--text-16);
+    line-height: 1.7;
+  }
+
+  .page p {
+    margin: 12px 0;
+  }
+
+  .page ol,
+  .page ul {
+    margin: 12px 0;
+    padding-left: 22px;
+  }
+
+  .page ol {
+    list-style: decimal;
+  }
+
+  .page ul {
+    list-style: disc;
+  }
+
+  .page li::marker {
+    color: var(--muted);
+  }
+
+  .page li + li {
+    margin-top: 6px;
+  }
+
+  .page code {
+    font-family: var(--font-mono);
+    font-size: 0.9em;
+    padding: 1px 5px;
+    border-radius: var(--radius-4);
+    background: var(--panel-2);
+  }
+
+  .page .callout {
+    margin: 20px 0;
+    padding: 16px 18px;
+    border-radius: var(--radius-10);
+    background: var(--panel);
+    border: 1px solid var(--border);
+  }
+
+  .page .callout p {
+    margin: 0;
+  }
+
+  .page .figure {
+    margin: 20px 0;
+    padding: 16px 18px;
+    border-radius: var(--radius-10);
+    background: var(--paper);
+    color: var(--ink);
+    border: 1px solid var(--paper-edge);
+    font-family: var(--font-mono);
+    font-size: var(--text-13);
+    line-height: 1.7;
+    overflow-x: auto;
+  }
+
+  .page .figure figcaption {
+    font-weight: 600;
+    margin-bottom: 6px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--paper-edge);
+  }
+
+  .page table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-14-5);
+    margin: 16px 0;
+  }
+
+  .page th,
+  .page td {
+    text-align: left;
+    padding: 8px 10px 8px 0;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+
+  .page thead {
+    --eyebrow-size: var(--text-12);
+    --eyebrow-tracking: 0.05em;
+  }
+
+  .page th {
+    font-weight: 600;
+  }
+
+  .page .back {
+    display: inline-flex;
+    gap: 6px;
+    font-size: var(--text-14);
+    text-decoration: none;
+    color: var(--muted);
+  }
+
+  .page .back:hover {
+    color: var(--text);
+  }
+
+  .page .cta {
+    display: inline-block;
+    margin-top: 28px;
+    padding: 10px 16px;
+    border-radius: var(--radius-8);
+    background: var(--text);
+    color: var(--desk);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .wide {
+    max-width: 1100px;
+  }
+}

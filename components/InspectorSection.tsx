@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, type ReactNode } from "react";
 import { inspectorSection } from "@/lib/persist";
+import styles from "./InspectorSection.module.css";
 import { useSetting } from "./useSetting";
 
 export function InspectorSection({
@@ -43,17 +44,21 @@ export function InspectorSection({
   }
 
   return (
-    <section className={`panel-section ${className ?? ""}`} data-open={open ? "" : undefined} aria-label={label}>
-      <h2 className="panel-title">
-        <button type="button" className="section-toggle" aria-expanded={open} onClick={toggle}>
-          <span className="chevron" aria-hidden="true">
+    <section
+      className={className ? `${styles.section} ${className}` : styles.section}
+      data-open={open ? "" : undefined}
+      aria-label={label}
+    >
+      <h2 className={`${styles.title} eyebrow`}>
+        <button type="button" className={styles.toggle} aria-expanded={open} onClick={toggle}>
+          <span className={styles.chevron} aria-hidden="true">
             ▸
           </span>
           <span>{title}</span>
-          {badge !== undefined && badge !== null ? <span className="section-badge">{badge}</span> : null}
+          {badge !== undefined && badge !== null ? <span className={styles.badge}>{badge}</span> : null}
         </button>
       </h2>
-      {open ? <div className="section-body">{children}</div> : null}
+      {open ? <div>{children}</div> : null}
     </section>
   );
 }

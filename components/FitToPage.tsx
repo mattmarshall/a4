@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { FIT_TO_PAGE, type FitJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
+import styles from "./ModelsPanel.module.css";
 
 export function useFitJob(job: FitJob<PageRef>) {
   return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
@@ -22,8 +23,8 @@ export function FitJobChip({ job }: { job: FitJob<PageRef> }) {
   const phase = useFitJob(job);
   if (phase.kind !== "running") return null;
   return (
-    <span className="fit-chip" role="status" aria-live="polite">
-      <span className="fit-chip-label">
+    <span className={styles.fitChip} role="status" aria-live="polite">
+      <span>
         Fitting “{phase.name}” · {phase.attempt}
         {phase.maxAttempts === null ? "" : `/${phase.maxAttempts}`}
       </span>
@@ -101,29 +102,29 @@ export function FitToPage({
   const disabled = !keySet || !page.name || !page.ref || !page.text.trim() || phase.kind === "running";
 
   return (
-    <div className="fit-controls">
+    <div className={styles.fitControls}>
       {keySet ? (
-        <div className="fit-key">
-          <span className="model-status">Your Anthropic API key is set for this tab only.</span>
+        <div className={styles.fitKey}>
+          <span className={styles.status}>Your Anthropic API key is set for this tab only.</span>
           <button type="button" className="btn" onClick={forget}>
             Forget key
           </button>
         </div>
       ) : (
         <form
-          className="fit-key"
+          className={styles.fitKey}
           onSubmit={(e) => {
             e.preventDefault();
             applyKey();
           }}
         >
-          <label className="model-status" htmlFor="fit-api-key">
+          <label className={styles.status} htmlFor="fit-api-key">
             Your Anthropic API key. It’s kept in this tab’s memory only, never saved, and forgotten when you reload.
           </label>
           <input
             id="fit-api-key"
             ref={keyField}
-            className="fit-key-input"
+            className={styles.fitKeyInput}
             type="password"
             autoComplete="off"
             spellCheck={false}
@@ -140,28 +141,28 @@ export function FitToPage({
           Fit “{page.name ?? "page"}” to the page
         </button>
       </div>
-      <span className="model-status">Billed to your key: usually a few cents, up to about $0.50 with retries.</span>
+      <span className={styles.status}>Billed to your key: usually a few cents, up to about $0.50 with retries.</span>
 
       {phase.kind === "running" ? (
-        <div className="fit-progress" aria-live="polite">
-          <span className="model-status">
+        <div className={styles.fitProgress} aria-live="polite">
+          <span className={styles.status}>
             Claude is rewriting “{phase.name}” · attempt {phase.attempt}
             {phase.maxAttempts === null ? "" : ` of ${phase.maxAttempts}`} · {phase.characters.toLocaleString("en-US")}{" "}
             characters
           </span>
-          {phase.note ? <span className="model-status">{phase.note}</span> : null}
+          {phase.note ? <span className={styles.status}>{phase.note}</span> : null}
           <button type="button" className="btn" onClick={() => job.cancel()}>
             Cancel
           </button>
         </div>
       ) : null}
       {phase.kind === "failed" ? (
-        <span className="model-status" role="alert">
+        <span className={styles.status} role="alert">
           {phase.message}
         </span>
       ) : null}
 
-      <dialog ref={dialog} className="consent-dialog" aria-labelledby="consent-title" onCancel={() => job.dismiss()}>
+      <dialog ref={dialog} className={styles.consent} aria-labelledby="consent-title" onCancel={() => job.dismiss()}>
         {phase.kind === "confirm" ? (
           <form
             method="dialog"
@@ -187,7 +188,7 @@ export function FitToPage({
                 “{phase.name}”, {phase.text.length.toLocaleString("en-US")} characters
               </dd>
             </dl>
-            <p className="model-status">
+            <p className={styles.status}>
               The rewrite opens as a new page in Compare. This page doesn’t change. You’ll be asked again next time.
             </p>
             <div className="panel-actions">

@@ -1,0 +1,250 @@
+/* The metrics panel: verdict, the page's capacity, metrics, stats, findings, terms, and the lens legend. */
+
+/* The layer order, again: whichever stylesheet loads first sets it. */
+@layer theme, tokens, base, components, utilities, layout, print;
+
+@layer components {
+  .verdict {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chip {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: var(--text-15);
+    padding: 3px 10px;
+    border-radius: var(--radius-6);
+    background: var(--info-soft);
+    color: var(--info);
+  }
+
+  .chip::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: currentcolor;
+  }
+
+  .chip[data-tone="ok"] {
+    background: var(--ok-soft);
+    color: var(--ok);
+  }
+
+  .chip[data-tone="warn"] {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  .chip[data-tone="crit"] {
+    background: var(--crit-soft);
+    color: var(--crit);
+  }
+
+  .chip[data-tone="muted"] {
+    background: var(--panel-2);
+    color: var(--muted);
+  }
+
+  .verdictBody {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .verdict p {
+    margin: 0;
+    font-size: var(--text-13-5);
+    color: var(--text);
+  }
+
+  .capacity {
+    display: grid;
+    gap: 12px;
+  }
+
+  .capRow {
+    display: grid;
+    gap: 5px;
+  }
+
+  .capHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: var(--text-13);
+  }
+
+  .capHead .num {
+    font-family: var(--font-mono);
+    font-size: var(--text-12-5);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .bar {
+    position: relative;
+    height: 6px;
+    border-radius: var(--radius-3);
+    background: var(--panel-2);
+    overflow: visible;
+  }
+
+  .bar > i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    border-radius: var(--radius-3);
+    background: var(--ink-soft);
+    max-width: 100%;
+  }
+
+  .bar[data-state="over"] > i {
+    background: var(--crit);
+  }
+
+  .bar[data-state="warn"] > i {
+    background: var(--warn);
+  }
+
+  .bar[data-state="good"] > i {
+    background: var(--ok);
+  }
+
+  .bar > b {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 1.5px;
+    background: var(--muted);
+  }
+
+  .metricList {
+    display: grid;
+    gap: 11px;
+  }
+
+  .metric {
+    display: grid;
+    gap: 4px;
+  }
+
+  .metricHead {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+    font-size: var(--text-13);
+  }
+
+  .metricHead .num {
+    font-family: var(--font-mono);
+    font-size: var(--text-12-5);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .metricNote {
+    font-size: var(--text-11-5);
+    color: var(--muted);
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .stat {
+    padding: 8px;
+    border-radius: var(--radius-8);
+    background: var(--panel-2);
+  }
+
+  .stat .num {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-15);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat .label {
+    font-size: var(--text-11);
+    color: var(--muted);
+  }
+
+  .findings {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .finding {
+    padding: 8px 10px 9px;
+    border-radius: var(--radius-8);
+    border-left: 3px solid var(--info);
+    background: var(--info-soft);
+  }
+
+  .finding[data-s="warning"] {
+    border-left-color: var(--warn);
+    background: var(--warn-soft);
+  }
+
+  .finding[data-s="critical"] {
+    border-left-color: var(--crit);
+    background: var(--crit-soft);
+  }
+
+  .finding strong {
+    display: block;
+    font-size: var(--text-13);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .finding span {
+    font-size: var(--text-12-5);
+    color: var(--text);
+    opacity: 0.85;
+  }
+
+  .terms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .term {
+    font-family: var(--font-mono);
+    font-size: var(--text-12);
+    padding: 2px 7px;
+    border-radius: var(--radius-5);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+  }
+
+  .term em {
+    font-style: normal;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  .legend {
+    display: grid;
+    gap: 6px;
+    font-size: var(--text-12-5);
+  }
+
+  .legendRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}

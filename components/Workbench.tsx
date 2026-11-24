@@ -276,7 +276,7 @@ export function Workbench() {
   const legendShown = Boolean(semantic.active) || lens !== "ink";
 
   return (
-    <div className="app" data-focus={focus ? "" : undefined}>
+    <div className="app" data-focus={focus ? "" : undefined} data-print="flow">
       {!focus ? (
         <Topbar
           layout={layout}
@@ -311,7 +311,10 @@ export function Workbench() {
         </Topbar>
       ) : null}
 
-      <div className={`workspace${showLibrary ? " with-library" : ""}${showInspector ? " with-inspector" : ""}`}>
+      <div
+        className={`workspace${showLibrary ? " with-library" : ""}${showInspector ? " with-inspector" : ""}`}
+        data-print="flow"
+      >
         {showLibrary ? (
           <LibraryPanel
             pages={lib.pages}
@@ -371,7 +374,7 @@ export function Workbench() {
 
         {showInspector ? (
           <aside className="inspector" aria-label="Inspector" data-print="hide">
-            <div className="inspector-head">
+            <div className="inspector-head eyebrow">
               <span>Inspector</span>
               <button
                 type="button"

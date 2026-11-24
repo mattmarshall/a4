@@ -13,3 +13,6 @@ next-env.d.ts
 .dev.vars*
 # Agent skills the OpenSpec CLI writes out for other tools
 /.agents/
+
+# Screenshot captures (node scripts/screenshots.ts)
+.screenshots/

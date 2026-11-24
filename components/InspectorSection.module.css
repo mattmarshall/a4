@@ -1,0 +1,67 @@
+/* A collapsible inspector section: its rule, title, toggle, and badge. */
+
+/* The layer order, again: whichever stylesheet loads first sets it. */
+@layer theme, tokens, base, components, utilities, layout, print;
+
+@layer components {
+  .section {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section:first-child {
+    padding-top: 0;
+  }
+
+  .section:last-child {
+    border-bottom: 0;
+  }
+
+  .title {
+    --eyebrow-tracking: 0.07em;
+
+    margin: 0 0 10px;
+    font-weight: 500;
+  }
+
+  .section:not([data-open]) .title {
+    margin-bottom: 0;
+  }
+
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+  }
+
+  .chevron {
+    display: inline-block;
+    font-size: var(--text-9);
+    transition: transform 0.15s;
+  }
+
+  .toggle[aria-expanded="true"] .chevron {
+    transform: rotate(90deg);
+  }
+
+  .badge {
+    margin-left: auto;
+    min-width: 18px;
+    padding: 0 6px;
+    border-radius: var(--radius-9);
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-family: var(--font-mono);
+    font-size: var(--text-11);
+    text-align: center;
+  }
+}

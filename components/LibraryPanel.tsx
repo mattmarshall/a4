@@ -21,6 +21,7 @@ import {
   type TrashId,
 } from "@/lib/persist";
 import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace";
+import styles from "./LibraryPanel.module.css";
 
 /** Library commands. Rename returns an error message to show inline, or null. */
 export interface PageActions {
@@ -103,11 +104,11 @@ function RenameField({
     }
   }
   return (
-    <div className="lib-rename">
+    <div className={styles.rename}>
       <input
         // biome-ignore lint/a11y/noAutofocus: the field appears when the user asks to rename.
         autoFocus
-        className="lib-input"
+        className={styles.input}
         aria-label="New page name"
         value={value}
         maxLength={80}
@@ -118,7 +119,7 @@ function RenameField({
         onKeyDown={onKey}
         onBlur={(e) => (e.currentTarget.value === initial ? onCancel() : void commit(e.currentTarget.value))}
       />
-      {error ? <span className="lib-error">{error}</span> : null}
+      {error ? <span className={styles.error}>{error}</span> : null}
     </div>
   );
 }
@@ -165,9 +166,9 @@ export function LibraryPanel({
 
   return (
     <aside className="library" aria-label="Page library" data-print="hide">
-      <div className="lib-head">
-        <h2>
-          Pages <span className="lib-count">{pages.length}</span>
+      <div className={styles.head}>
+        <h2 className={`${styles.title} eyebrow`}>
+          Pages <span className={styles.count}>{pages.length}</span>
         </h2>
         <button type="button" className="btn btn-outline" onClick={pageActions.create}>
           + New page
@@ -175,7 +176,7 @@ export function LibraryPanel({
       </div>
 
       <input
-        className="lib-input lib-search"
+        className={styles.input}
         type="search"
         placeholder="Search pages"
         aria-label="Search pages"
@@ -183,12 +184,12 @@ export function LibraryPanel({
         onChange={(e) => setQuery(e.target.value)}
       />
 
-      <ul className="lib-list">
+      <ul className={styles.list}>
         {visible.map((p) => {
           const ref = libraryRef(p.name);
           const slot = slotOf(placement, ref);
           return (
-            <li key={p.name} className="lib-item" data-open={slot ?? undefined}>
+            <li key={p.name} className={styles.item} data-open={slot ?? undefined}>
               {renaming === p.name ? (
                 <RenameField
                   initial={p.name}
@@ -202,19 +203,19 @@ export function LibraryPanel({
               ) : (
                 <button
                   type="button"
-                  className="lib-open"
+                  className={styles.open}
                   onClick={() => onOpen(ref, compare ? activeSlot : "a")}
                   title={compare ? `Open in ${activeSlot.toUpperCase()}` : "Open"}
                 >
-                  <span className="lib-name">{p.name}</span>
-                  <span className="lib-meta">
+                  <span className={styles.name}>{p.name}</span>
+                  <span className={styles.meta}>
                     {relativeTime(p.modifiedAt, now)} · {formatSize(p.size)}
                   </span>
-                  {slot ? <span className="lib-badge">{compare ? slot.toUpperCase() : "open"}</span> : null}
+                  {slot ? <span className={styles.badge}>{compare ? slot.toUpperCase() : "open"}</span> : null}
                 </button>
               )}
               {renaming !== p.name ? (
-                <div className="lib-actions">
+                <div className={styles.actions}>
                   {compare ? (
                     <button type="button" onClick={() => onOpen(ref, otherSlot(activeSlot))}>
                       Open in {otherSlot(activeSlot).toUpperCase()}
@@ -234,7 +235,7 @@ export function LibraryPanel({
             </li>
           );
         })}
-        {visible.length === 0 ? <li className="lib-empty">{query ? "No pages match." : "No pages yet."}</li> : null}
+        {visible.length === 0 ? <li className={styles.empty}>{query ? "No pages match." : "No pages yet."}</li> : null}
       </ul>
 
       <FolderSection
@@ -247,7 +248,7 @@ export function LibraryPanel({
         actions={folderActions}
       />
 
-      <div className="lib-transfer">
+      <div className={styles.transfer}>
         <button
           type="button"
           className="btn btn-outline"
@@ -278,10 +279,10 @@ export function LibraryPanel({
         />
       </div>
 
-      <div className="lib-trash">
+      <div className={styles.trash}>
         <button
           type="button"
-          className="lib-trash-toggle"
+          className={styles.trashToggle}
           aria-expanded={showTrash}
           onClick={() => setShowTrash((s) => !s)}
         >
@@ -289,16 +290,16 @@ export function LibraryPanel({
         </button>
         {showTrash ? (
           <>
-            <ul className="lib-list">
+            <ul className={styles.list}>
               {trash.map((t) => (
-                <li key={t.id} className="lib-item lib-trashed">
-                  <div className="lib-open" aria-disabled="true">
-                    <span className="lib-name">{t.name}</span>
-                    <span className="lib-meta">
+                <li key={t.id} className={`${styles.item} ${styles.trashed}`}>
+                  <div className={styles.open} aria-disabled="true">
+                    <span className={styles.name}>{t.name}</span>
+                    <span className={styles.meta}>
                       deleted {relativeTime(t.trashedAt, now)} · {formatSize(t.size)}
                     </span>
                   </div>
-                  <div className="lib-actions lib-actions-visible">
+                  <div className={`${styles.actions} ${styles.actionsVisible}`}>
                     <button type="button" onClick={() => pageActions.restore(t.id)}>
                       Restore
                     </button>
@@ -314,12 +315,12 @@ export function LibraryPanel({
                   </div>
                 </li>
               ))}
-              {trash.length === 0 ? <li className="lib-empty">Trash is empty.</li> : null}
+              {trash.length === 0 ? <li className={styles.empty}>Trash is empty.</li> : null}
             </ul>
             {trash.length > 0 ? (
               <button
                 type="button"
-                className="btn btn-outline lib-empty-trash"
+                className={`btn btn-outline ${styles.emptyTrash}`}
                 onClick={() => {
                   if (
                     window.confirm(`Permanently delete ${trash.length} page(s) in the trash? This can’t be undone.`)
@@ -335,7 +336,7 @@ export function LibraryPanel({
         ) : null}
       </div>
 
-      <footer className="lib-foot">
+      <footer className={styles.foot}>
         {storage ? (
           storage.kind === "opfs" ? (
             <>
@@ -389,13 +390,13 @@ function PathForm({
     if (message) setError(message);
   }
   return (
-    <form className="lib-path-form" onSubmit={(e) => void send(e)}>
-      <label className="lib-path-label">
+    <form className={styles.pathForm} onSubmit={(e) => void send(e)}>
+      <label className={styles.pathLabel}>
         {label}
         <input
           // biome-ignore lint/a11y/noAutofocus: the form appears when the user asks to save or create a file.
           autoFocus
-          className="lib-input"
+          className={styles.input}
           value={value}
           placeholder="AGENTS.md"
           spellCheck={false}
@@ -411,8 +412,8 @@ function PathForm({
           }}
         />
       </label>
-      {error ? <span className="lib-error">{error}</span> : null}
-      <div className="lib-path-actions">
+      {error ? <span className={styles.error}>{error}</span> : null}
+      <div className={styles.pathActions}>
         <button type="submit" className="btn btn-outline" disabled={busy || !value.trim()}>
           {submit}
         </button>
@@ -441,37 +442,37 @@ function FileRow({
   const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
   if (file.unreadable) {
     return (
-      <li className="lib-item lib-file" data-unreadable="">
-        <div className="lib-open" aria-disabled="true" title={`Can’t open: ${REASON[file.unreadable]}`}>
-          <span className="lib-name lib-path">{file.path}</span>
-          <span className="lib-meta">{REASON[file.unreadable]}</span>
+      <li className={`${styles.item} ${styles.file}`} data-unreadable="">
+        <div className={styles.open} aria-disabled="true" title={`Can’t open: ${REASON[file.unreadable]}`}>
+          <span className={`${styles.name} ${styles.path}`}>{file.path}</span>
+          <span className={styles.meta}>{REASON[file.unreadable]}</span>
         </div>
       </li>
     );
   }
   return (
-    <li className="lib-item lib-file" data-open={slot ?? undefined}>
+    <li className={`${styles.item} ${styles.file}`} data-open={slot ?? undefined}>
       <button
         type="button"
-        className="lib-open"
+        className={styles.open}
         onClick={() => onOpen(ref, compare ? activeSlot : "a")}
         title={compare ? `Open in ${activeSlot.toUpperCase()}` : "Open"}
       >
-        <span className="lib-name lib-path">{file.path}</span>
-        <span className="lib-meta">
+        <span className={`${styles.name} ${styles.path}`}>{file.path}</span>
+        <span className={styles.meta}>
           {relativeTime(file.modifiedAt)} · {formatSize(file.size)}
           {file.rows !== null ? (
             <>
               {" · "}
-              <span className="lib-rows" data-over={over ? "" : undefined}>
+              <span className={styles.rows} data-over={over ? "" : undefined}>
                 {file.rows} of {PAGE_ROWS} rows{over ? `, ${over} over` : ""}
               </span>
             </>
           ) : null}
         </span>
-        {slot ? <span className="lib-badge">{compare ? slot.toUpperCase() : "open"}</span> : null}
+        {slot ? <span className={styles.badge}>{compare ? slot.toUpperCase() : "open"}</span> : null}
       </button>
-      <div className="lib-actions">
+      <div className={styles.actions}>
         {compare ? (
           <button type="button" onClick={() => onOpen(ref, otherSlot(activeSlot))}>
             Open in {otherSlot(activeSlot).toUpperCase()}
@@ -518,19 +519,19 @@ function FolderSection({
 
   if (state.status === "unsupported") {
     return (
-      <section className="lib-folder" aria-label="Folder">
-        <p className="lib-note">Opening a folder needs Chrome or Edge. Your pages here work as before.</p>
+      <section className={styles.folder} aria-label="Folder">
+        <p className={styles.note}>Opening a folder needs Chrome or Edge. Your pages here work as before.</p>
       </section>
     );
   }
 
   if (state.status === "none") {
     return (
-      <section className="lib-folder" aria-label="Folder">
-        <button type="button" className="btn btn-outline lib-folder-open" onClick={actions.pick}>
+      <section className={styles.folder} aria-label="Folder">
+        <button type="button" className={`btn btn-outline ${styles.folderOpen}`} onClick={actions.pick}>
           Open folder…
         </button>
-        <p className="lib-note">
+        <p className={styles.note}>
           Edit a repository’s AGENTS.md, CLAUDE.md, and skill files in place. Files stay on this device.
         </p>
       </section>
@@ -539,20 +540,20 @@ function FolderSection({
 
   if (state.status === "connecting") {
     return (
-      <section className="lib-folder" aria-label="Folder">
-        <p className="lib-note">Connecting to “{state.name ?? "the folder"}”…</p>
+      <section className={styles.folder} aria-label="Folder">
+        <p className={styles.note}>Connecting to “{state.name ?? "the folder"}”…</p>
       </section>
     );
   }
 
   if (state.status === "reconnect") {
     return (
-      <section className="lib-folder" aria-label={`Folder ${state.name}`}>
-        <div className="lib-head">
-          <h2 className="lib-folder-name">{state.name}</h2>
+      <section className={styles.folder} aria-label={`Folder ${state.name}`}>
+        <div className={styles.head}>
+          <h2 className={styles.folderName}>{state.name}</h2>
         </div>
-        <p className="lib-note">The browser needs your permission again for A4 to edit this folder.</p>
-        <div className="lib-path-actions">
+        <p className={styles.note}>The browser needs your permission again for A4 to edit this folder.</p>
+        <div className={styles.pathActions}>
           <button type="button" className="btn btn-outline" onClick={actions.reconnect}>
             Reconnect
           </button>
@@ -566,12 +567,12 @@ function FolderSection({
 
   if (state.status === "not-found") {
     return (
-      <section className="lib-folder" aria-label="Folder not found">
-        <p className="lib-note">
+      <section className={styles.folder} aria-label="Folder not found">
+        <p className={styles.note}>
           <strong>Folder not found.</strong>{" "}
           {state.name ? `“${state.name}” was moved or deleted.` : "The remembered folder is gone."}
         </p>
-        <div className="lib-path-actions">
+        <div className={styles.pathActions}>
           <button type="button" className="btn btn-outline" onClick={actions.pick}>
             Open folder…
           </button>
@@ -584,12 +585,12 @@ function FolderSection({
   }
 
   return (
-    <section className="lib-folder" aria-label={`Folder ${state.name}`}>
-      <div className="lib-head">
-        <h2 className="lib-folder-name" title={state.name}>
-          {state.name} <span className="lib-count">{folder.files.length}</span>
+    <section className={styles.folder} aria-label={`Folder ${state.name}`}>
+      <div className={styles.head}>
+        <h2 className={styles.folderName} title={state.name}>
+          {state.name} <span className={styles.count}>{folder.files.length}</span>
         </h2>
-        <span className="lib-folder-tools">
+        <span className={styles.folderTools}>
           <button type="button" className="btn" onClick={() => setCreating((c) => !c)} aria-expanded={creating}>
             + New file
           </button>
@@ -627,16 +628,16 @@ function FolderSection({
         />
       ) : null}
 
-      {folder.scanning && folder.files.length === 0 ? <p className="lib-note">Scanning…</p> : null}
+      {folder.scanning && folder.files.length === 0 ? <p className={styles.note}>Scanning…</p> : null}
       {folder.partial ? (
-        <p className="lib-note">The folder is very large: the list stops after 20,000 entries.</p>
+        <p className={styles.note}>The folder is very large: the list stops after 20,000 entries.</p>
       ) : null}
 
-      <h3 className="lib-group">Context files</h3>
-      <ul className="lib-list">
+      <h3 className={`${styles.group} eyebrow`}>Context files</h3>
+      <ul className={styles.list}>
         {context.map(row)}
         {context.length === 0 && !folder.scanning ? (
-          <li className="lib-empty">{query ? "No context files match." : "No context files found."}</li>
+          <li className={styles.empty}>{query ? "No context files match." : "No context files found."}</li>
         ) : null}
       </ul>
 
@@ -644,13 +645,13 @@ function FolderSection({
         <>
           <button
             type="button"
-            className="lib-trash-toggle"
+            className={styles.trashToggle}
             aria-expanded={showOther}
             onClick={() => setShowOther((v) => !v)}
           >
             {showOther ? "▾" : "▸"} Other Markdown ({other.length})
           </button>
-          {showOther ? <ul className="lib-list">{other.map(row)}</ul> : null}
+          {showOther ? <ul className={styles.list}>{other.map(row)}</ul> : null}
         </>
       ) : null}
     </section>

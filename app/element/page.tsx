@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ElementDemo } from "@/components/ElementDemo";
 import { A4_EVENTS, ATTRIBUTES } from "@/lib/render";
+import styles from "../prose.module.css";
 
 export const metadata: Metadata = {
   title: "<a4-sheet>: the A4 page as a web component",
@@ -18,25 +19,25 @@ const USAGE = `<script type="module">
 
 export default function ElementPage() {
   return (
-    <main className="prose-page element-page">
-      <Link className="back" href="/">
+    <main className={`${styles.page} ${styles.wide}`}>
+      <Link className={styles.back} href="/">
         ← Back to the sheet
       </Link>
       <header>
-        <p className="kicker">Web component</p>
+        <p className={`${styles.kicker} eyebrow`}>Web component</p>
         <h1>
           <code>&lt;a4-sheet&gt;</code>
         </h1>
-        <p className="lede">
+        <p className={styles.lede}>
           One editable A4 page of context in a single custom element. It renders in 3D with WebGPU, or flat, and keeps
           its text input, renderer, and styles in its own shadow root. No framework is required.
         </p>
       </header>
       <ElementDemo />
       <h2>Usage</h2>
-      <pre className="figure">{USAGE}</pre>
+      <pre className={styles.figure}>{USAGE}</pre>
       <table>
-        <thead>
+        <thead className="eyebrow">
           <tr>
             <th>Attribute</th>
             <th>Values</th>

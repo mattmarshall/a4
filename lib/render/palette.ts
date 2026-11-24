@@ -1,8 +1,10 @@
 /**
- * The sheet's colors, in one place. The painter's theme (paint/theme.ts), the
- * element's shadow CSS (element/style.ts), and the model-lens swatches all
- * read them, so the canvas and the CSS can't drift. (refactor-styles also
- * writes them into the app's CSS custom properties.)
+ * The sheet's colors, in one place: the paper, ink, rules, and lens and model
+ * colors. The painter's theme (paint/theme.ts) and the element's shadow CSS
+ * (element/style.ts) import them; the app's CSS reads them as `--a4-*`
+ * custom properties, which a Vite plugin writes from `paletteCustomProperties()`
+ * (vite.config.ts). A test fails if one of these colors is written anywhere
+ * else.
  */
 
 export const PALETTE = {
@@ -51,3 +53,27 @@ export const PALETTE = {
   /** Model lenses: one violet whose opacity follows a cell's value. */
   model: { rgb: "109, 40, 217", maxAlpha: 0.5 },
 } as const;
+
+/** "overflowWash" → "overflow-wash". */
+const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
+
+/**
+ * Every palette color as a CSS custom property, in palette order: `--a4-paper`,
+ * `--a4-page-grid`, `--a4-lens-heat-1` (lists count from 1), `--a4-model-rgb`
+ * (the model violet's "r, g, b", for `rgb(var(--a4-model-rgb), alpha)`), and
+ * so on.
+ */
+export function paletteCustomProperties(): [name: string, value: string][] {
+  const out: [string, string][] = [];
+  const walk = (prefix: string, value: unknown) => {
+    if (typeof value === "string" || typeof value === "number") {
+      out.push([`--a4-${prefix}`, String(value)]);
+    } else if (Array.isArray(value)) {
+      for (const [i, item] of value.entries()) walk(`${prefix}-${i + 1}`, item);
+    } else if (value && typeof value === "object") {
+      for (const [key, item] of Object.entries(value)) walk(prefix ? `${prefix}-${kebab(key)}` : kebab(key), item);
+    }
+  };
+  walk("", PALETTE);
+  return out;
+}

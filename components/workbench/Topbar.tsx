@@ -88,7 +88,7 @@ export function DocTitle({
       ) : (
         <PageNameField name={page.name} onRename={async (input) => (page.name ? onRename(page.name, input) : null)} />
       )}
-      <SaveStatusPill status={page.status} />
+      <SaveStatusPill status={page.status} compact />
     </div>
   );
 }
@@ -130,7 +130,7 @@ export function Topbar({
           title="Show or hide the page library"
         >
           <span aria-hidden="true">☰</span>
-          <span className="btn-label">Pages</span>
+          <span className="visually-hidden-medium">Pages</span>
         </button>
 
         {title}

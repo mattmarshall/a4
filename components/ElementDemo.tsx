@@ -2,22 +2,26 @@
 
 import { useEffect } from "react";
 import { A4_EVENTS, defineSheetElement, type A4Render } from "@/lib/render";
+import styles from "./ElementDemo.module.css";
 
-/** Plain HTML, no React props: proves <a4-sheet> works from markup alone. */
+/**
+ * Plain HTML, no React props: proves <a4-sheet> works from markup alone. In
+ * print, the grid and figures flow as plain blocks and the captions and log hide.
+ */
 const MARKUP = `
-<div class="element-demo-grid">
-  <figure>
+<div class="${styles.grid}" data-print="flow">
+  <figure data-print="flow">
     <a4-sheet id="demo-3d" render="auto" lens="syntax" tilt="40" turn="-20" curl="0.45"
       value='{"id": "INC-2291", "status": "mitigated", "owner": "platform"}'></a4-sheet>
-    <figcaption><code>&lt;a4-sheet lens="syntax" tilt="40" turn="-20" curl="0.45"&gt;</code></figcaption>
+    <figcaption data-print="hide"><code>&lt;a4-sheet lens="syntax" tilt="40" turn="-20" curl="0.45"&gt;</code></figcaption>
   </figure>
-  <figure>
+  <figure data-print="flow">
     <a4-sheet id="demo-flat" render="flat" zoom="2.2"
       value="Purpose: brief the agent that is about to act on the incident."></a4-sheet>
-    <figcaption><code>&lt;a4-sheet render="flat" zoom="2.2"&gt;</code></figcaption>
+    <figcaption data-print="hide"><code>&lt;a4-sheet render="flat" zoom="2.2"&gt;</code></figcaption>
   </figure>
 </div>
-<p class="element-demo-log" id="demo-log">Type on either sheet; input events appear here.</p>
+<p class="${styles.log}" id="demo-log" data-print="hide">Type on either sheet; input events appear here.</p>
 `;
 
 export function ElementDemo() {

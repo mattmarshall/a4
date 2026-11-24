@@ -1,0 +1,29 @@
+/* The /element demo: two sheets built from plain markup, and the input log. */
+
+/* The layer order, again: whichever stylesheet loads first sets it. */
+@layer theme, tokens, base, components, utilities, layout, print;
+
+@layer components {
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin: 24px 0;
+  }
+
+  .grid figure {
+    margin: 0;
+    display: grid;
+    gap: 8px;
+  }
+
+  .grid a4-sheet {
+    --a4-3d-height: 520px;
+  }
+
+  .log {
+    font-family: var(--font-mono);
+    font-size: var(--text-13);
+    color: var(--muted);
+  }
+}

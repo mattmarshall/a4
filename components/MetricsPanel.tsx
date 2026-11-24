@@ -1,9 +1,18 @@
 "use client";
 
-import { DEFAULT_CONFIG, KIND_LABEL, LENSES, type Analysis, type Tone, type VerdictId } from "@/lib/analysis";
+import {
+  DEFAULT_CONFIG,
+  KIND_LABEL,
+  LENSES,
+  type Analysis,
+  type Finding,
+  type Tone,
+  type VerdictId,
+} from "@/lib/analysis";
 import { fontSizePt, type LensId, type PageSpec } from "@/lib/page";
 import { describeFinding, VERDICT_LABEL, VERDICT_SUMMARY, VERDICT_TONE } from "./analysis-copy";
 import { InspectorSection } from "./InspectorSection";
+import styles from "./MetricsPanel.module.css";
 
 export function pct(x: number | null | undefined, digits = 0): string {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -24,7 +33,7 @@ function Bar({
   state?: "over" | "warn" | "good" | undefined;
 }) {
   return (
-    <div className="bar" data-state={state}>
+    <div className={styles.bar} data-state={state}>
       <i style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
       {threshold !== undefined ? <b style={{ left: `${threshold * 100}%` }} title="threshold" /> : null}
     </div>
@@ -52,20 +61,20 @@ function Metric({
 }) {
   const na = tone === "na";
   return (
-    <div className="metric" data-na={na ? "" : undefined}>
-      <div className="metric-head">
+    <div className={styles.metric} data-na={na ? "" : undefined}>
+      <div className={styles.metricHead}>
         <span>{name}</span>
-        <span className="num">{na ? "n/a" : shown}</span>
+        <span className={styles.num}>{na ? "n/a" : shown}</span>
       </div>
       <Bar value={na ? 0 : value} threshold={na ? undefined : threshold} state={tone ? TONE_STATE[tone] : undefined} />
-      <span className="metric-note">{note}</span>
+      <span className={styles.metricNote}>{note}</span>
     </div>
   );
 }
 
 export function VerdictChip({ verdict }: { verdict: VerdictId }) {
   return (
-    <span className="verdict-chip" data-tone={VERDICT_TONE[verdict]}>
+    <span className={styles.chip} data-tone={VERDICT_TONE[verdict]}>
       {VERDICT_LABEL[verdict]}
     </span>
   );
@@ -85,20 +94,20 @@ export interface ModelLegend {
 export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend | null }) {
   if (model) {
     return (
-      <div className="legend">
-        <div className="legend-row" style={{ color: "var(--muted)" }}>
+      <div className={styles.legend}>
+        <div className={styles.legendRow} style={{ color: "var(--muted)" }}>
           Model lens: per-cell values from a model. The tint is stronger where the value is higher.
         </div>
-        <div className="legend-row">
+        <div className={styles.legendRow}>
           <span className="swatch swatch-model-heat" />
           <span>{model.scale ?? "0 → 1"}</span>
         </div>
         {model.note ? (
-          <div className="legend-row" style={{ color: "var(--muted)" }}>
+          <div className={styles.legendRow} style={{ color: "var(--muted)" }}>
             {model.note}
           </div>
         ) : null}
-        <div className="legend-row">
+        <div className={styles.legendRow}>
           <span>
             <strong>{model.plane}</strong> · {model.plugin} plugin{model.model ? `, ${model.model}` : ""}
           </span>
@@ -108,22 +117,22 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
   }
   const info = LENSES.find((l) => l.id === lens);
   return (
-    <div className="legend">
-      <div className="legend-row" style={{ color: "var(--muted)" }}>
+    <div className={styles.legend}>
+      <div className={styles.legendRow} style={{ color: "var(--muted)" }}>
         {info?.hint}
       </div>
       {lens === "syntax" ? (
         <>
-          <div className="legend-row">
+          <div className={styles.legendRow}>
             <span className="swatch" style={{ background: "var(--accent)" }} /> Syntax: quotes, braces, colons, markup
           </div>
-          <div className="legend-row">
-            <span className="swatch" style={{ background: "#8f8a80" }} /> Words and numbers
+          <div className={styles.legendRow}>
+            <span className="swatch" style={{ background: "var(--a4-lens-dim)" }} /> Words and numbers
           </div>
         </>
       ) : null}
       {lens === "repetition" ? (
-        <div className="legend-row">
+        <div className={styles.legendRow}>
           {[1, 2, 3, 4].map((h) => (
             <span key={h} className={`swatch lens-heat-${h}`} />
           ))}
@@ -132,18 +141,35 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
       ) : null}
       {lens === "structure"
         ? (Object.keys(KIND_LABEL) as (keyof typeof KIND_LABEL)[]).map((k) => (
-            <div key={k} className="legend-row">
+            <div key={k} className={styles.legendRow}>
               <span className="swatch" style={{ background: `var(--kind-${k})` }} /> {KIND_LABEL[k]}
             </div>
           ))
         : null}
       {lens === "tokens" ? (
-        <div className="legend-row">
+        <div className={styles.legendRow}>
           <span className="swatch lens-tok-a" />
           <span className="swatch lens-tok-b" /> Alternating estimated tokens (heuristic)
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** A page's findings, in the order the assessment gives them. */
+export function FindingList({ findings }: { findings: readonly Finding[] }) {
+  return (
+    <ul className={styles.findings}>
+      {findings.map((f) => {
+        const { title, detail } = describeFinding(f);
+        return (
+          <li key={f.id} className={styles.finding} data-s={f.severity}>
+            <strong>{title}</strong>
+            <span>{detail}</span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -168,45 +194,45 @@ export function MetricsPanel({
   const v = analysis.assessment;
   return (
     <>
-      <InspectorSection id="verdict" title="Verdict" defaultOpen className="verdict">
-        <div className="verdict-body" aria-live="polite">
+      <InspectorSection id="verdict" title="Verdict" defaultOpen className={styles.verdict}>
+        <div className={styles.verdictBody} aria-live="polite">
           <VerdictChip verdict={v.verdict} />
           <p>{VERDICT_SUMMARY[v.verdict]}</p>
         </div>
       </InspectorSection>
 
-      <InspectorSection id="page" title="The page" defaultOpen className="capacity">
-        <div className="cap-row">
-          <div className="cap-head">
+      <InspectorSection id="page" title="The page" defaultOpen className={styles.capacity}>
+        <div className={styles.capRow}>
+          <div className={styles.capHead}>
             <span>Rows used</span>
-            <span className="num">
+            <span className={styles.num}>
               {a.rowsUsed} / {a.pageRows}
               {a.overflow > 0 ? `  (+${a.overflow} over)` : ""}
             </span>
           </div>
           <Bar value={a.fill} state={a.overflow > 0 ? "over" : undefined} />
         </div>
-        <div className="cap-row">
-          <div className="cap-head">
+        <div className={styles.capRow}>
+          <div className={styles.capHead}>
             <span>Tokens (estimate)</span>
-            <span className="num">
+            <span className={styles.num}>
               ≈{num(a.tokens)} / {num(a.tokenCeiling)}
             </span>
           </div>
           <Bar value={a.tokens / a.tokenCeiling} state={a.tokens > a.tokenCeiling ? "over" : undefined} />
         </div>
-        <div className="stats">
-          <div className="stat">
-            <span className="num">{num(a.ink)}</span>
-            <span className="lbl">ink cells</span>
+        <div className={styles.stats}>
+          <div className={styles.stat}>
+            <span className={styles.num}>{num(a.ink)}</span>
+            <span className={styles.label}>ink cells</span>
           </div>
-          <div className="stat">
-            <span className="num">{pct(a.coverage)}</span>
-            <span className="lbl">of {num(a.capacity)}</span>
+          <div className={styles.stat}>
+            <span className={styles.num}>{pct(a.coverage)}</span>
+            <span className={styles.label}>of {num(a.capacity)}</span>
           </div>
-          <div className="stat">
-            <span className="num">{a.charsPerToken ? a.charsPerToken.toFixed(1) : "–"}</span>
-            <span className="lbl">chars / token</span>
+          <div className={styles.stat}>
+            <span className={styles.num}>{a.charsPerToken ? a.charsPerToken.toFixed(1) : "–"}</span>
+            <span className={styles.label}>chars / token</span>
           </div>
         </div>
         <p className="panel-foot">
@@ -217,21 +243,11 @@ export function MetricsPanel({
       </InspectorSection>
 
       <InspectorSection id="findings" title="Findings" defaultOpen badge={findingCount(analysis)}>
-        <ul className="findings">
-          {v.findings.map((f) => {
-            const { title, detail } = describeFinding(f);
-            return (
-              <li key={f.id} className="finding" data-s={f.severity}>
-                <strong>{title}</strong>
-                <span>{detail}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <FindingList findings={v.findings} />
       </InspectorSection>
 
       <InspectorSection id="shape" title="Shape" defaultOpen={false}>
-        <div className="metric-list">
+        <div className={styles.metricList}>
           <Metric
             name="Syntax overhead"
             value={a.syntax}
@@ -283,9 +299,9 @@ export function MetricsPanel({
 
       {a.repeatedTerms.length > 0 ? (
         <InspectorSection id="repeated" title="Most repeated" defaultOpen={false}>
-          <div className="terms">
+          <div className={styles.terms}>
             {a.repeatedTerms.slice(0, 10).map((term) => (
-              <span key={term.term} className="term">
+              <span key={term.term} className={styles.term}>
                 {term.term}
                 <em>×{term.count}</em>
               </span>

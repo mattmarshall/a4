@@ -11,6 +11,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { fitScale, PX_PER_MM_ACTUAL } from "@/lib/page";
 import { readSetting, SETTINGS, subscribeSettings, writeSetting, type Mode, type Setting } from "@/lib/persist";
 import type { Slot } from "@/lib/workspace";
+import { mediaQuery } from "../breakpoints";
 import { useSetting } from "../useSetting";
 
 export type Zoom = { readonly kind: "fit" } | { readonly kind: "fixed"; readonly mm: number };
@@ -18,7 +19,7 @@ export type Zoom = { readonly kind: "fit" } | { readonly kind: "fixed"; readonly
 const ZOOM_STEPS = [0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
 const MIN_MM = 1.2;
 /** Below this width the side panels cover the desk. */
-const NARROW = "(max-width: 1099px)";
+const NARROW = mediaQuery("narrow");
 /** Height the captions take above each sheet in Compare. */
 const CAPTION_HEIGHT = 40;
 /** Gap between the sheets in Compare. */

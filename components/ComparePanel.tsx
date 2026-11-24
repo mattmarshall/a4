@@ -1,9 +1,10 @@
 "use client";
 
 import type { Analysis } from "@/lib/analysis";
-import { describeFinding, VERDICT_SUMMARY } from "./analysis-copy";
+import { VERDICT_SUMMARY } from "./analysis-copy";
+import styles from "./ComparePanel.module.css";
 import { InspectorSection } from "./InspectorSection";
-import { findingCount, num, pct, VerdictChip } from "./MetricsPanel";
+import { FindingList, findingCount, num, pct, VerdictChip } from "./MetricsPanel";
 
 interface Row {
   name: string;
@@ -109,7 +110,7 @@ export function ComparePanel({
   return (
     <>
       <InspectorSection id="compare-verdicts" title="Verdicts" defaultOpen>
-        <div className="compare-verdicts">
+        <div className={styles.verdicts}>
           <div>
             <span>
               Page <b>A</b>
@@ -128,8 +129,8 @@ export function ComparePanel({
       </InspectorSection>
 
       <InspectorSection id="compare-metrics" title="A vs B" defaultOpen>
-        <table className="compare-table">
-          <thead>
+        <table className={styles.table}>
+          <thead className="eyebrow">
             <tr>
               <th>Metric</th>
               <th>A</th>
@@ -146,7 +147,7 @@ export function ComparePanel({
                   <td>{r.name}</td>
                   <td data-better={win === "a"}>{r.format(r.a)}</td>
                   <td data-better={win === "b"}>{r.format(r.b)}</td>
-                  <td className="delta">{d === null || d === 0 ? "–" : r.delta(d)}</td>
+                  <td className={styles.delta}>{d === null || d === 0 ? "–" : r.delta(d)}</td>
                 </tr>
               );
             })}
@@ -168,17 +169,7 @@ export function ComparePanel({
       </InspectorSection>
 
       <InspectorSection id="compare-findings" title="Findings for B" defaultOpen badge={findingCount(b)}>
-        <ul className="findings">
-          {b.assessment.findings.map((f) => {
-            const { title, detail } = describeFinding(f);
-            return (
-              <li key={f.id} className="finding" data-s={f.severity}>
-                <strong>{title}</strong>
-                <span>{detail}</span>
-              </li>
-            );
-          })}
-        </ul>
+        <FindingList findings={b.assessment.findings} />
       </InspectorSection>
     </>
   );

@@ -79,7 +79,7 @@ export function SheetControls({
   return (
     <div className="sheet-controls" role="group" aria-label="3D controls">
       <div className="ctl-group">
-        <span className="ctl-title">{compare ? `Sheet ${active.toUpperCase()}` : "Sheet"}</span>
+        <span className="ctl-title eyebrow">{compare ? `Sheet ${active.toUpperCase()}` : "Sheet"}</span>
         <button type="button" className="btn btn-outline" onClick={onFold}>
           ▶ Fold
         </button>
@@ -103,7 +103,7 @@ export function SheetControls({
         />
       </div>
       <div className="ctl-group">
-        <span className="ctl-title">Camera</span>
+        <span className="ctl-title eyebrow">Camera</span>
         <Slider
           label="Tilt"
           value={view.tilt}

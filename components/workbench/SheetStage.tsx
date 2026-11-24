@@ -107,19 +107,24 @@ export function SheetStage(props: SheetStageProps) {
   const sheetsStyle = { "--a4-3d-height": `${props.stageHeight}px` } as CSSProperties;
 
   return (
-    <main className="desk-frame">
-      <div className="desk" ref={props.deskRef}>
+    <main className="desk-frame" data-print="flow">
+      <div className="desk" ref={props.deskRef} data-print="flow">
         {props.failure ? (
           <div className="banner" role="alert" data-print="hide">
             Couldn’t open page storage: {props.failure}
           </div>
         ) : null}
-        <div className={`sheets render-${render}`} style={sheetsStyle}>
+        <div className={`sheets render-${render}`} style={sheetsStyle} data-print="flow">
           {shown.map((slot) => {
             const state = slots[slot];
             const analysis = analyses[slot];
             return (
-              <div key={slot} className="sheet-col" data-active={compare && target === slot ? "" : undefined}>
+              <div
+                key={slot}
+                className="sheet-col"
+                data-active={compare && target === slot ? "" : undefined}
+                data-print="flow"
+              >
                 {compare ? (
                   <div className="sheet-caption" data-print="hide">
                     <b>{slot.toUpperCase()}</b>

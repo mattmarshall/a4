@@ -1,0 +1,61 @@
+/* The Compare panel: both verdicts and the side-by-side metrics table. */
+
+/* The layer order, again: whichever stylesheet loads first sets it. */
+@layer theme, tokens, base, components, utilities, layout, print;
+
+@layer components {
+  .table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-12-5);
+  }
+
+  .table thead {
+    --eyebrow-tracking: 0.05em;
+  }
+
+  .table th {
+    text-align: right;
+    font-weight: 500;
+    padding: 0 0 6px;
+  }
+
+  .table th:first-child {
+    text-align: left;
+  }
+
+  .table td {
+    padding: 5px 0;
+    border-top: 1px solid var(--border);
+    text-align: right;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .table td:first-child {
+    text-align: left;
+    font-family: var(--font-sans);
+  }
+
+  .table td[data-better="true"] {
+    color: var(--ok);
+    font-weight: 600;
+  }
+
+  .table td.delta {
+    color: var(--muted);
+  }
+
+  .verdicts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .verdicts > div {
+    display: grid;
+    gap: 4px;
+    font-size: var(--text-12);
+    color: var(--muted);
+  }
+}
