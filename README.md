@@ -649,6 +649,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-23-fix-review-bugs`
 - `2026-11-24-add-code-guardrails` (tooling only, with no spec changes)
 - `2026-11-24-refactor-typed-contracts` (types only, with no spec changes)
+- `2026-11-24-refactor-workspace-controller` (structure only, with no spec changes)
 
 ```bash
 openspec list --specs
