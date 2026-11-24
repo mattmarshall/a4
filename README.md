@@ -27,7 +27,7 @@ pnpm dev          # http://localhost:5173
 | --- | --- |
 | `pnpm dev` | vinext dev server (Vite, running in workerd) |
 | `pnpm test` | Unit tests for `lib/` and the UI's pure modules in `components/` (Node's built-in test runner) |
-| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm typecheck` | `tsc --noEmit`, then the strict core config (`tsconfig.core.json`) |
 | `pnpm lint` | All the lint guardrails below, in order (also runs in CI) |
 | `pnpm lint:code` | Biome: lint TypeScript and JSON, and check their formatting |
 | `pnpm lint:deps` | dependency-cruiser: import boundaries and cycles |
@@ -54,6 +54,9 @@ push and pull request.
 - **Compiler:** strict TypeScript, plus `exactOptionalPropertyTypes`,
   `noImplicitReturns`, `noImplicitOverride`, `noFallthroughCasesInSwitch`,
   `verbatimModuleSyntax`, and `erasableSyntaxOnly`.
+  `tsconfig.core.json` also checks the pure core (`lib/page`, `lib/analysis`,
+  and `lib/archive`) with `noUncheckedIndexedAccess` and without DOM or Node
+  types: only the web-standard globals in `types/core/web.d.ts`.
 - **Biome** (`biome.json`): the recommended rules, plus unused imports, type
   imports, and unhandled promises as errors. Non-null assertions, nested
   ternaries, and `role="group"` divs are warnings until the refactors reach
@@ -63,7 +66,11 @@ push and pull request.
   - No cycles.
   - `lib/` doesn't import `components/`, `app/`, React, or the `@/` alias.
   - UI code doesn't statically import plugin code or the model libraries.
-  - Storage, autosave, and folders don't import models or rendering.
+  - Components and pages import a `lib/` folder only through its `index.ts`.
+  - The `lib/` layers point one way: `page`, `content`, and `platform`
+    depend on nothing; `analysis` on `page`; `persist` on `page` and
+    `platform`; `models`, `render`, and `workspace` on the layers below
+    them. The header of `.dependency-cruiser.cjs` lists each layer.
 
   dependency-cruiser reads TypeScript with the TypeScript 6 API, so
   `pnpm-workspace.yaml` gives it its own TypeScript 6.
@@ -80,7 +87,7 @@ push and pull request.
   except in the files the script lists with the reason (worker scope typing,
   the Anthropic SDK boundary, and test fakes).
 - **Element types:** `types/a4-sheet.d.ts`, the JSX types of `<a4-sheet>`, is
-  generated from the attribute table in `lib/element/contract.ts`, and
+  generated from the attribute table in `lib/render/element/contract.ts`, and
   `pnpm lint` fails when it's stale.
 - **Protobuf compatibility:** `buf breaking` compares `proto/` with `main`
   locally, and in CI with the pull request's base or the previous `main`
@@ -142,22 +149,23 @@ other control is one click away.
 
 ## How it works
 
-- **Page model** (`lib/page-spec.ts`): A4 geometry in millimeters. The
+- **Page model** (`lib/page/`): A4 geometry in millimeters. The
   Terminal preset uses 2.225 × 4.45 mm cells centered with 16/15 mm margins.
   Pica, Elite, and Dense presets derive their grids from characters-per-inch
   and lines-per-inch. The screen scales everything by one `--mm` factor, and
   print uses true millimeters.
-- **Editor** (`lib/element/a4-sheet.ts`): the `<a4-sheet>` custom element
+- **Editor** (`lib/render/element/a4-sheet.ts`): the `<a4-sheet>` custom element
   (see below). A transparent `<textarea>` sits in its shadow root over the
   page, painted on a canvas from the grid model. Text uses IBM Plex Mono
   (0.6 em advance, so a glyph is exactly one cell), plus
   `white-space: break-spaces` and `line-break: anywhere`. Lines therefore wrap
-  after exactly `cols` characters, matching the row model in `lib/text.ts`.
-- **Analysis** (`lib/analyze.ts`, `lib/tokens.ts`): pure functions for fill,
+  after exactly `cols` characters, matching the row model in `lib/page/layout.ts`.
+- **Analysis** (`lib/analysis/`): pure functions for fill,
   overflow, coverage, crowding, syntax overhead, repetition, duplicate lines,
   indentation, narrative share, estimated tokens, compressibility, the verdict,
-  and findings. Thresholds live in `THRESHOLDS` and are pinned by the specs.
-- **Lenses** (`lib/lenses.ts`): Ink, Syntax, Repetition, Structure, and
+  and findings. Thresholds live in `DEFAULT_CONFIG` (`lib/analysis/config.ts`),
+  each citing the spec that pins it or marked unspecified.
+- **Lenses** (`lib/analysis/lenses.ts`): Ink, Syntax, Repetition, Structure, and
   Tokens. They are presentation only and never change the text.
 - **Privacy**: everything runs in the browser, and nothing is sent to a
   server.
@@ -219,24 +227,24 @@ The 3D rendering draws the page as a sheet of paper with WebGPU. You can fold
 it into a letter, curl the bottom-right corner, tilt it, turn it, and light it
 from any side, and you can keep editing it.
 
-- **Texture from the model** (`lib/paper/texture.ts`): the page is painted
+- **Texture from the model** (`lib/render/paper/texture.ts`): the page is painted
   from A4's own grid (cells, rows, lens colors, rulers, gauge, caret,
   selection), one character per cell, so positions match the flat rendering
   exactly. The browser can't run shaders over DOM pixels, and Chrome's
   experimental HTML-in-Canvas API maps hit testing with a single flat matrix,
   which can't follow a folded sheet.
-- **Deformations** (`lib/paper/deform.ts`): two folds with rounded creases at
+- **Deformations** (`lib/render/paper/deform.ts`): two folds with rounded creases at
   99 mm and 198 mm (the letter fold), and a cylinder curl from the corner.
   Each is an isometry, so the paper never stretches, and tests check that.
-  The WGSL in `lib/paper/shader.ts` mirrors the TypeScript.
-- **Shading** (`lib/paper/renderer.ts`):
+  The WGSL in `lib/render/paper/shader.ts` mirrors the TypeScript.
+- **Shading** (`lib/render/paper/renderer.ts`):
   - Diffuse light plus a soft highlight.
   - Paper grain and darker creases.
   - A plain back side.
   - A planar shadow on the desk, using `min` blending so overlapping layers
     don't double-darken.
   - 4× MSAA.
-- **One GPU device** (`lib/paper/gpu.ts`) is shared by every sheet on the
+- **One GPU device** (`lib/render/paper/gpu.ts`) is shared by every sheet on the
   page. Zoom works in 3D too: at a fixed zoom, an untilted sheet spans the
   same CSS width as the flat rendering.
 - **Editing**: the real textarea stays mounted but invisible, and keeps focus.
@@ -453,7 +461,7 @@ the page text, so a file can be handed to an agent as is.
     trash/<page name>.<deleted-at>.md
 ```
 
-- **Typed store** (`lib/store/`): the contracts in `lib/store/types.ts` use
+- **Typed store** (`lib/persist/store/`): the contracts in `lib/persist/store/types.ts` use
   content-hash `Revision`s for conflict detection and typed errors.
   - **Core** (`PageFiles`): list, read, create, and write. Every backend
     implements it.
@@ -468,9 +476,9 @@ the page text, so a file can be handed to an agent as is.
 
   `FolderPageFiles` implements only the core, for a folder you open (see
   [Folders](#folders)). New backends must pass the shared suites in
-  `lib/store/testing/contract.ts`: `pageFilesContract` for the core, and
+  `lib/persist/store/testing/contract.ts`: `pageFilesContract` for the core, and
   `pageStoreContract` for a library backend.
-- **Autosave** (`lib/autosave/`):
+- **Autosave** (`lib/persist/autosave/`):
   - Every edit is journaled to `localStorage` synchronously, per tab and
     page.
   - The page is saved 600 ms after typing pauses, and at least every 4 s
@@ -491,7 +499,7 @@ the page text, so a file can be handed to an agent as is.
 - **Export**: **Export all** in the library first saves any pending edits.
   It then downloads `a4-pages-<date>.zip`, which holds
   `a4-pages-<date>/<page name>.md` for every page, with the trash left out.
-  The zip encoder (`lib/zip.ts`) has no dependencies: it uses the browser's
+  The zip encoder (`lib/archive/zip.ts`) has no dependencies: it uses the browser's
   `CompressionStream("deflate-raw")` and writes UTF-8 file names.
 - **Import**: **Import .zip** turns every `.md` and `.txt` file in an archive
   into a page named after the file. Folders inside the archive are ignored,
@@ -503,12 +511,12 @@ the page text, so a file can be handed to an agent as is.
 
   Import skips `__MACOSX/` metadata, hidden files, other file types, binary
   files, and damaged entries, and reports what it did. The reader
-  (`lib/unzip.ts`) has no dependencies. It refuses archives that are not zips,
+  (`lib/archive/unzip.ts`) has no dependencies. It refuses archives that are not zips,
   use Zip64, hold more than 5,000 entries, or expand to more than 50 MB, and it
   checks these limits before inflating anything. While inflating, it stops at
   each entry's declared size and verifies every checksum. Tests run it against
   archives made by Info-ZIP, macOS Finder (`ditto`), and Python
-  (`lib/fixtures/`).
+  (`lib/archive/fixtures/`).
 - **Upgrading**: text from the earlier single-page version (`a4:text:a` and
   `a4:text:b`) is imported as pages on first load. The old keys are kept.
 
@@ -545,7 +553,7 @@ Safari and Firefox, the Pages panel says so, and the library works as before.
   endings, a byte-order mark, and the final newline. On the sheet, tabs show
   as two spaces; an edited line is saved as you see it. A file longer than
   one page is never cut short. Opening a file without editing it never
-  writes it. (`lib/folder/faithful.ts` diffs the file's lines against the
+  writes it. (`lib/persist/folder/faithful.ts` diffs the file's lines against the
   sheet's and keeps every matched line.)
 - **Changes made elsewhere:** while the tab is visible, A4 checks the open
   files every second. A file changed by an editor, an agent, or
@@ -650,6 +658,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-24-add-code-guardrails` (tooling only, with no spec changes)
 - `2026-11-24-refactor-typed-contracts` (types only, with no spec changes)
 - `2026-11-24-refactor-workspace-controller` (structure only, with no spec changes)
+- `2026-11-24-refactor-lib-layout` (structure only, with no spec changes)
 
 ```bash
 openspec list --specs
