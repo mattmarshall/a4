@@ -126,6 +126,11 @@ export class PaperRenderer {
     return new PaperRenderer(canvas, device, context, format);
   }
 
+  /** Settles when the GPU device behind this renderer is lost. */
+  get lost(): Promise<unknown> {
+    return this.#device.lost;
+  }
+
   /** Upload a freshly painted page canvas as the paper texture. */
   setPage(source: HTMLCanvasElement | OffscreenCanvas): void {
     const { width, height } = source;

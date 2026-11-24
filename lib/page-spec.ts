@@ -81,7 +81,8 @@ export const PRESET_ORDER: PresetId[] = ["terminal", "pica", "elite", "dense"];
 export const DEFAULT_PRESET: PresetId = "terminal";
 
 export function isPresetId(value: unknown): value is PresetId {
-  return typeof value === "string" && value in PRESETS;
+  // Own keys only: "toString" or "constructor" are not presets.
+  return typeof value === "string" && Object.hasOwn(PRESETS, value);
 }
 
 export function capacity(spec: PageSpec): number {

@@ -18,6 +18,51 @@ export interface PortLike {
   addEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   removeEventListener(type: "message", listener: (event: MessageEvent) => void): void;
   start?: () => void;
+  /** Called once if the other side can no longer answer (a worker crashed). */
+  onFailure?: (listener: (message: string) => void) => void;
+}
+
+/** The events of a Worker that `fromWorker` uses. */
+interface WorkerLike {
+  postMessage(message: unknown, transfer: Transferable[]): void;
+  addEventListener(type: string, listener: (event: Event) => void): void;
+  removeEventListener(type: string, listener: (event: Event) => void): void;
+  terminate(): void;
+}
+
+/**
+ * A port over a dedicated worker that reports failures: a script that fails
+ * to load, an uncaught error, or a message that can't be deserialized. The
+ * worker is terminated on failure, so a fresh one can replace it.
+ */
+export function fromWorker(worker: WorkerLike): PortLike {
+  return {
+    postMessage: (message, transfer) => worker.postMessage(message, transfer ?? []),
+    addEventListener: (type, listener) => worker.addEventListener(type, listener as (event: Event) => void),
+    removeEventListener: (type, listener) => worker.removeEventListener(type, listener as (event: Event) => void),
+    onFailure(listener) {
+      let failed = false;
+      const fail = (message: string) => {
+        if (failed) return;
+        failed = true;
+        worker.terminate();
+        listener(message);
+      };
+      worker.addEventListener("error", (event) => {
+        event.preventDefault?.();
+        const detail = (event as ErrorEvent).message;
+        fail(detail ? `The model worker failed: ${detail}` : "The model worker failed to start or crashed.");
+      });
+      worker.addEventListener("messageerror", () => fail("The model worker sent a message that couldn't be read."));
+    },
+  };
+}
+
+const closedClients = new WeakSet<object>();
+
+/** True once the client's worker failed; the host then connects a new one. */
+export function isClosed(client: SheetModelClient): boolean {
+  return closedClients.has(client);
 }
 
 const CANCEL = "$cancel";
@@ -95,6 +140,14 @@ class Reply {
 export function connectPort(port: PortLike): SheetModelClient {
   let nextId = 1;
   const pending = new Map<number, Reply>();
+  let failure: ModelError | null = null;
+  const client: Record<string, unknown> = {};
+  port.onFailure?.((message) => {
+    failure = new ModelError("unavailable", message);
+    closedClients.add(client);
+    for (const reply of pending.values()) reply.fail(failure);
+    pending.clear();
+  });
   port.addEventListener("message", (event) => {
     const frame = frameOf(event);
     if (!frame) return;
@@ -108,6 +161,7 @@ export function connectPort(port: PortLike): SheetModelClient {
   async function* call(name: MethodName, request: unknown, signal?: AbortSignal): AsyncGenerator<unknown> {
     const desc = methodDesc(name);
     if (signal?.aborted) throw new ModelError("cancelled", "Canceled.");
+    if (failure) throw failure;
     const id = nextId++;
     const reply = new Reply(desc.methodKind === "unary");
     pending.set(id, reply);
@@ -126,7 +180,6 @@ export function connectPort(port: PortLike): SheetModelClient {
     }
   }
 
-  const client: Record<string, unknown> = {};
   for (const name of METHOD_NAMES) {
     if (methodDesc(name).methodKind === "unary") {
       client[name] = async (request: unknown, signal?: AbortSignal) => {

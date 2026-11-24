@@ -113,3 +113,13 @@ test("the walk stops at the entry limit and reports a partial list", async () =>
   assert.equal(result.visited, 20);
   assert.equal(result.files.length, 19); // the "notes" folder counts as one entry
 });
+
+test("a create whose write fails leaves no empty file in the folder", async () => {
+  const { root, store } = folder();
+  root.volume.failWritable = true;
+  await assert.rejects(store.create(p("docs/AGENTS.md"), "x"));
+  assert.equal(root.fileAt("docs/AGENTS.md"), undefined);
+  root.volume.failWritable = false;
+  await store.create(p("docs/AGENTS.md"), "ok");
+  assert.equal(root.fileAt("docs/AGENTS.md")?.text, "ok");
+});

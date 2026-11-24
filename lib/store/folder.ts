@@ -15,6 +15,7 @@ import { hasFileExtension, parseFilePath, type FilePath } from "./refs.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import type { LockLike } from "./opfs.ts";
 import {
+  assertStorableText,
   FileUnreadableError,
   PageConflictError,
   PageExistsError,
@@ -174,6 +175,14 @@ export class FolderPageFiles implements PageFiles<FilePath> {
     }
   }
 
+  /** Remove a file A4 just created (only used to undo a failed create). */
+  async #remove(path: FilePath): Promise<void> {
+    const parts = path.split("/");
+    let dir = this.root;
+    for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+    await dir.removeEntry(parts[parts.length - 1]!);
+  }
+
   async list(): Promise<PageSummary<FilePath>[]> {
     const { files } = await walkFolder(this.root);
     const out: PageSummary<FilePath>[] = [];
@@ -206,16 +215,26 @@ export class FolderPageFiles implements PageFiles<FilePath> {
 
   async create(path: FilePath, text: string): Promise<WriteResult<FilePath>> {
     const valid = parseFilePath(path);
+    assertStorableText(valid, text);
     return this.#locked(valid, async () => {
       if (await this.handle(valid)) throw new PageExistsError(valid);
-      const handle = (await this.handle(valid, true))!;
-      const file = await writeFile(handle, text);
+      const handle = await this.handle(valid, true);
+      if (!handle) throw new PageNotFoundError(valid);
+      let file: File;
+      try {
+        file = await writeFile(handle, text);
+      } catch (error) {
+        // Don't leave an empty file in the user's folder.
+        await this.#remove(valid).catch(() => {});
+        throw error;
+      }
       return { name: valid, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
     });
   }
 
   async write(path: FilePath, text: string, expected?: Revision | null): Promise<WriteResult<FilePath>> {
     const valid = parseFilePath(path);
+    assertStorableText(valid, text);
     return this.#locked(valid, async () => {
       const handle = await this.handle(valid);
       if (!handle) throw new PageNotFoundError(valid);

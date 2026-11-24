@@ -36,6 +36,8 @@ export class FakeVolume {
   grantOnRequest = true;
   /** Number of `requestPermission` calls that prompted. */
   prompts = 0;
+  /** When true, every `createWritable` fails, as when storage is full. */
+  failWritable = false;
   constructor(clock: () => number = Date.now) {
     this.clock = clock;
   }
@@ -138,6 +140,7 @@ export class FakeFileHandle {
 
   async createWritable(): Promise<FakeWritable> {
     checkAccess(this.volume, this.removed, this.name);
+    if (this.volume.failWritable) throw domError("QuotaExceededError", "Storage is full.");
     return new FakeWritable(this.data, this);
   }
 

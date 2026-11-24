@@ -21,6 +21,8 @@ export function getGpuDevice(): Promise<GPUDevice> {
     void device.lost.then(() => {
       devicePromise = null;
     });
+    // Development only: let a browser check simulate a lost device.
+    if (import.meta.env?.DEV) (globalThis as { __a4LoseGpuDevice?: () => void }).__a4LoseGpuDevice = () => device.destroy();
     return device;
   })().catch((error: unknown) => {
     devicePromise = null;

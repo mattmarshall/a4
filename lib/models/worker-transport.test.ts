@@ -6,7 +6,8 @@ import { PRESETS } from "../page-spec.ts";
 import { sheetRecord } from "../tensor/record.ts";
 import { implement } from "./client.ts";
 import { ModelError } from "./errors.ts";
-import { connectPort, servePort, type PortLike } from "./worker-transport.ts";
+import { FakeWorker } from "./testing/fake-worker.ts";
+import { connectPort, fromWorker, isClosed, servePort, type PortLike } from "./worker-transport.ts";
 
 const card = create(ModelCardSchema, { id: "echo", name: "Echo", operations: [Operation.SCORE], placement: Placement.BROWSER });
 
@@ -109,4 +110,35 @@ test("worker transport: an all-default unary reply (zero bytes) still resolves",
   } finally {
     close();
   }
+});
+
+test("worker transport: a crashed worker fails pending calls at once, and later calls too", async () => {
+  const worker = new FakeWorker();
+  let release: () => void = () => {};
+  servePort(
+    worker.channel.port2 as unknown as PortLike,
+    implement({
+      describe: () => ({ card }),
+      score: () => new Promise((resolve) => (release = () => resolve({}))),
+    }),
+  );
+  const client = connectPort(fromWorker(worker));
+  const scoring = client.score(create(ScoreRequestSchema, { sheet: sheetRecord("x", PRESETS.terminal) }));
+  await new Promise((r) => setTimeout(r, 20));
+  const started = Date.now();
+  worker.crash();
+  await assert.rejects(scoring, (e: unknown) => e instanceof ModelError && e.code === "unavailable");
+  assert.ok(Date.now() - started < 1000);
+  assert.ok(worker.terminated);
+  assert.ok(isClosed(client));
+  await assert.rejects(client.describe(create(DescribeRequestSchema)), (e: unknown) => e instanceof ModelError && e.code === "unavailable");
+  release();
+});
+
+test("worker transport: an unreadable message from the worker also fails the client", async () => {
+  const worker = new FakeWorker();
+  const client = connectPort(fromWorker(worker));
+  const pending = client.describe(create(DescribeRequestSchema));
+  worker.dispatchEvent(new MessageEvent("messageerror"));
+  await assert.rejects(pending, (e: unknown) => e instanceof ModelError && e.code === "unavailable");
 });

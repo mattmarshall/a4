@@ -1,6 +1,6 @@
 "use client";
 
-import { THRESHOLDS, VERDICT_SUMMARY, type Analysis } from "@/lib/analyze";
+import { THRESHOLDS, VERDICT_SUMMARY, type Analysis, type Tone } from "@/lib/analyze";
 import { KIND_LABEL, LENSES, type LensId } from "@/lib/lenses";
 import { InspectorSection } from "./InspectorSection";
 import { fontSizePt, type PageSpec } from "@/lib/page-spec";
@@ -31,33 +31,33 @@ function Bar({
   );
 }
 
+/** The bar state for a signal: the same judgment the verdict and findings use. */
+const TONE_STATE: Record<Tone, "warn" | "good" | undefined> = { ok: "good", warn: "warn", bad: "warn", na: undefined };
+
 function Metric({
   name,
   value,
   shown,
   threshold,
-  higherIsBetter,
+  tone,
   note,
 }: {
   name: string;
   value: number;
   shown: string;
   threshold?: number;
-  higherIsBetter?: boolean;
+  /** From the analysis signals; without one, the bar shows no judgment. */
+  tone?: Tone;
   note: string;
 }) {
-  let state: "warn" | "good" | undefined;
-  if (threshold !== undefined) {
-    const bad = higherIsBetter ? value < threshold : value >= threshold;
-    state = bad ? "warn" : "good";
-  }
+  const na = tone === "na";
   return (
-    <div className="metric">
+    <div className="metric" data-na={na ? "" : undefined}>
       <div className="metric-head">
         <span>{name}</span>
-        <span className="num">{shown}</span>
+        <span className="num">{na ? "n/a" : shown}</span>
       </div>
-      <Bar value={value} threshold={threshold} state={state} />
+      <Bar value={na ? 0 : value} threshold={na ? undefined : threshold} state={tone ? TONE_STATE[tone] : undefined} />
       <span className="metric-note">{note}</span>
     </div>
   );
@@ -231,6 +231,7 @@ export function MetricsPanel({
             name="Syntax overhead"
             value={a.syntax}
             shown={pct(a.syntax)}
+            tone={a.signals.syntax}
             threshold={t.noisySyntax}
             note="Share of ink that is scaffolding: quotes, braces, colons, markup."
           />
@@ -238,6 +239,7 @@ export function MetricsPanel({
             name="Repetition"
             value={a.repetition}
             shown={pct(a.repetition)}
+            tone={a.signals.repetition}
             threshold={t.noisyRepetition}
             note={`Word ink spent restating terms.${a.duplicateLines ? ` ${a.duplicateLines} duplicated lines.` : ""}`}
           />
@@ -245,14 +247,15 @@ export function MetricsPanel({
             name="Narrative share"
             value={a.narrative ?? 0}
             shown={pct(a.narrative)}
+            tone={a.signals.narrative}
             threshold={t.lowNarrative}
-            higherIsBetter
             note={`${a.proseLines} sentence lines, ${a.structuredLines} field or fragment lines.`}
           />
           <Metric
             name="Crowding"
             value={a.crowding}
             shown={pct(a.crowding)}
+            tone={a.signals.crowding}
             threshold={t.busyCrowding}
             note="Ink as a share of the cells in used rows."
           />
@@ -260,6 +263,7 @@ export function MetricsPanel({
             name="Indentation"
             value={a.indentation}
             shown={pct(a.indentation)}
+            tone={a.signals.indentation}
             threshold={t.busyIndentation}
             note={`Leading whitespace${a.maxIndent ? `; deepest indent ${a.maxIndent} columns` : ""}.`}
           />

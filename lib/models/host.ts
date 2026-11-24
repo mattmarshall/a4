@@ -5,9 +5,10 @@
  * repairs to ask for, and consent for plugins that send text off the device.
  */
 
-import { create } from "@bufbuild/protobuf";
+import { clone, create } from "@bufbuild/protobuf";
 import {
   DescribeRequestSchema,
+  ModelCardSchema,
   Operation,
   PrepareRequestSchema,
   ScoreRequestSchema,
@@ -24,6 +25,7 @@ import { pageSpecMessage } from "../tensor/record.ts";
 import type { SheetModelClient } from "./client.ts";
 import { consumeConsent, type ConsentToken } from "./consent.ts";
 import { ModelError, toModelError } from "./errors.ts";
+import { isClosed } from "./worker-transport.ts";
 
 /** A bundled plugin: a static card plus a lazy connection to its code. */
 export interface PluginEntry {
@@ -79,6 +81,31 @@ export interface TransformResult {
 
 export const MAX_ATTEMPTS = 3;
 
+/**
+ * What the host enforces for a plugin, derived once from its card at
+ * registration. Kept private, so changing a card object later can't change
+ * whether a call needs consent.
+ */
+interface Policy {
+  /** "none": text stays on the device; otherwise where it goes. */
+  readonly egress: "none" | { readonly host: string };
+}
+
+/** Freeze a message and everything in it. */
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const key of Object.keys(value)) deepFreeze((value as Record<string, unknown>)[key]);
+  }
+  return value;
+}
+
+interface Registered {
+  readonly card: ModelCard;
+  readonly policy: Policy;
+  readonly connect: () => Promise<SheetModelClient>;
+}
+
 function checkCard(card: ModelCard): void {
   if (!card.id) throw new ModelError("invalid-result", "A model card needs an id.");
   if (card.sendsTextOffDevice && !card.destinationHost) {
@@ -87,13 +114,22 @@ function checkCard(card: ModelCard): void {
 }
 
 export class ModelHost {
-  readonly #plugins = new Map<string, PluginEntry>();
+  readonly #plugins = new Map<string, Registered>();
   readonly #clients = new Map<string, Promise<SheetModelClient>>();
 
   register(entry: PluginEntry): void {
     checkCard(entry.card);
     if (this.#plugins.has(entry.card.id)) throw new ModelError("invalid-result", `Model "${entry.card.id}" is already registered.`);
-    this.#plugins.set(entry.card.id, entry);
+    // A private, frozen copy: later changes to the caller's card object change nothing here.
+    const card = deepFreeze(clone(ModelCardSchema, entry.card));
+    const policy: Policy = { egress: card.sendsTextOffDevice ? { host: card.destinationHost } : "none" };
+    this.#plugins.set(card.id, { card, policy, connect: entry.connect });
+  }
+
+  #policy(id: string): Policy {
+    const entry = this.#plugins.get(id);
+    if (!entry) throw new ModelError("unsupported-operation", `No model "${id}".`);
+    return entry.policy;
   }
 
   list(): ModelCard[] {
@@ -111,6 +147,13 @@ export class ModelHost {
     const entry = this.#plugins.get(id);
     if (!entry) throw new ModelError("unsupported-operation", `No model "${id}".`);
     let pending = this.#clients.get(id);
+    if (pending) {
+      // A client whose worker failed is replaced by a fresh connection.
+      const client = await pending.catch(() => null);
+      if (client && !isClosed(client)) return client;
+      if (this.#clients.get(id) === pending) this.#clients.delete(id);
+      pending = undefined;
+    }
     if (!pending) {
       pending = (async () => {
         const client = await entry.connect();
@@ -160,7 +203,7 @@ export class ModelHost {
 
   async score(id: string, text: string, spec: PageSpec, signal?: AbortSignal): Promise<ScoreResult> {
     const card = this.#require(id, Operation.SCORE);
-    if (card.sendsTextOffDevice) throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
+    if (this.#policy(id).egress !== "none") throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
     const client = await this.#client(id);
     let response;
     try {
@@ -169,14 +212,18 @@ export class ModelHost {
       throw toModelError(error);
     }
     const grid = encodeGrid(text, spec);
+    const who = card.name || id;
+    const names = new Set<string>();
     const planes = response.planes.map((plane): PlaneResult => {
       const [rows, cols, depth = 1] = plane.shape;
       if (rows !== grid.rows || cols !== grid.cols || plane.shape.length > 3 || plane.values.length !== rows * cols * depth) {
-        throw new ModelError(
-          "invalid-result",
-          `${card.name || id} returned a ${plane.shape.join(" × ")} plane for a ${grid.rows} × ${grid.cols} grid.`,
-        );
+        throw new ModelError("invalid-result", `${who} returned a ${plane.shape.join(" × ")} plane for a ${grid.rows} × ${grid.cols} grid.`);
       }
+      // The sheet paints one value per cell; deeper planes aren't supported yet.
+      if (depth !== 1) throw new ModelError("invalid-result", `${who} returned a plane with depth ${depth}; only depth 1 is supported.`);
+      if (!plane.name) throw new ModelError("invalid-result", `${who} returned a plane without a name.`);
+      if (names.has(plane.name)) throw new ModelError("invalid-result", `${who} returned two planes named "${plane.name}".`);
+      names.add(plane.name);
       if (plane.text !== text) throw new ModelError("invalid-result", `${card.name || id} scored different text than it was sent.`);
       return {
         pluginId: id,
@@ -189,7 +236,12 @@ export class ModelHost {
         values: Float32Array.from(plane.values),
       };
     });
-    const span = (s: TextSpan) => ({ start: s.start, end: s.end });
+    const span = (s: TextSpan) => {
+      if (!(Number.isInteger(s.start) && Number.isInteger(s.end) && 0 <= s.start && s.start <= s.end && s.end <= text.length)) {
+        throw new ModelError("invalid-result", `${who} returned a span ${s.start}–${s.end} outside the ${text.length}-character page.`);
+      }
+      return { start: s.start, end: s.end };
+    };
     return {
       planes,
       scores: response.scores.map((s) => ({ name: s.name, value: s.value })),
@@ -204,7 +256,7 @@ export class ModelHost {
    */
   async transform(id: string, text: string, spec: PageSpec, options: TransformOptions): Promise<TransformResult> {
     const card = this.#require(id, Operation.TRANSFORM);
-    if (card.sendsTextOffDevice) consumeConsent(options.consent, id, text);
+    if (this.#policy(id).egress !== "none") consumeConsent(options.consent, id, text);
     const client = await this.#client(id);
     const sheet = this.#sheet(card, text, spec);
     const max = Math.max(1, options.maxAttempts ?? MAX_ATTEMPTS);

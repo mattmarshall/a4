@@ -10,7 +10,13 @@
  * - With a separate `copies` store (a folder file's session uses the
  *   library), conflict copies and text whose page is gone go there instead:
  *   the session saves the copy, stops, and reports it with `moved: true`, so
- *   the workbench can open the copy. A folder file is never recreated.
+ *   the workbench can open the copy. A folder file is never recreated. Edits
+ *   typed while the copy was being saved are journaled under the copy (in
+ *   `copiesJournal`) and reported as `pendingText`.
+ * - A session opened on a page with a draft from this tab (a save that
+ *   failed before the page was closed) starts from the draft and saves it,
+ *   expecting the draft's base revision, so a page changed since becomes a
+ *   conflict copy rather than being overwritten.
  */
 
 import { availableName, stamp } from "../store/names.ts";
@@ -30,10 +36,14 @@ export type SaveStatus = "saved" | "unsaved" | "saving" | "error";
 export type SessionEvent<Id extends string = PageName> =
   | { type: "status"; status: SaveStatus }
   | { type: "saved"; result: WriteResult<Id> }
-  /** `moved`: the copy is in the `copies` store and this session has stopped. */
-  | { type: "conflict"; original: Id; copy: PageName; moved: boolean }
-  | { type: "recreated"; original: Id; name: PageName; moved: boolean }
-  | { type: "error"; error: unknown; retryInMs: number };
+  /**
+   * `moved`: the copy is in the `copies` store and this session has stopped.
+   * `pendingText`: edits typed while the copy was saved, not in the copy yet.
+   */
+  | { type: "conflict"; original: Id; copy: PageName; moved: boolean; pendingText?: string }
+  | { type: "recreated"; original: Id; name: PageName; moved: boolean; pendingText?: string }
+  /** `retryInMs` is null when retrying can't help (the store refused the text). */
+  | { type: "error"; error: unknown; retryInMs: number | null };
 
 export interface Scheduler {
   setTimeout(fn: () => void, ms: number): unknown;
@@ -56,6 +66,8 @@ export interface PageSessionOptions<Id extends string = PageName> {
   page: Page<Id>;
   /** Where copies go when it isn't `store` (the library, for a folder file). */
   copies?: PageStore;
+  /** The journal for pages in `copies` (this tab's library journal). */
+  copiesJournal?: Journal<PageName>;
   /** The desired name of a copy: the page's identifier plus `suffix`. */
   copyName?: (id: Id, suffix: string) => string;
   scheduler?: Scheduler;
@@ -68,6 +80,7 @@ export class PageSession<Id extends string = PageName> {
   readonly #store: PageFiles<Id>;
   readonly #journal: Journal<Id>;
   readonly #copies: PageStore | null;
+  readonly #copiesJournal: Journal<PageName> | null;
   readonly #copyName: (id: Id, suffix: string) => string;
   readonly #scheduler: Scheduler;
   readonly #debounceMs: number;
@@ -90,6 +103,7 @@ export class PageSession<Id extends string = PageName> {
     this.#store = options.store;
     this.#journal = options.journal;
     this.#copies = options.copies && options.copies !== (options.store as unknown) ? options.copies : null;
+    this.#copiesJournal = options.copiesJournal ?? null;
     this.#copyName = options.copyName ?? ((id, suffix) => `${id}${suffix}`);
     this.#scheduler = options.scheduler ?? realScheduler;
     this.#debounceMs = options.debounceMs ?? DEBOUNCE_MS;
@@ -99,6 +113,16 @@ export class PageSession<Id extends string = PageName> {
     this.#text = options.page.text;
     this.#savedText = options.page.text;
     this.#revision = options.page.revision;
+    // A draft this tab left for this page (its last save failed) wins over the
+    // stored text. Saving expects the draft's base, so a page changed since
+    // becomes a conflict copy instead of being overwritten.
+    const draft = this.#journal.get(this.#name);
+    if (draft && draft.text !== options.page.text) {
+      this.#text = draft.text;
+      if (draft.base) this.#revision = draft.base;
+      this.#status = "unsaved";
+      this.#schedule(0);
+    }
   }
 
   get name(): Id {
@@ -220,13 +244,18 @@ export class PageSession<Id extends string = PageName> {
       if (this.#copies) {
         const target = await availableName(this.#copies, desired);
         const result = await this.#copies.create(target, text);
+        // Keys typed while the copy was saved belong to the copy now: journal
+        // them under it before dropping the old draft, so a crash keeps them.
+        const pending = this.#text !== text ? this.#text : undefined;
+        if (pending !== undefined) this.#copiesJournal?.set(result.name, pending, result.revision);
         this.#journal.clear(previous);
-        this.#savedText = text;
+        this.#savedText = this.#text;
         this.#attempt = 0;
         this.#disposed = true;
         this.#clearTimers();
         this.#setStatus("saved");
-        this.#onEvent(event(result.name, true));
+        const moved = event(result.name, true);
+        this.#onEvent(pending === undefined ? moved : ({ ...moved, pendingText: pending } as SessionEvent<Id>));
         return;
       }
       // Without separate copies, identifiers are page names (a library store).
@@ -258,6 +287,12 @@ export class PageSession<Id extends string = PageName> {
   }
 
   #fail(error: unknown) {
+    if (isStoreError(error, "invalid-text")) {
+      // The same text will be refused again: report it and wait for an edit.
+      this.#setStatus("error");
+      this.#onEvent({ type: "error", error, retryInMs: null });
+      return;
+    }
     const retryInMs = Math.min(RETRY_MAX_MS, RETRY_BASE_MS * 2 ** this.#attempt);
     this.#attempt++;
     this.#setStatus("error");

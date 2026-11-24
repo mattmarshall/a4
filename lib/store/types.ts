@@ -98,7 +98,14 @@ export interface PageStore extends PageFiles<PageName> {
 // ---------------------------------------------------------------------------
 // Typed errors
 
-export type PageStoreErrorCode = "not-found" | "exists" | "invalid-name" | "conflict" | "unavailable" | "unreadable";
+export type PageStoreErrorCode =
+  | "not-found"
+  | "exists"
+  | "invalid-name"
+  | "invalid-text"
+  | "conflict"
+  | "unavailable"
+  | "unreadable";
 
 export class PageStoreError extends Error {
   readonly code: PageStoreErrorCode;
@@ -149,6 +156,20 @@ export class StoreUnavailableError extends PageStoreError {
   constructor(message: string) {
     super("unavailable", message);
   }
+}
+
+/** Text that isn't well-formed Unicode (a lone surrogate) can't be stored exactly. */
+export class InvalidTextError extends PageStoreError {
+  readonly page: string;
+  constructor(page: string) {
+    super("invalid-text", `“${page}” contains text that can’t be saved exactly (an unpaired surrogate character).`);
+    this.page = page;
+  }
+}
+
+/** Throw unless `text` is well-formed Unicode, so every backend stores it exactly. */
+export function assertStorableText(page: string, text: string): void {
+  if (!text.isWellFormed()) throw new InvalidTextError(page);
 }
 
 /** Why a folder file can't be opened as a page. */

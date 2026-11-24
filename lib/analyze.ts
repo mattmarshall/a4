@@ -75,6 +75,8 @@ export interface Analysis {
   narrative: number | null;
   tokens: number;
   charsPerToken: number | null;
+  /** How each judged metric reads; the verdict, findings, and bars all use it. */
+  signals: Signals;
   verdict: Verdict;
   findings: Finding[];
 }
@@ -260,7 +262,7 @@ export function analyze(text: string, spec: PageSpec): Analysis {
   const fill = used / pageRows;
   const overflow = Math.max(0, used - pageRows);
 
-  const partial: Omit<Analysis, "verdict" | "findings"> = {
+  const partial: Omit<Analysis, "signals" | "verdict" | "findings"> = {
     cols,
     pageRows,
     capacity: cap,
@@ -293,27 +295,52 @@ export function analyze(text: string, spec: PageSpec): Analysis {
     charsPerToken: tokens === 0 ? null : text.length / tokens,
   };
 
-  const verdict = verdictFor(partial);
-  return { ...partial, verdict, findings: findingsFor(partial, verdict) };
+  const judged = signals(partial);
+  const verdict = verdictFor(partial, judged);
+  return { ...partial, signals: judged, verdict, findings: findingsFor(partial, verdict, judged) };
 }
 
-type Metrics = Omit<Analysis, "verdict" | "findings">;
+type Metrics = Omit<Analysis, "signals" | "verdict" | "findings">;
 
-export function verdictFor(m: Metrics): Verdict {
+/**
+ * How a metric reads: fine ("ok"), worth a note ("warn"), a problem ("bad"),
+ * or not applicable ("na": no value, or too little text to judge).
+ */
+export type Tone = "ok" | "warn" | "bad" | "na";
+
+/** One tone per judged metric, computed once; verdict, findings, and bars all read it. */
+export interface Signals {
+  syntax: Tone;
+  repetition: Tone;
+  duplicates: Tone;
+  narrative: Tone;
+  crowding: Tone;
+  indentation: Tone;
+}
+
+export function signals(m: Metrics): Signals {
+  const t = THRESHOLDS;
+  const narrativeBase = m.proseLines + m.structuredLines;
+  return {
+    syntax: m.syntax >= t.noisySyntax ? "bad" : m.syntax >= t.noteSyntax ? "warn" : "ok",
+    repetition: m.repetition >= t.noisyRepetition && m.repeatedTerms.length > 0 ? "bad" : "ok",
+    duplicates: m.duplicateLines >= t.noisyDuplicateLines ? "bad" : "ok",
+    narrative:
+      m.narrative === null || narrativeBase < t.lowNarrativeMinLines ? "na" : m.narrative < t.lowNarrative ? "bad" : "ok",
+    crowding: m.crowding >= t.busyCrowding ? "bad" : "ok",
+    indentation: m.indentation >= t.busyIndentation ? "bad" : "ok",
+  };
+}
+
+export function verdictFor(m: Metrics, s: Signals = signals(m)): Verdict {
   const t = THRESHOLDS;
   if (m.ink === 0) return "Empty";
   if (m.overflow > 0) return "Overflowing";
-  if (
-    m.syntax >= t.noisySyntax ||
-    m.repetition >= t.noisyRepetition ||
-    m.duplicateLines >= t.noisyDuplicateLines
-  ) {
-    return "Noisy";
-  }
+  if (s.syntax === "bad" || s.repetition === "bad" || s.duplicates === "bad") return "Noisy";
   // A short page is Light even when its few rows are dense; crowding only
   // makes a page Busy once there is enough of it to be hard to scan.
   if (m.fill < t.lightFill) return "Light";
-  if (m.crowding >= t.busyCrowding || m.indentation >= t.busyIndentation) return "Busy";
+  if (s.crowding === "bad" || s.indentation === "bad") return "Busy";
   return "Balanced";
 }
 
@@ -326,7 +353,7 @@ export const VERDICT_SUMMARY: Record<Verdict, string> = {
   Balanced: "Fits the page and reads clean.",
 };
 
-export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
+export function findingsFor(m: Metrics, verdict: Verdict, s: Signals = signals(m)): Finding[] {
   const t = THRESHOLDS;
   const out: Finding[] = [];
 
@@ -351,7 +378,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  if (m.syntax >= t.noisySyntax) {
+  if (s.syntax === "bad") {
     out.push({
       id: "syntax",
       severity: "warning",
@@ -359,7 +386,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
       detail:
         "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data.",
     });
-  } else if (m.syntax >= t.noteSyntax) {
+  } else if (s.syntax === "warn") {
     out.push({
       id: "syntax",
       severity: "info",
@@ -369,7 +396,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
   }
 
   const top = m.repeatedTerms[0];
-  if (m.repetition >= t.noisyRepetition && top) {
+  if (s.repetition === "bad" && top) {
     out.push({
       id: "repetition",
       severity: "warning",
@@ -378,7 +405,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  if (m.duplicateLines >= t.noisyDuplicateLines) {
+  if (s.duplicates === "bad") {
     out.push({
       id: "duplicates",
       severity: "warning",
@@ -387,7 +414,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  if (m.crowding >= t.busyCrowding) {
+  if (s.crowding === "bad") {
     out.push({
       id: "crowding",
       severity: "warning",
@@ -396,7 +423,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  if (m.indentation >= t.busyIndentation) {
+  if (s.indentation === "bad") {
     out.push({
       id: "indentation",
       severity: "warning",
@@ -405,8 +432,7 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  const narrativeBase = m.proseLines + m.structuredLines;
-  if (m.narrative !== null && m.narrative < t.lowNarrative && narrativeBase >= t.lowNarrativeMinLines) {
+  if (s.narrative === "bad" && m.narrative !== null) {
     out.push({
       id: "narrative",
       severity: "warning",
@@ -435,7 +461,9 @@ export function findingsFor(m: Metrics, verdict: Verdict): Finding[] {
     });
   }
 
-  if (out.every((f) => f.severity === "info") && (verdict === "Balanced" || verdict === "Light")) {
+  // "Reads clean" only when no signal needs attention (a syntax note does).
+  const quiet = Object.values(s).every((tone) => tone === "ok" || tone === "na");
+  if (quiet && out.every((f) => f.severity === "info") && (verdict === "Balanced" || verdict === "Light")) {
     out.unshift({
       id: "clean",
       severity: "info",

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { analyze, compressibility } from "@/lib/analyze";
-import type { SaveStatus } from "@/lib/autosave";
+import { realScheduler, type SaveStatus } from "@/lib/autosave";
 import { describeImport } from "@/lib/import";
 import { isLensId, LENSES, type LensId } from "@/lib/lenses";
 import {
@@ -23,13 +23,20 @@ import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
 import { LensLegend, MetricsPanel, VerdictChip } from "./MetricsPanel";
 import { Menu, MenuItem } from "./Menu";
-import { FitToPage } from "./FitToPage";
+import { FitJobChip, FitToPage } from "./FitToPage";
 import { ModelsPanel, type SemanticSummary } from "./ModelsPanel";
 import { A4Sheet, type A4SheetHandle } from "./A4Sheet";
 import { useModels } from "./useModels";
 import type { A4Plane } from "@/lib/element/a4-sheet";
 import type { FindingResult, ScoreResult, TransformResult } from "@/lib/models/host";
 import { SEMANTIC_REPETITION_CARD, SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
+import { ScoreSchedule } from "@/lib/models/semantic/schedule";
+import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
+import { FitJob } from "@/lib/models/fit/job";
+import { runReported } from "@/lib/workspace/errors";
+import { forgetApiKey } from "@/lib/models/fit/key";
+import { grantConsent } from "@/lib/models/consent";
+import { MAX_ATTEMPTS } from "@/lib/models/host";
 import { DEFAULT_VIEW, SheetControls, type SheetView } from "./SheetControls";
 import { useLibrary, type Slot } from "./useLibrary";
 
@@ -130,7 +137,7 @@ export function Workbench() {
   const [mode, setMode] = useState<Mode>("single");
   const [showLibrary, setShowLibrary] = useState(true);
   /** "Save to folder…" was chosen: the Pages panel asks for a path. */
-  const [saveRequest, setSaveRequest] = useState<{ name: string; slot: Slot } | null>(null);
+  const [saveRequest, setSaveRequest] = useState<{ name: PageName; slot: Slot } | null>(null);
   const [settingsReady, setSettingsReady] = useState(false);
   const [active, setActive] = useState<Slot>("a");
   const [render, setRender] = useState<Render>("3d");
@@ -203,7 +210,9 @@ export function Workbench() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        void lib.flushAll().then(() => notify("Saved"));
+        void lib.flushAll().then((saved) =>
+          saved ? notify("Saved") : notify("Saving failed. A4 keeps your edits and will keep trying.", "warn"),
+        );
       }
     }
     window.addEventListener("keydown", onKey);
@@ -284,50 +293,57 @@ export function Workbench() {
   const [scored, setScored] = useState<Record<Slot, (ScoreResult & { preset: PresetId }) | null>>({ a: null, b: null });
   const slotsShown: Slot[] = mode === "compare" ? ["a", "b"] : ["a"];
 
-  const scoreSlot = useCallback(
-    async (slot: Slot, text: string) => {
-      try {
-        const result = await models.score(SEMANTIC_REPETITION_ID, text, spec);
-        setScored((s) => ({ ...s, [slot]: { ...result, preset: spec.id } }));
-      } catch (error) {
-        notify(`Semantic repetition: ${error instanceof Error ? error.message : String(error)}`, "warn");
-      }
-    },
-    [models.score, spec, notify], // eslint-disable-line react-hooks/exhaustive-deps
+  // Scoring for the Semantic repetition lens: once when it's turned on, then
+  // 1,500 ms after a shown page's text (or the preset) stops changing.
+  // ScoreSchedule skips duplicate requests and drops stale results.
+  const scoreRef = useRef(models.score);
+  scoreRef.current = models.score;
+  const notifyScoreRef = useRef(notify);
+  notifyScoreRef.current = notify;
+  const [schedule] = useState(
+    () =>
+      new ScoreSchedule<Slot, ScoreResult>({
+        scheduler: realScheduler,
+        delayMs: RESCORE_MS,
+        score: (_slot, text, preset) => scoreRef.current(SEMANTIC_REPETITION_ID, text, PRESETS[preset as PresetId]),
+        onResult: (slot, result, _text, preset) => setScored((s) => ({ ...s, [slot]: { ...result, preset: preset as PresetId } })),
+        onError: (_slot, error) =>
+          notifyScoreRef.current(`Semantic repetition: ${error instanceof Error ? error.message : String(error)}`, "warn"),
+      }),
   );
+  useEffect(() => () => schedule.stop(), [schedule]);
 
   function chooseLens(id: LensId) {
     setModelLens(null);
+    schedule.stop();
     setLens(id);
   }
 
   function showSemantic() {
     setModelLens(SEMANTIC_REPETITION_ID);
-    for (const slot of slotsShown) void scoreSlot(slot, slot === "a" ? textA : textB);
+    for (const slot of slotsShown) schedule.now(slot, slot === "a" ? textA : textB, spec.id);
   }
 
-  // While the Semantic repetition lens is on, rescore each shown page 1,500 ms
-  // after its text (or the preset) stops changing.
+  const semanticReady = models.status[SEMANTIC_REPETITION_ID] === "ready";
   useEffect(() => {
-    if (modelLens !== SEMANTIC_REPETITION_ID || models.status[SEMANTIC_REPETITION_ID] !== "ready") return;
-    const timers = slotsShown.map((slot) => {
-      const text = slot === "a" ? textA : textB;
-      const current = scored[slot];
-      if (current && current.preset === spec.id && current.planes[0]?.text === text) return 0;
-      return window.setTimeout(() => void scoreSlot(slot, text), RESCORE_MS);
-    });
-    return () => timers.forEach((t) => t && clearTimeout(t));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelLens, models.status, textA, textB, spec.id, mode, scoreSlot]);
+    if (modelLens !== SEMANTIC_REPETITION_ID || !semanticReady) return;
+    schedule.changed("a", textA, spec.id);
+    if (mode === "compare") schedule.changed("b", textB, spec.id);
+  }, [schedule, modelLens, semanticReady, textA, textB, spec.id, mode]);
 
+  /** Planes are keyed by plugin and plane name, so one plugin's planes never replace each other. */
+  const planeKey = (pluginId: string, name: string) => `${pluginId}/${name}`;
   function planesFor(slot: Slot): Record<string, A4Plane> | undefined {
     const result = scored[slot];
     if (!result || result.preset !== spec.id) return undefined;
-    return Object.fromEntries(result.planes.map((p) => [p.pluginId, { text: p.text, values: p.values, label: p.label }]));
+    return Object.fromEntries(result.planes.map((p) => [planeKey(p.pluginId, p.name), { text: p.text, values: p.values, label: p.label }]));
   }
+  /** The plane a model lens shows: the plugin's first plane in either slot's latest result. */
+  const lensPlane = (pluginId: string) =>
+    [scored.a, scored.b].flatMap((r) => r?.planes ?? []).find((p) => p.pluginId === pluginId)?.name ?? "";
   const planesA = useMemo(() => planesFor("a"), [scored.a, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const planesB = useMemo(() => planesFor("b"), [scored.b, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sheetLens = modelLens ? (`model:${modelLens}` as const) : lens;
+  const sheetLens = modelLens ? (`model:${planeKey(modelLens, lensPlane(modelLens))}` as const) : lens;
   const modelLegend =
     modelLens === SEMANTIC_REPETITION_ID
       ? {
@@ -356,10 +372,26 @@ export function Workbench() {
   })();
 
   // Fit to page: the result opens as B, beside its source as A.
-  async function openFitResult(sourceName: string, result: TransformResult, sourceRef: PageRef | null = null) {
+  // Fit to page: one request at a time, owned here so it outlives the Models
+  // panel (collapsing it, hiding the inspector, or focus mode don't stop it).
+  const fitDeps = useRef({ spec, openFitResult: (_n: string, _r: TransformResult, _ref: PageRef) => Promise.resolve() });
+  const [fitJob] = useState(
+    () =>
+      new FitJob<PageRef>({
+        grant: (text) => grantConsent(FIT_TO_PAGE_ID, text),
+        run: async (text, options) =>
+          (await models.host()).transform(FIT_TO_PAGE_ID, text, fitDeps.current.spec, { instruction: "fit", ...options }),
+        onResult: (name, result, ref) => fitDeps.current.openFitResult(name, result, ref),
+        onAuthFailed: () => forgetApiKey(),
+        maxAttempts: MAX_ATTEMPTS,
+      }),
+  );
+
+  async function openFitResult(_sourceName: string, result: TransformResult, ref: PageRef | null) {
+    // The dialog only opens for an open page, so a reference is always present.
+    if (!ref) return;
     setMode("compare");
     setZoom({ kind: "fit" });
-    const ref = sourceRef ?? libraryRef(sourceName as PageName);
     if (!sameRef(lib.slotA.ref, ref)) {
       if (sameRef(lib.slotB.ref, ref)) await lib.swapSlots();
       else await lib.openInSlot("a", ref);
@@ -375,6 +407,8 @@ export function Workbench() {
       result.fits ? "info" : "warn",
     );
   }
+
+  fitDeps.current = { spec, openFitResult };
 
   function selectLaterUnit(pair: FindingResult) {
     const later = pair.spans[pair.spans.length - 1];
@@ -471,7 +505,9 @@ export function Workbench() {
   }
 
   function trashPage(name: PageName) {
-    if (window.confirm(`Move “${name}” to the trash? You can restore it from the trash.`)) void lib.trashPage(name);
+    if (window.confirm(`Move “${name}” to the trash? You can restore it from the trash.`)) {
+      void runReported(() => lib.trashPage(name), notify, `move “${name}” to the trash`);
+    }
   }
 
   function slotPicker(slot: Slot) {
@@ -546,6 +582,8 @@ export function Workbench() {
               )}
               <SaveStatusPill status={targetSlot.status} />
             </div>
+
+            <FitJobChip job={fitJob} />
 
             <span className="spacer" />
 
@@ -639,7 +677,8 @@ export function Workbench() {
                     <MenuItem
                       close={close}
                       onSelect={() => {
-                        setSaveRequest({ name: targetSlot.name ?? "Untitled", slot: target });
+                        if (targetSlot.ref?.kind !== "library") return;
+                        setSaveRequest({ name: targetSlot.ref.name, slot: target });
                         setShowLibrary(true);
                       }}
                     >
@@ -762,15 +801,15 @@ export function Workbench() {
             storage={lib.storage}
             onOpen={(name, slot) => {
               setActive(slot);
-              void lib.openInSlot(slot, name);
+              void runReported(() => lib.openInSlot(slot, name), notify, `open “${name}”`);
               if (window.innerWidth < 1100) setShowLibrary(false);
             }}
             onNew={() => void newPage("Untitled", "")}
             onRename={lib.renamePage}
-            onDuplicate={(name) => void lib.duplicatePage(name)}
+            onDuplicate={(name) => void runReported(() => lib.duplicatePage(name), notify, `duplicate “${name}”`)}
             onTrash={trashPage}
-            onRestore={(id) => void lib.restorePage(id)}
-            onPurge={(ids) => void lib.purgePages(ids)}
+            onRestore={(id) => void runReported(() => lib.restorePage(id), notify, "restore the page")}
+            onPurge={(ids) => void runReported(() => lib.purgePages(ids), notify, "delete the page permanently")}
             onExportAll={() => void exportAll()}
             onImport={(file) => void importFile(file)}
             folder={lib.folder}
@@ -779,9 +818,9 @@ export function Workbench() {
               b: mode === "compare" && lib.slotB.ref?.kind === "file" ? lib.slotB.ref.path : null,
             }}
             saveRequest={saveRequest}
-            onOpenFolder={() => void lib.openFolder()}
-            onReconnect={() => void lib.reconnectFolder()}
-            onCloseFolder={() => void lib.closeFolder()}
+            onOpenFolder={() => void runReported(() => lib.openFolder(), notify, "open the folder")}
+            onReconnect={() => void runReported(() => lib.reconnectFolder(), notify, "reconnect the folder")}
+            onCloseFolder={() => void runReported(() => lib.closeFolder(), notify, "close the folder")}
             onOpenFile={(path, slot) => {
               setActive(slot);
               lib
@@ -792,14 +831,16 @@ export function Workbench() {
                 .catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
             }}
             onDuplicateFile={(path) => {
-              void lib.duplicatePage({ kind: "file", path }).then((name) => {
-                if (name) notify(`Copied “${path}” into the library as “${name}”.`);
-              });
+              void runReported(() => lib.duplicatePage({ kind: "file", path }), notify, `copy “${path}” into the library`).then(
+                (name) => {
+                  if (name) notify(`Copied “${path}” into the library as “${name}”.`);
+                },
+              );
             }}
             onNewFile={(path) => lib.createFile(path, "", target)}
             onSaveToFolder={async (path) => {
               if (!saveRequest) return null;
-              const error = await lib.saveToFolder(path, saveRequest.slot);
+              const error = await lib.saveToFolder(saveRequest.name, path, saveRequest.slot);
               if (!error) setSaveRequest(null);
               return error;
             }}
@@ -910,9 +951,12 @@ export function Workbench() {
           ) : null}
 
           {focus ? (
-            <button type="button" className="btn btn-outline focus-exit" onClick={() => setFocus(false)}>
-              Exit focus (Esc)
-            </button>
+            <div className="focus-bar">
+              <FitJobChip job={fitJob} />
+              <button type="button" className="btn btn-outline focus-exit" onClick={() => setFocus(false)}>
+                Exit focus (Esc)
+              </button>
+            </div>
           ) : null}
         </main>
 
@@ -930,9 +974,10 @@ export function Workbench() {
                 b={analysisB}
                 compressA={compressA}
                 compressB={compressB}
-                onSwap={() => void lib.swapSlots()}
+                onSwap={() => void runReported(() => lib.swapSlots(), notify, "swap the pages")}
                 onCopyAToB={() => {
-                  if (lib.slotA.ref) void lib.duplicatePage(lib.slotA.ref, "b");
+                  const ref = lib.slotA.ref;
+                  if (ref) void runReported(() => lib.duplicatePage(ref, "b"), notify, "copy page A into B");
                 }}
               />
             ) : (
@@ -945,12 +990,7 @@ export function Workbench() {
               summary={semanticSummary}
               onSelectPair={selectLaterUnit}
               fit={
-                <FitToPage
-                  page={{ name: targetSlot.label, ref: targetSlot.ref, text: targetSlot.text }}
-                  spec={spec}
-                  host={models.host}
-                  onResult={openFitResult}
-                />
+                <FitToPage page={{ name: targetSlot.label, ref: targetSlot.ref, text: targetSlot.text }} job={fitJob} />
               }
             />
           </aside>

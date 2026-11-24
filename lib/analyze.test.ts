@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { analyze, compressibility, isSyntaxAt, THRESHOLDS } from "./analyze.ts";
 import { PRESETS } from "./page-spec.ts";
 import { estimateTokens } from "./tokens.ts";
-import { INCIDENT_NARRATIVE } from "./samples.ts";
+import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "./samples.ts";
 
 const T = PRESETS.terminal;
 
@@ -167,4 +167,35 @@ test("compressibility: repetitive text compresses below 10%", async () => {
   const c = await compressibility(text);
   assert.ok(c !== null && c < 0.1, `got ${c}`);
   assert.equal(await compressibility("short"), null);
+});
+
+test("a short key-value page: narrative is not applicable, and no narrative finding", () => {
+  const a = analyze("name: brief\nowner: ops\nstatus: draft\n", PRESETS.terminal);
+  assert.equal(a.signals.narrative, "na");
+  assert.ok(!a.findings.some((f) => f.id === "narrative"));
+});
+
+test("every warn or bad signal has its finding, and Reads clean never sits beside one", () => {
+  const texts = [
+    ...[WELCOME, INCIDENT_JSON, INCIDENT_NARRATIVE, ...TEMPLATES.map((t) => t.text)],
+    "name: brief\nowner: ops\nstatus: draft\n",
+    '{"a": {"b": {"c": [1, 2, 3]}}}\n'.repeat(12),
+    "status status status status status status status status\n".repeat(8),
+    `${"word ".repeat(15)}\n`.repeat(30),
+    `${"        deep indent line\n".repeat(20)}`,
+    "One sentence that explains the point clearly enough.\n".repeat(3),
+  ];
+  for (const preset of Object.values(PRESETS)) {
+    for (const text of texts) {
+      const a = analyze(text, preset);
+      for (const [metric, tone] of Object.entries(a.signals)) {
+        if (tone === "warn" || tone === "bad") {
+          assert.ok(a.findings.some((f) => f.id === metric), `${preset.id}: ${metric} is ${tone} without a finding for ${JSON.stringify(text.slice(0, 40))}`);
+        }
+      }
+      if (a.findings.some((f) => f.id === "clean")) {
+        assert.ok(Object.values(a.signals).every((t) => t === "ok" || t === "na"), `Reads clean beside a signal: ${JSON.stringify(text.slice(0, 40))}`);
+      }
+    }
+  }
 });

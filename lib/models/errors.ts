@@ -22,6 +22,8 @@ export type ModelErrorCode =
   | "refused"
   /** The model files aren't downloaded yet. */
   | "not-ready"
+  /** The plugin's worker failed to load, crashed, or sent unreadable data. */
+  | "unavailable"
   /** Anything else the plugin reports. */
   | "plugin";
 
@@ -44,6 +46,7 @@ const CODES = new Set<string>([
   "network",
   "refused",
   "not-ready",
+  "unavailable",
   "plugin",
 ]);
 

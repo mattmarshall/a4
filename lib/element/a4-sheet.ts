@@ -195,6 +195,10 @@ export class A4SheetElement extends HTMLElement {
   #gpu: "unknown" | "ok" | "unavailable" = "unknown";
   #renderer: PaperRenderer | null = null;
   #creating = false;
+  /** Identifies the current renderer creation; a stale one is destroyed on arrival. */
+  #creation = 0;
+  /** After a lost device, 3D is recreated once; a second loss renders flat. */
+  #recreatedAfterLoss = false;
   #pose: Pose = FLAT;
   #view = { tilt: 32, yaw: 0, lightAzimuth: 215, lightElevation: 52 };
   #zoom: number | null = null;
@@ -311,6 +315,7 @@ export class A4SheetElement extends HTMLElement {
     this.#renderer?.destroy();
     this.#renderer = null;
     this.#creating = false;
+    this.#creation++; // a creation still pending is stale now
   }
 
   attributeChangedCallback(name: (typeof OBSERVED)[number], _old: string | null, value: string | null) {
@@ -494,19 +499,23 @@ export class A4SheetElement extends HTMLElement {
     this.#stage.dataset.render = render;
     if (render === "3d" && !this.#renderer && !this.#creating && this.#gpu !== "unavailable") {
       this.#creating = true;
+      const creation = ++this.#creation;
       PaperRenderer.create(this.#gpuCanvas)
         .then((renderer) => {
-          if (!this.isConnected) {
+          // Disconnected (and maybe reconnected) since: this one is stale.
+          if (creation !== this.#creation || !this.isConnected) {
             renderer.destroy();
             return;
           }
           this.#renderer = renderer;
           this.#gpu = "ok";
+          void renderer.lost.then(() => this.#onGpuLost(renderer));
         })
         .catch(() => {
-          this.#gpu = "unavailable";
+          if (creation === this.#creation) this.#gpu = "unavailable";
         })
         .finally(() => {
+          if (creation !== this.#creation) return;
           this.#creating = false;
           this.#applyRender();
         });
@@ -518,6 +527,19 @@ export class A4SheetElement extends HTMLElement {
       this.dispatchEvent(new CustomEvent("a4-render", { bubbles: true, composed: true, detail: settled }));
     }
     this.#schedule();
+  }
+
+  /** The GPU device was lost: recreate 3D once, then fall back to flat. */
+  #onGpuLost(renderer: PaperRenderer) {
+    if (this.#renderer !== renderer) return;
+    this.#renderer = null;
+    if (this.#recreatedAfterLoss) {
+      this.#gpu = "unavailable";
+    } else {
+      this.#recreatedAfterLoss = true;
+      this.#gpu = "unknown";
+    }
+    this.#applyRender();
   }
 
   #loadFonts() {

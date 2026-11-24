@@ -7,7 +7,7 @@
 import { FIT_TO_PAGE_CARD } from "./fit/card.ts";
 import { ModelHost, type PluginEntry } from "./host.ts";
 import { SEMANTIC_REPETITION_CARD } from "./semantic/card.ts";
-import { connectPort, type PortLike } from "./worker-transport.ts";
+import { connectPort, fromWorker } from "./worker-transport.ts";
 
 export function bundledPlugins(): PluginEntry[] {
   return [
@@ -18,7 +18,7 @@ export function bundledPlugins(): PluginEntry[] {
           type: "module",
           name: "a4-semantic-repetition",
         });
-        return connectPort(worker as unknown as PortLike);
+        return connectPort(fromWorker(worker));
       },
     },
     {

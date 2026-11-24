@@ -7,6 +7,8 @@ import { decodeGrid } from "../tensor/codec.ts";
 import { implement, type SheetModelHandlers } from "./client.ts";
 import { ModelError } from "./errors.ts";
 import { ModelHost } from "./host.ts";
+import { FakeWorker } from "./testing/fake-worker.ts";
+import { connectPort, fromWorker, servePort, type PortLike } from "./worker-transport.ts";
 
 const T = PRESETS.terminal;
 const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i}`).join("\n");
@@ -170,4 +172,85 @@ test("a card that sends text off the device must name its destination", () => {
   const host = new ModelHost();
   const card = create(ModelCardSchema, { id: "r", operations: [Operation.TRANSFORM], placement: Placement.REMOTE, sendsTextOffDevice: true });
   assert.throws(() => host.register({ card, connect: async () => implement({}) }), ModelError);
+});
+
+test("a plugin whose worker crashed is reconnected on the next call", async () => {
+  const card = create(ModelCardSchema, { id: "w", name: "Worker", operations: [Operation.SCORE], views: [View.TEXT], placement: Placement.BROWSER });
+  const workers: FakeWorker[] = [];
+  const host = new ModelHost();
+  host.register({
+    card,
+    connect: async () => {
+      const worker = new FakeWorker();
+      workers.push(worker);
+      servePort(worker.channel.port2 as unknown as PortLike, implement({ describe: () => ({ card }), score: () => ({}) }));
+      return connectPort(fromWorker(worker));
+    },
+  });
+  await host.score("w", "hello", PRESETS.terminal);
+  workers[0]!.crash();
+  await host.score("w", "hello again", PRESETS.terminal);
+  assert.equal(workers.length, 2);
+  assert.ok(workers[0]!.terminated);
+  workers[1]!.terminate();
+});
+
+test("changing a card after registration can't turn consent off", async () => {
+  const card = create(ModelCardSchema, {
+    id: "remote",
+    name: "Remote",
+    operations: [Operation.TRANSFORM],
+    views: [View.TEXT],
+    placement: Placement.REMOTE,
+    sendsTextOffDevice: true,
+    destinationHost: "api.example.com",
+  });
+  let connected = false;
+  const host = new ModelHost();
+  host.register({
+    card,
+    connect: async () => {
+      connected = true;
+      return implement({ describe: () => ({ card }) });
+    },
+  });
+  card.sendsTextOffDevice = false; // the caller's object, after registration
+  await assert.rejects(
+    host.transform("remote", "text", PRESETS.terminal, { instruction: "fit" }),
+    (e: unknown) => e instanceof ModelError && e.code === "consent-required",
+  );
+  assert.equal(connected, false);
+  // The host's own card can't be changed either.
+  const listed = host.list()[0]!;
+  assert.ok(Object.isFrozen(listed));
+  assert.throws(() => {
+    (listed as { sendsTextOffDevice: boolean }).sendsTextOffDevice = false;
+  });
+  assert.equal(host.card("remote").sendsTextOffDevice, true);
+});
+
+test("the host rejects spans outside the page, deep planes, and duplicate plane names", async () => {
+  const text = "Short page.";
+  const cases: [string, Parameters<typeof implement>[0]["score"]][] = [
+    ["span past the end", () => ({ findings: [{ kind: "similar", spans: [{ start: 2, end: 120 }], value: 1, label: "x" }] })],
+    ["negative span", () => ({ findings: [{ kind: "similar", spans: [{ start: -1, end: 3 }], value: 1, label: "x" }] })],
+  ];
+  for (const [label, score] of cases) {
+    const { host } = fake({ operations: [Operation.SCORE], handlers: { score } });
+    await assert.rejects(host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && e.code === "invalid-result", label);
+  }
+  const grid = (await import("../tensor/codec.ts")).encodeGrid(text, PRESETS.terminal);
+  const plane = (name: string, depth: number) => ({
+    name,
+    text,
+    shape: [grid.rows, grid.cols, depth],
+    values: new Array(grid.rows * grid.cols * depth).fill(0),
+  });
+  const deep = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 2)] }) } });
+  await assert.rejects(deep.host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && /depth 2/.test(e.message));
+  const twice = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 1), plane("p", 1)] }) } });
+  await assert.rejects(twice.host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && /two planes/.test(e.message));
+  const ok = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 1), plane("q", 1)], findings: [{ kind: "k", spans: [{ start: 0, end: text.length }], value: 1, label: "" }] }) } });
+  const result = await ok.host.score("fake", text, PRESETS.terminal);
+  assert.deepEqual(result.planes.map((p) => p.name), ["p", "q"]);
 });

@@ -116,3 +116,38 @@ test("moving pages from the fallback store into OPFS keeps every page", async ()
   assert.equal((await opfs.read(parsePageName("Brief 2"))).text, "from fallback");
   assert.equal((await opfs.read(parsePageName("Brief"))).text, "already in opfs");
 });
+
+test("sanitized names always parse, and never split a surrogate pair", () => {
+  assert.equal(sanitizePageName(" . .x"), "x");
+  assert.equal(sanitizePageName(" . "), "Untitled");
+  assert.equal(sanitizePageName("...."), "Untitled");
+  assert.equal(sanitizePageName("a\uD800b"), "a�b");
+  const longEmoji = `${"x".repeat(79)}😀tail`;
+  const cut = sanitizePageName(longEmoji);
+  assert.ok(cut.isWellFormed(), JSON.stringify(cut));
+  assert.ok(cut.length <= 80);
+  const taken = [`${"y".repeat(78)}😀`];
+  const next = nextAvailableName(`${"y".repeat(78)}😀`, taken);
+  assert.ok(next.isWellFormed() && next.endsWith(" 2"), next);
+  assert.throws(() => parsePageName("a\uD800"), (e: unknown) => isStoreError(e, "invalid-name"));
+});
+
+test("OPFS: a failed first write leaves no empty page, and moves change nothing", async () => {
+  const root = new FakeDirectoryHandle();
+  const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
+  await store.create(parsePageName("Brief"), "keep me");
+  root.volume.failWritable = true;
+  await assert.rejects(store.create(parsePageName("Fresh"), "x"));
+  await assert.rejects(store.rename(parsePageName("Brief"), parsePageName("Renamed")));
+  await assert.rejects(store.trash(parsePageName("Brief")));
+  assert.deepEqual((await store.list()).map((p) => p.name), ["Brief"]);
+  assert.deepEqual(await store.listTrash(), []);
+  root.volume.failWritable = false;
+  const entry = await store.trash(parsePageName("Brief"));
+  root.volume.failWritable = true;
+  await assert.rejects(store.restore(entry.id));
+  assert.deepEqual(await store.list(), []);
+  assert.deepEqual((await store.listTrash()).map((t) => t.id), [entry.id]);
+  root.volume.failWritable = false;
+  assert.equal((await store.read((await store.restore(entry.id)).name)).text, "keep me");
+});

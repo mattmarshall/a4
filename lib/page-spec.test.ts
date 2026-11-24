@@ -6,6 +6,7 @@ import {
   capacity,
   DEFAULT_PRESET,
   fontSizeMm,
+  isPresetId,
   PRESETS,
   tokenCeiling,
 } from "./page-spec.ts";
@@ -46,5 +47,12 @@ test("token ceiling is a quarter of the cells, rounded down", () => {
 test("font size makes a 0.6 em glyph exactly one cell wide", () => {
   for (const p of Object.values(PRESETS)) {
     assert.ok(Math.abs(fontSizeMm(p) * 0.6 - p.cellW) < 1e-12);
+  }
+});
+
+test("only the four presets are preset ids, not inherited object keys", () => {
+  for (const id of ["terminal", "pica", "elite", "dense"]) assert.ok(isPresetId(id), id);
+  for (const bad of ["toString", "constructor", "__proto__", "hasOwnProperty", "", "Terminal", 4]) {
+    assert.equal(isPresetId(bad), false, String(bad));
   }
 });

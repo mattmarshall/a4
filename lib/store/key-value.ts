@@ -7,9 +7,10 @@
  *   <prefix>trash:<id>           trashed page text (id = "<name>.<trashedAt>")
  */
 
-import { nextAvailableName, parsePageName, sameName } from "./names.ts";
+import { nextAvailableName, parsePageName, sameName, storedPageName } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import {
+  assertStorableText,
   PageConflictError,
   PageExistsError,
   PageNotFoundError,
@@ -117,7 +118,8 @@ export class KeyValuePageStore implements PageStore {
     return this.#kv
       .keys()
       .filter((k) => k.startsWith(this.#page))
-      .map((k) => k.slice(this.#page.length) as PageName);
+      .map((k) => storedPageName(k.slice(this.#page.length)))
+      .filter((n): n is PageName => n !== null);
   }
 
   #find(name: string): PageName | undefined {
@@ -155,11 +157,13 @@ export class KeyValuePageStore implements PageStore {
 
   async create(name: PageName, text: string): Promise<WriteResult> {
     const valid = parsePageName(name);
+    assertStorableText(valid, text);
     if (this.#find(valid)) throw new PageExistsError(valid);
     return this.#put(valid, text);
   }
 
   async write(name: PageName, text: string, expected?: Revision | null): Promise<WriteResult> {
+    assertStorableText(name, text);
     const current = this.#kv.get(this.#page + name);
     if (current === null) throw new PageNotFoundError(name);
     if (expected) {

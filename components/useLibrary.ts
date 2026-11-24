@@ -28,6 +28,8 @@ import { buildLibraryArchive, type LibraryArchive } from "@/lib/export";
 import { FolderConnection, IdbHandleStore, type ConnectedFolder, type FolderState } from "@/lib/folder/connection";
 import { scanFolder, type FolderFile } from "@/lib/folder/scan";
 import { FileWatcher } from "@/lib/folder/watch";
+import { shouldReopen, type PendingFile } from "@/lib/workspace/pending";
+import { SlotRequests, type Ticket } from "@/lib/workspace/slot-requests";
 import { importZip, type ImportReport } from "@/lib/import";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
 import { browserKeyValue, KEYS, readKey, writeKey } from "@/lib/storage";
@@ -193,13 +195,15 @@ export function useLibrary(notify: Notify) {
 
   const bootRef = useRef<Boot | null>(null);
   const sessions = useRef<Record<Slot, OpenPage | null>>({ a: null, b: null });
+  /** The last request to change each slot wins (see SlotRequests). */
+  const requests = useRef(new SlotRequests<Slot>());
   const latestText = useRef<Record<Slot, string>>({ a: "", b: "" });
   const channel = useRef<BroadcastChannel | null>(null);
   const askedPersist = useRef(false);
   const connectionRef = useRef<FolderConnection | null>(null);
   const watcherRef = useRef<FileWatcher | null>(null);
   /** File slots remembered from the last visit, waiting for the folder to connect. */
-  const pendingFiles = useRef<Record<Slot, { ref: PageRef; fallback: PageRef | null } | null>>({ a: null, b: null });
+  const pendingFiles = useRef<Record<Slot, PendingFile | null>>({ a: null, b: null });
   /** Files that failed to open, kept across rescans until they change on disk. */
   const unreadable = useRef(new Map<string, { reason: UnreadableReason; modifiedAt: number }>());
   const notifyRef = useRef(notify);
@@ -368,16 +372,23 @@ export function useLibrary(notify: Notify) {
 
   /** Open a page or file in `slot`, saving whatever was open there first. */
   const openInSlot = useCallback(
-    async (slot: Slot, target: PageRef | PageName | null, options: { remember?: boolean } = {}): Promise<void> => {
+    async (
+      slot: Slot,
+      target: PageRef | PageName | null,
+      options: { remember?: boolean; ticket?: Ticket<Slot> } = {},
+    ): Promise<void> => {
       const b = bootRef.current;
       if (!b) return;
+      const ticket = options.ticket ?? requests.current.begin(slot);
       const ref: PageRef | null = typeof target === "string" ? libraryRef(target) : target;
       const keep = options.remember ?? true;
       const other: Slot = slot === "a" ? "b" : "a";
       const current = sessions.current[slot];
       if (ref && current && sameRef(current.ref, ref)) return;
       if (ref && sessions.current[other] && sameRef(sessions.current[other]!.ref, ref)) {
-        // A page can be open in one slot only: exchange the two slots.
+        // A page can be open in one slot only: exchange the two slots. This
+        // also supersedes any open still pending for the other slot.
+        requests.current.begin(other);
         sessions.current[slot] = sessions.current[other];
         sessions.current[other] = current;
         for (const s of SLOTS) {
@@ -432,6 +443,7 @@ export function useLibrary(notify: Notify) {
           journal: folder.journal,
           page,
           copies: b.store,
+          copiesJournal: b.journal,
           copyName: fileCopyName,
           onEvent: (e) => {
             const at = SLOTS.find((x) => sessions.current[x]?.session === s);
@@ -441,7 +453,18 @@ export function useLibrary(notify: Notify) {
         session = s;
       }
 
-      if (current) await current.session.dispose();
+      // A newer request for this slot began while we read: drop what we built.
+      if (!ticket.current()) {
+        await session?.dispose();
+        return;
+      }
+      // Save and close whatever the slot holds now (it may have changed while we read).
+      const previous = sessions.current[slot];
+      if (previous) await previous.session.dispose();
+      if (!ticket.current()) {
+        await session?.dispose();
+        return;
+      }
       watcherRef.current?.unwatch(slot);
       sessions.current[slot] = ref && session ? { ref, session } : null;
       latestText.current[slot] = text;
@@ -451,7 +474,9 @@ export function useLibrary(notify: Notify) {
         return;
       }
       if (ref.kind === "file") watcherRef.current?.watch(slot, ref.path, session as PageSession<FilePath>);
-      setSlot(slot, { ...refPatch(ref), text, status: "saved" });
+      // The session may have resumed a draft this tab left (its last save failed).
+      latestText.current[slot] = session.text;
+      setSlot(slot, { ...refPatch(ref), text: session.text, status: session.status });
       if (keep) remember(slot, ref);
     },
     [connected, onSessionEvent, remember, rewatch, setSlot],
@@ -494,10 +519,14 @@ export function useLibrary(notify: Notify) {
       for (const slot of SLOTS) {
         const pending = pendingFiles.current[slot];
         if (!pending) continue;
+        const current = sessions.current[slot]?.ref ?? null;
+        if (!shouldReopen(slot, pending, current)) {
+          // B isn't showing yet (Single view): Compare opens the file later.
+          if (slot === "b" && !pending.fallback) continue;
+          pendingFiles.current[slot] = null;
+          continue;
+        }
         pendingFiles.current[slot] = null;
-        const open = sessions.current[slot];
-        const untouched = pending.fallback ? !!open && sameRef(open.ref, pending.fallback) : !open;
-        if (!untouched) continue;
         try {
           await openInSlot(slot, pending.ref);
         } catch (error) {
@@ -593,8 +622,13 @@ export function useLibrary(notify: Notify) {
     };
   }, [refresh, setSlot]);
 
-  const flushAll = useCallback(async () => {
+  /** Save every open page now. Resolves true only if every one is saved. */
+  const flushAll = useCallback(async (): Promise<boolean> => {
     await Promise.all(SLOTS.map((slot) => sessions.current[slot]?.session.flush()));
+    return SLOTS.every((slot) => {
+      const open = sessions.current[slot];
+      return !open || open.session.stopped || open.session.status === "saved";
+    });
   }, []);
 
   // Save when the tab is hidden or closed (the journal covers what can't finish);
@@ -764,7 +798,10 @@ export function useLibrary(notify: Notify) {
   /** Open a page in slot B (compare): the remembered one, else another recent page. */
   const ensureSlotB = useCallback(async () => {
     if (sessions.current.b) return;
+    const ticket = requests.current.begin("b");
     const list = await refresh();
+    // Compare was left, or something else opened in B, while the list loaded.
+    if (!ticket.current() || sessions.current.b) return;
     const a = sessions.current.a?.ref ?? null;
     const saved = decodeRef(readKey(KEYS.openB));
     const pending = pendingFiles.current.b;
@@ -772,7 +809,7 @@ export function useLibrary(notify: Notify) {
     if (wanted?.kind === "file" && connected() && !sameRef(wanted, a)) {
       try {
         pendingFiles.current.b = null;
-        await openInSlot("b", wanted);
+        await openInSlot("b", wanted, { ticket });
         return;
       } catch {
         // The file is gone or unreadable: fall back to a library page.
@@ -783,14 +820,34 @@ export function useLibrary(notify: Notify) {
       (wanted?.kind === "library" ? list.find((p) => p.name === wanted.name && notA(p))?.name : undefined) ??
       list.find(notA)?.name ??
       null;
-    if (pick) await openInSlot("b", pick);
-    else await createPage("Untitled", "", "b");
-  }, [connected, createPage, openInSlot, refresh]);
+    if (!ticket.current()) return;
+    // A remembered file whose folder isn't connected yet: show a library page
+    // meanwhile, without forgetting the file, and reopen it on connect.
+    const waiting = wanted?.kind === "file" && !connected() && !sameRef(wanted, a);
+    if (pick) {
+      await openInSlot("b", pick, { ticket, remember: !waiting });
+      if (waiting && ticket.current()) pendingFiles.current.b = { ref: wanted, fallback: libraryRef(pick) };
+    } else {
+      // Only one page exists: make an empty one for B, unless Compare was left meanwhile.
+      const b = bootRef.current;
+      if (!b) return;
+      const name = await availableName(b.store, "Untitled");
+      if (!ticket.current()) return;
+      await b.store.create(name, "");
+      await refresh();
+      broadcast("");
+      await openInSlot("b", name, { ticket });
+    }
+  }, [broadcast, connected, openInSlot, refresh]);
 
   const closeSlotB = useCallback(async () => {
+    // Supersede any open still pending for B, even if nothing is open yet.
+    const ticket = requests.current.begin("b");
     const open = sessions.current.b;
     if (!open) return;
     await open.session.dispose();
+    // Compare may have been entered again while B saved: leave the new page alone.
+    if (!ticket.current() || sessions.current.b !== open) return;
     sessions.current.b = null;
     watcherRef.current?.unwatch("b");
     setSlotB(EMPTY_SLOT);
@@ -929,17 +986,29 @@ export function useLibrary(notify: Notify) {
     [connected, openInSlot, rescan],
   );
 
-  /** Write the library page open in `slot` to a new file, and open the file there. */
+  /**
+   * Write the library page `name` to a new file, and open the file in the slot
+   * that shows the page (or in `slot`). The page is the one Save to folder was
+   * chosen for, whatever the slot shows by the time the path is submitted.
+   */
   const saveToFolder = useCallback(
-    async (input: string, slot: Slot): Promise<string | null> => {
-      const open = sessions.current[slot];
-      if (!open || open.ref.kind !== "library") return "Open a library page first.";
-      await open.session.flush();
-      const error = await createFile(input, open.session.text, slot);
-      if (!error) notifyRef.current(`Saved “${open.ref.name}” to the folder as “${input.trim()}”.`);
+    async (name: PageName, input: string, slot: Slot): Promise<string | null> => {
+      const b = bootRef.current;
+      if (!b) return "Storage is not ready.";
+      const ref = libraryRef(name);
+      const shownIn = slotOf(ref);
+      if (shownIn) await sessions.current[shownIn]!.session.flush();
+      let text: string;
+      try {
+        text = (await b.store.read(name)).text;
+      } catch (error) {
+        return isStoreError(error, "not-found") ? `“${name}” no longer exists.` : errorMessage(error);
+      }
+      const error = await createFile(input, text, shownIn ?? slot);
+      if (!error) notifyRef.current(`Saved “${name}” to the folder as “${input.trim()}”.`);
       return error;
     },
-    [createFile],
+    [createFile, slotOf],
   );
 
   const folder: FolderView = { state: folderState, files: folderFiles, partial: folderPartial, scanning };

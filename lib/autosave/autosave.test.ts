@@ -327,3 +327,99 @@ test("a crashed draft of a deleted folder file goes to the library, not the fold
   assert.equal(root.fileAt("AGENTS.md"), undefined);
   assert.equal((await library.read(n(r.savedAs ?? ""))).text, "orphan");
 });
+
+test("text the store refuses is reported once, not retried", async () => {
+  const { session, store, scheduler, events } = await setup("v1");
+  session.update("bad \uD800 text");
+  await scheduler.advance(60_000);
+  const errors = events.filter((e) => e.type === "error") as { retryInMs: number | null }[];
+  assert.equal(errors.length, 1);
+  assert.equal(errors[0].retryInMs, null);
+  assert.equal(session.status, "error");
+  assert.equal((await store.read(n("Brief"))).text, "v1");
+  // The next edit makes the text storable again and saves it.
+  session.update("good text");
+  await scheduler.advance(600);
+  assert.equal((await store.read(n("Brief"))).text, "good text");
+});
+
+test("keys typed while a folder file's text is copied to the library are kept", async () => {
+  const root = new FakeDirectoryHandle("a4");
+  root.put("AGENTS.md", "v1\n");
+  const files = sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "f1", locks: null }));
+  const library = new MemoryPageStore();
+  let release: () => void = () => {};
+  const create = library.create.bind(library);
+  library.create = async (name, text) => {
+    await new Promise<void>((r) => (release = r));
+    return create(name, text);
+  };
+  const kv = new MemoryKeyValue();
+  const libraryJournal = new Journal(kv, "tab1");
+  const events: SessionEvent<FilePath>[] = [];
+  const session = new PageSession<FilePath>({
+    store: files,
+    journal: new Journal<FilePath>(kv, "tab1", { prefix: "a4:folder:f1:" }),
+    copies: library,
+    copiesJournal: libraryJournal,
+    copyName: fileCopyName,
+    scheduler: new FakeScheduler(),
+    page: await files.read(parseFilePath("AGENTS.md")),
+    onEvent: (e) => events.push(e),
+  });
+  root.fileAt("AGENTS.md")!.setContent("checked out\n");
+  session.update("mine");
+  const flushing = session.flush();
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  session.update("mine, and more typed during the copy");
+  release();
+  await flushing;
+  const moved = events.find((e) => e.type === "conflict") as { copy: string; pendingText?: string };
+  assert.equal(moved.pendingText, "mine, and more typed during the copy");
+  // The copy holds the first text; the later keys are journaled under the copy.
+  const copy = await library.read(n(moved.copy));
+  assert.equal(copy.text, "mine");
+  assert.equal(libraryJournal.get(n(moved.copy))?.text, "mine, and more typed during the copy");
+  // Opening the copy in this tab resumes that draft and saves it.
+  const scheduler = new FakeScheduler();
+  const reopened = new PageSession({ store: library, journal: libraryJournal, scheduler, page: copy });
+  assert.equal(reopened.text, "mine, and more typed during the copy");
+  await scheduler.advance(0);
+  assert.equal((await library.read(n(moved.copy))).text, "mine, and more typed during the copy");
+  assert.equal(libraryJournal.get(n(moved.copy)), null);
+});
+
+test("a draft left by a failed save in this tab is resumed when the page is reopened", async () => {
+  const { session, store, journal, scheduler } = await setup("v1");
+  store.failWrites = 100;
+  session.update("typed, never saved");
+  await scheduler.advance(600);
+  assert.equal(session.status, "error");
+  await session.dispose();
+  store.failWrites = 0;
+  // Reopening in the same tab shows the draft, not the stored text, and saves it.
+  const again = new PageSession({ store, journal, scheduler, page: await store.read(n("Brief")) });
+  assert.equal(again.text, "typed, never saved");
+  assert.equal(again.status, "unsaved");
+  await scheduler.advance(0);
+  assert.equal((await store.read(n("Brief"))).text, "typed, never saved");
+  assert.equal(journal.get(n("Brief")), null);
+});
+
+test("a resumed draft whose page changed since becomes a conflict copy", async () => {
+  const { session, store, journal, scheduler } = await setup("v1");
+  store.failWrites = 100;
+  session.update("my draft");
+  await scheduler.advance(600);
+  await session.dispose();
+  store.failWrites = 0;
+  await store.inner.write(n("Brief"), "changed in another tab");
+  const events: SessionEvent[] = [];
+  const again = new PageSession({ store, journal, scheduler, page: await store.read(n("Brief")), onEvent: (e) => events.push(e) });
+  await scheduler.advance(0);
+  assert.equal((await store.read(n("Brief"))).text, "changed in another tab");
+  const conflict = events.find((e) => e.type === "conflict") as { copy: string };
+  assert.ok(conflict);
+  assert.equal((await store.read(n(conflict.copy))).text, "my draft");
+  assert.equal(again.name, conflict.copy);
+});

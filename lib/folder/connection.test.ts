@@ -122,3 +122,21 @@ test("recover applies a crashed file draft on connect", async () => {
   assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md", savedAs: "AGENTS.md" }]);
   assert.equal(root.fileAt("AGENTS.md")!.text, "# Agents\nunsaved\n");
 });
+
+test("picking a folder A4 already knows keeps its id, journal prefix, and lock names", async () => {
+  const { make, parent, kv, handles } = setup();
+  const root = await repo(parent);
+  const first = await make("tab1").open(asDirectoryHandle(root));
+  const id = kv.get(FOLDER_KEY)!;
+  assert.equal(first.status === "connected" && first.folder.id, id);
+  // Another tab picks the same folder.
+  const second = await make("tab2").open(asDirectoryHandle(root));
+  assert.equal(second.status === "connected" && second.folder.id, id);
+  assert.equal(kv.get(FOLDER_KEY), id);
+  assert.equal((await handles.entries()).length, 1);
+  // A different folder gets a new id.
+  const other = await parent.getDirectoryHandle("other", { create: true });
+  other.put("AGENTS.md", "x");
+  const third = await make("tab3").open(asDirectoryHandle(other));
+  assert.ok(third.status === "connected" && third.folder.id !== id);
+});

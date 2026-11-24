@@ -50,6 +50,25 @@ export function pageFilesContract<Id extends string>(
       assert.deepEqual(names, [id("Page 0"), id("Page 1"), id("Page 2")].sort());
     });
 
+    test("text round-trips exactly, including a leading byte-order mark", async () => {
+      const store = await makeStore();
+      const created = await store.create(id("Brief"), "\ufeffhello\r\n");
+      const page = await store.read(id("Brief"));
+      assert.equal(page.text, "\ufeffhello\r\n");
+      assert.equal(page.revision, created.revision);
+      const next = await store.write(id("Brief"), "\ufeffhello again", page.revision);
+      assert.equal((await store.read(id("Brief"))).revision, next.revision);
+    });
+
+    test("text that isn't well-formed is refused and nothing is stored", async () => {
+      const store = await makeStore();
+      await rejectsWith(store.create(id("Brief"), "a\uD800b"), "invalid-text");
+      assert.deepEqual(await store.list(), []);
+      await store.create(id("Brief"), "ok");
+      await rejectsWith(store.write(id("Brief"), "x\uDC00"), "invalid-text");
+      assert.equal((await store.read(id("Brief"))).text, "ok");
+    });
+
     test("create refuses an existing page and changes nothing", async () => {
       const store = await makeStore();
       await store.create(id("Brief"), "one");

@@ -138,3 +138,14 @@ test("an archive-level failure leaves the library unchanged", async () => {
   await assert.rejects(importZip(store, new TextEncoder().encode("not a zip")), (e: unknown) => e instanceof ZipError);
   assert.deepEqual(await pages(store), { Brief: "v1" });
 });
+
+test("a file name that sanitizes to a leading period still imports", async () => {
+  const store = new MemoryPageStore();
+  const zip = await createZip([
+    { name: " . .x.md", data: new TextEncoder().encode("odd name\n") },
+    { name: "Brief.md", data: new TextEncoder().encode("brief\n") },
+  ]);
+  const report = await importZip(store, zip);
+  assert.equal(report.created.length, 2);
+  assert.deepEqual(Object.keys(await pages(store)).sort(), ["Brief", "x"]);
+});

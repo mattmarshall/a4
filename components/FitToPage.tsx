@@ -4,45 +4,53 @@
  * Fit to page controls: the in-memory API key, the per-call consent dialog,
  * progress with cancel, and the outcome. The key never enters React state:
  * the field is uncontrolled and is cleared as soon as the key is handed to
- * the key module. Consent is minted only by the dialog's Send button, for
- * the exact text the dialog describes.
+ * the key module. Consent is minted only by the dialog's Send button (the
+ * job's `send`), for the exact text the dialog describes. The request itself
+ * lives in a FitJob owned by the Workbench, so it outlives this panel.
  */
 
-import { useEffect, useRef, useState } from "react";
-import { FIT_HOST, FIT_MODEL, FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { FIT_HOST, FIT_MODEL } from "@/lib/models/fit/card";
+import type { FitJob } from "@/lib/models/fit/job";
 import { forgetApiKey, hasApiKey, setApiKey } from "@/lib/models/fit/key";
-import { grantConsent } from "@/lib/models/consent";
-import type { ModelHost, TransformResult } from "@/lib/models/host";
-import type { PageSpec } from "@/lib/page-spec";
 import type { PageRef } from "@/lib/store";
 
-type Phase =
-  | { kind: "idle" }
-  | { kind: "confirm"; name: string; ref: PageRef | null; text: string }
-  | { kind: "running"; name: string; attempt: number; characters: number; note: string | null }
-  | { kind: "failed"; message: string };
+export function useFitJob(job: FitJob<PageRef>) {
+  return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
+}
+
+/** The top-bar chip for a running rewrite: progress and Cancel, wherever the panel is. */
+export function FitJobChip({ job }: { job: FitJob<PageRef> }) {
+  const phase = useFitJob(job);
+  if (phase.kind !== "running") return null;
+  return (
+    <span className="fit-chip" role="status" aria-live="polite">
+      <span className="fit-chip-label">
+        Fitting “{phase.name}” · {phase.attempt}/{phase.maxAttempts}
+      </span>
+      <button type="button" className="btn" onClick={() => job.cancel()}>
+        Cancel
+      </button>
+    </span>
+  );
+}
 
 export function FitToPage({
   page,
-  spec,
-  host,
-  onResult,
+  job,
 }: {
   /** The page Fit to page would rewrite (the active sheet). */
-  page: { name: string | null; ref?: PageRef | null; text: string };
-  spec: PageSpec;
-  host: () => Promise<ModelHost>;
-  /** Save the result beside the source; resolves once it's open. */
-  onResult: (sourceName: string, result: TransformResult, sourceRef: PageRef | null) => Promise<void>;
+  page: { name: string | null; ref: PageRef | null; text: string };
+  /** The request, owned above the inspector so it outlives this panel. */
+  job: FitJob<PageRef>;
 }) {
   const [keySet, setKeySet] = useState(false);
-  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const phase = useFitJob(job);
   const keyField = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
-  const abort = useRef<AbortController | null>(null);
 
   // The key module outlives this component only within the tab.
-  useEffect(() => setKeySet(hasApiKey()), []);
+  useEffect(() => setKeySet(hasApiKey()), [phase.kind]);
 
   useEffect(() => {
     const d = dialog.current;
@@ -65,46 +73,11 @@ export function FitToPage({
   }
 
   function ask() {
-    if (!page.name || !page.text.trim()) return;
-    setPhase({ kind: "confirm", name: page.name, ref: page.ref ?? null, text: page.text });
+    if (!page.name || !page.ref || !page.text.trim()) return;
+    job.ask({ name: page.name, ref: page.ref, text: page.text });
   }
 
-  async function send(name: string, text: string, ref: PageRef | null) {
-    // The only place a consent token is minted: for exactly this text.
-    const consent = grantConsent(FIT_TO_PAGE_ID, text);
-    const controller = new AbortController();
-    abort.current = controller;
-    setPhase({ kind: "running", name, attempt: 1, characters: 0, note: null });
-    try {
-      const h = await host();
-      const result = await h.transform(FIT_TO_PAGE_ID, text, spec, {
-        instruction: "fit",
-        consent,
-        signal: controller.signal,
-        onProgress: ({ attempt, characters }) => setPhase((p) => (p.kind === "running" ? { ...p, attempt, characters } : p)),
-        onAttempt: ({ attempt, rowsUsed, fits }) =>
-          setPhase((p) =>
-            p.kind === "running" && !fits
-              ? { ...p, note: `Attempt ${attempt} used ${rowsUsed} rows; asking for a shorter version.`, characters: 0 }
-              : p,
-          ),
-      });
-      await onResult(name, result, ref);
-      setPhase({ kind: "idle" });
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      const message =
-        code === "cancelled"
-          ? "Canceled. No page was created."
-          : `${error instanceof Error ? error.message : String(error)} No page was created.`;
-      if (code === "auth") forget();
-      setPhase({ kind: "failed", message });
-    } finally {
-      abort.current = null;
-    }
-  }
-
-  const disabled = !keySet || !page.name || !page.text.trim() || phase.kind === "running";
+  const disabled = !keySet || !page.name || !page.ref || !page.text.trim() || phase.kind === "running";
 
   return (
     <div className="fit-controls">
@@ -151,10 +124,11 @@ export function FitToPage({
       {phase.kind === "running" ? (
         <div className="fit-progress" aria-live="polite">
           <span className="model-status">
-            Claude is rewriting “{phase.name}” · attempt {phase.attempt} of 3 · {phase.characters.toLocaleString("en-US")} characters
+            Claude is rewriting “{phase.name}” · attempt {phase.attempt} of {phase.maxAttempts} ·{" "}
+            {phase.characters.toLocaleString("en-US")} characters
           </span>
           {phase.note ? <span className="model-status">{phase.note}</span> : null}
-          <button type="button" className="btn" onClick={() => abort.current?.abort()}>
+          <button type="button" className="btn" onClick={() => job.cancel()}>
             Cancel
           </button>
         </div>
@@ -169,14 +143,14 @@ export function FitToPage({
         ref={dialog}
         className="consent-dialog"
         aria-labelledby="consent-title"
-        onCancel={() => setPhase({ kind: "idle" })}
+        onCancel={() => job.dismiss()}
       >
         {phase.kind === "confirm" ? (
           <form
             method="dialog"
             onSubmit={(e) => {
               e.preventDefault();
-              void send(phase.name, phase.text, phase.ref);
+              void job.send();
             }}
           >
             <h2 id="consent-title">Send this page to Anthropic?</h2>
@@ -199,7 +173,7 @@ export function FitToPage({
               The rewrite opens as a new page in Compare. This page doesn’t change. You’ll be asked again next time.
             </p>
             <div className="panel-actions">
-              <button type="button" className="btn" onClick={() => setPhase({ kind: "idle" })}>
+              <button type="button" className="btn" onClick={() => job.dismiss()}>
                 Cancel
               </button>
               <button type="submit" className="btn btn-outline" autoFocus>

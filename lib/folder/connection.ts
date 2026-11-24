@@ -29,6 +29,8 @@ export interface HandleStore {
   get(id: string): Promise<FileSystemDirectoryHandle | null>;
   set(id: string, handle: FileSystemDirectoryHandle): Promise<void>;
   delete(id: string): Promise<void>;
+  /** Every stored folder, so a re-picked folder can keep its id. */
+  entries(): Promise<[string, FileSystemDirectoryHandle][]>;
 }
 
 export class MemoryHandleStore implements HandleStore {
@@ -41,6 +43,9 @@ export class MemoryHandleStore implements HandleStore {
   }
   async delete(id: string) {
     this.map.delete(id);
+  }
+  async entries(): Promise<[string, FileSystemDirectoryHandle][]> {
+    return [...this.map.entries()];
   }
 }
 
@@ -79,6 +84,17 @@ export class IdbHandleStore implements HandleStore {
   }
   async delete(id: string): Promise<void> {
     await this.#run("readwrite", (s) => s.delete(id));
+  }
+  async entries(): Promise<[string, FileSystemDirectoryHandle][]> {
+    const db = await this.#open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction("folders", "readonly");
+      const store = tx.objectStore("folders");
+      const keys = store.getAllKeys();
+      const values = store.getAll();
+      tx.oncomplete = () => resolve(keys.result.map((k, i) => [String(k), values.result[i] as FileSystemDirectoryHandle]));
+      tx.onerror = () => reject(tx.error);
+    });
   }
 }
 
@@ -214,9 +230,12 @@ export class FolderConnection {
     return this.#connect(id, handle);
   }
 
-  /** Remember and connect a folder the user just picked. */
+  /**
+   * Remember and connect a folder the user just picked. A folder A4 already
+   * knows keeps its id, so tabs that opened it share locks and drafts.
+   */
   async open(handle: FileSystemDirectoryHandle): Promise<FolderState> {
-    const id = newId();
+    const id = (await this.#knownId(handle)) ?? newId();
     await this.#handles.set(id, handle);
     try {
       this.#kv.set(FOLDER_KEY, id);
@@ -226,6 +245,23 @@ export class FolderConnection {
     this.#id = id;
     this.#handle = handle;
     return this.#connect(id, handle);
+  }
+
+  async #knownId(handle: FileSystemDirectoryHandle): Promise<string | null> {
+    let known: [string, FileSystemDirectoryHandle][];
+    try {
+      known = await this.#handles.entries();
+    } catch {
+      return null;
+    }
+    for (const [id, stored] of known) {
+      try {
+        if (await stored.isSameEntry(handle)) return id;
+      } catch {
+        // A stored handle to a folder that is gone can't match.
+      }
+    }
+    return null;
   }
 
   async #connect(id: string, handle: FileSystemDirectoryHandle): Promise<FolderState> {
