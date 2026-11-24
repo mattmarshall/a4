@@ -105,7 +105,8 @@ export class FitJob<R> {
         signal: controller.signal,
         onProgress: ({ attempt, characters }) => update({ attempt, characters }),
         onAttempt: ({ attempt, rowsUsed, fits }) => {
-          if (!fits) update({ note: `Attempt ${attempt} used ${rowsUsed} rows; asking for a shorter version.`, characters: 0 });
+          if (!fits)
+            update({ note: `Attempt ${attempt} used ${rowsUsed} rows; asking for a shorter version.`, characters: 0 });
         },
       });
       await this.#deps.onResult(name, result, ref);

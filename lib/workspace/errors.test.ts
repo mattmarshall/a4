@@ -23,6 +23,9 @@ test("a reported action never rejects, and says what failed", async () => {
   const messages: [string, string | undefined][] = [];
   const notify = (m: string, tone?: "info" | "warn") => messages.push([m, tone]);
   assert.equal(await runReported(async () => 7, notify, "count"), 7);
-  assert.equal(await runReported(async () => Promise.reject(new PageNotFoundError("Brief")), notify, "restore “Brief”"), undefined);
+  assert.equal(
+    await runReported(async () => Promise.reject(new PageNotFoundError("Brief")), notify, "restore “Brief”"),
+    undefined,
+  );
   assert.deepEqual(messages, [["Couldn’t restore “Brief”: No page named “Brief”.", "warn"]]);
 });

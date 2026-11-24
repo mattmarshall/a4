@@ -32,9 +32,11 @@ export function grantConsent(pluginId: string, text: string): ConsentToken {
  * when the token is missing, already used, forged, or for other text.
  */
 export function consumeConsent(token: ConsentToken | undefined, pluginId: string, text: string): void {
-  if (!token || !live.has(token)) throw new ModelError("consent-required", "This model sends the page off the device; confirm the request first.");
+  if (!token || !live.has(token))
+    throw new ModelError("consent-required", "This model sends the page off the device; confirm the request first.");
   live.delete(token);
-  if (token.pluginId !== pluginId) throw new ModelError("consent-required", "The confirmation was for a different model.");
+  if (token.pluginId !== pluginId)
+    throw new ModelError("consent-required", "The confirmation was for a different model.");
   if (token.characters !== text.length || token.revision !== revisionOf(text)) {
     throw new ModelError("consent-required", "The page changed after you confirmed; confirm again.");
   }

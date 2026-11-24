@@ -6,7 +6,13 @@ import { isStoreError } from "./types.ts";
 import { copyNameFor, fileCopyName } from "./refs.ts";
 
 test("file paths: valid relative Markdown paths", () => {
-  for (const ok of ["AGENTS.md", ".claude/skills/review/SKILL.md", ".cursor/rules/style.mdc", "docs/Guide.MD", "a b/c:d.md"]) {
+  for (const ok of [
+    "AGENTS.md",
+    ".claude/skills/review/SKILL.md",
+    ".cursor/rules/style.mdc",
+    "docs/Guide.MD",
+    "a b/c:d.md",
+  ]) {
     assert.equal(parseFilePath(ok), ok);
   }
   assert.equal(parseFilePath(`${"a/".repeat(254)}x.md`).length, 512);
@@ -30,7 +36,11 @@ test("file paths: rejected", () => {
     `${"a/".repeat(254)}xy.md`,
   ];
   for (const input of bad) {
-    assert.throws(() => parseFilePath(input), (e: unknown) => isStoreError(e, "invalid-name"), JSON.stringify(input));
+    assert.throws(
+      () => parseFilePath(input),
+      (e: unknown) => isStoreError(e, "invalid-name"),
+      JSON.stringify(input),
+    );
   }
 });
 

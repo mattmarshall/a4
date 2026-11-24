@@ -52,7 +52,12 @@ export class PaperRenderer {
   #zoom: number | null = null;
   #positions: Float32Array | null = null;
 
-  private constructor(canvas: HTMLCanvasElement, device: GPUDevice, context: GPUCanvasContext, format: GPUTextureFormat) {
+  private constructor(
+    canvas: HTMLCanvasElement,
+    device: GPUDevice,
+    context: GPUCanvasContext,
+    format: GPUTextureFormat,
+  ) {
     this.canvas = canvas;
     this.#device = device;
     this.#context = context;
@@ -181,8 +186,18 @@ export class PaperRenderer {
     this.canvas.height = h;
     this.#msaa?.destroy();
     this.#depth?.destroy();
-    this.#msaa = this.#device.createTexture({ size: [w, h], format: this.#format, sampleCount: SAMPLES, usage: TEXTURE.RENDER_ATTACHMENT });
-    this.#depth = this.#device.createTexture({ size: [w, h], format: "depth24plus", sampleCount: SAMPLES, usage: TEXTURE.RENDER_ATTACHMENT });
+    this.#msaa = this.#device.createTexture({
+      size: [w, h],
+      format: this.#format,
+      sampleCount: SAMPLES,
+      usage: TEXTURE.RENDER_ATTACHMENT,
+    });
+    this.#depth = this.#device.createTexture({
+      size: [w, h],
+      format: "depth24plus",
+      sampleCount: SAMPLES,
+      usage: TEXTURE.RENDER_ATTACHMENT,
+    });
   }
 
   #lightDirection(): [number, number, number] {
@@ -220,7 +235,12 @@ export class PaperRenderer {
           storeOp: "discard",
         },
       ],
-      depthStencilAttachment: { view: this.#depth.createView(), depthClearValue: 1, depthLoadOp: "clear", depthStoreOp: "discard" },
+      depthStencilAttachment: {
+        view: this.#depth.createView(),
+        depthClearValue: 1,
+        depthLoadOp: "clear",
+        depthStoreOp: "discard",
+      },
     });
     pass.setBindGroup(0, this.#bindGroup);
     pass.setVertexBuffer(0, this.#vertexBuffer);

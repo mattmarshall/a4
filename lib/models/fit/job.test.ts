@@ -4,7 +4,15 @@ import { ModelError } from "../errors.ts";
 import type { TransformResult } from "../host.ts";
 import { FitJob, type FitRunOptions } from "./job.ts";
 
-const result: TransformResult = { text: "short", model: "m", rowsUsed: 10, rowsAllowed: 60, fits: true, overBy: 0, attempts: 1 };
+const result: TransformResult = {
+  text: "short",
+  model: "m",
+  rowsUsed: 10,
+  rowsAllowed: 60,
+  fits: true,
+  overBy: 0,
+  attempts: 1,
+};
 
 function setup(run: (text: string, options: FitRunOptions) => Promise<TransformResult>) {
   const granted: string[] = [];
@@ -39,7 +47,14 @@ test("ask, send, progress, and result: consent is for the exact text shown", asy
   const sending = job.send();
   assert.deepEqual(granted, ["long text"]);
   progress({ attempt: 2, characters: 120 });
-  assert.deepEqual(job.state, { kind: "running", name: "Brief", attempt: 2, maxAttempts: 3, characters: 120, note: null });
+  assert.deepEqual(job.state, {
+    kind: "running",
+    name: "Brief",
+    attempt: 2,
+    maxAttempts: 3,
+    characters: 120,
+    note: null,
+  });
   finish();
   await sending;
   assert.deepEqual(opened, ["Brief|ref-brief|short"]);

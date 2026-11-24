@@ -11,7 +11,8 @@ export const FIT_TO_PAGE_CARD = create(ModelCardSchema, {
   id: FIT_TO_PAGE_ID,
   name: "Fit to page",
   version: "1",
-  description: "Claude rewrites the page so it fits on one sheet and reads as narrative. The result opens beside the original.",
+  description:
+    "Claude rewrites the page so it fits on one sheet and reads as narrative. The result opens beside the original.",
   operations: [Operation.TRANSFORM],
   views: [View.TEXT],
   placement: Placement.REMOTE,

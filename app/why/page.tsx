@@ -24,8 +24,8 @@ export default function WhyPage() {
         <p className="kicker">Why A4</p>
         <h1>One page of context.</h1>
         <p className="lede">
-          A4 is a drafting table for agent context. It quantizes an A4 sheet into monospace cells so you can write
-          the context you plan to give an agent, see what it costs, and tell whether it is clear or merely busy.
+          A4 is a drafting table for agent context. It quantizes an A4 sheet into monospace cells so you can write the
+          context you plan to give an agent, see what it costs, and tell whether it is clear or merely busy.
         </p>
       </header>
 
@@ -39,8 +39,8 @@ export default function WhyPage() {
         </div>
         <ol>
           <li>
-            <strong>Abundance removed the pressure to be concise.</strong> Context windows hold hundreds of thousands
-            of tokens, so nothing pushes back when a whole JSON payload, log, or schema goes in “just in case.”
+            <strong>Abundance removed the pressure to be concise.</strong> Context windows hold hundreds of thousands of
+            tokens, so nothing pushes back when a whole JSON payload, log, or schema goes in “just in case.”
           </li>
           <li>
             <strong>Tokens are invisible.</strong> Nobody has an intuition for “1,200 tokens.” The cost, and the
@@ -48,8 +48,8 @@ export default function WhyPage() {
           </li>
           <li>
             <strong>Structured dumps feel rigorous but are mostly scaffolding.</strong> Quotes, braces, repeated keys,
-            and indentation cost cells and attention. They also leave out what the agent most needs: why the values
-            are what they are, and what to do about them.
+            and indentation cost cells and attention. They also leave out what the agent most needs: why the values are
+            what they are, and what to do about them.
           </li>
           <li>
             <strong>Context quality has no feedback loop.</strong> We lint code and review diffs, but the context that
@@ -76,16 +76,16 @@ export default function WhyPage() {
           ))}
         </figure>
         <p>
-          The page is <strong>A4</strong> because almost everyone has held one and knows what a crowded one looks
-          like. It is <strong>80 columns</strong> because terminals, punch cards, and style guides already think in
-          80, and <strong>monospace</strong> because it makes the page countable. Pica, Elite, and Dense presets exist
-          for comparison.
+          The page is <strong>A4</strong> because almost everyone has held one and knows what a crowded one looks like.
+          It is <strong>80 columns</strong> because terminals, punch cards, and style guides already think in 80, and{" "}
+          <strong>monospace</strong> because it makes the page countable. Pica, Elite, and Dense presets exist for
+          comparison.
         </p>
 
         <h3>Constraint as an instrument</h3>
         <p>
-          A hard edge turns “be concise” into “make it fit,” the same move as the one-page memo or the index card.
-          Text that runs past row 60 visibly falls off the sheet into a red overflow zone.
+          A hard edge turns “be concise” into “make it fit,” the same move as the one-page memo or the index card. Text
+          that runs past row 60 visibly falls off the sheet into a red overflow zone.
         </p>
 
         <h3>Make the invisible visible</h3>
@@ -133,30 +133,29 @@ export default function WhyPage() {
         </table>
         <p>
           These roll up into a verdict (Overflowing, Noisy, Light, Busy, or Balanced) with findings that say what to
-          change. <strong>Compare</strong> puts two versions side by side and marks the better value for each
-          metric.
+          change. <strong>Compare</strong> puts two versions side by side and marks the better value for each metric.
         </p>
       </section>
 
       <section>
         <h2>Narrative data for agents</h2>
         <p>
-          <strong>Narrative data</strong> is context written as connected explanation: what is true, why it is
-          true, how the parts relate, and what should happen next. Records give an agent values. Narrative gives it
-          the relationships and intent it needs to act well in cases the author didn’t anticipate.
+          <strong>Narrative data</strong> is context written as connected explanation: what is true, why it is true, how
+          the parts relate, and what should happen next. Records give an agent values. Narrative gives it the
+          relationships and intent it needs to act well in cases the author didn’t anticipate.
         </p>
         <p>
-          Models learned to reason from explanatory prose, and words like “because,” “so,” and “unless” carry logic
-          that a record leaves implicit. Narrative also states shared values once, and a person can review a page in
-          two minutes. Structure still has a place: use a table when the agent must look values up, and keep IDs,
-          numbers, and code exact. <em>Tables for lookup, narrative for understanding.</em>
+          Models learned to reason from explanatory prose, and words like “because,” “so,” and “unless” carry logic that
+          a record leaves implicit. Narrative also states shared values once, and a person can review a page in two
+          minutes. Structure still has a place: use a table when the agent must look values up, and keep IDs, numbers,
+          and code exact. <em>Tables for lookup, narrative for understanding.</em>
         </p>
 
         <h3>The A4 method</h3>
         <ol>
           <li>
-            <strong>One page, one purpose.</strong> The first lines say who the page is for and what they will do
-            with it.
+            <strong>One page, one purpose.</strong> The first lines say who the page is for and what they will do with
+            it.
           </li>
           <li>
             <strong>Situation first, next action last.</strong>

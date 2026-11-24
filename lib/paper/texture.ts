@@ -85,7 +85,9 @@ export function textureSize(pxPerMm: number, heightMm: number = PAPER_H): { widt
 
 /** Rows to print: the page's visual rows (no overflow), as top offsets in mm. */
 export function printRows(rows: readonly VisualRow[], text: string, spec: PageSpec): { topMm: number; text: string }[] {
-  return rows.slice(0, spec.rows).map((r, i) => ({ topMm: spec.marginY + i * spec.cellH, text: text.slice(r.start, r.end) }));
+  return rows
+    .slice(0, spec.rows)
+    .map((r, i) => ({ topMm: spec.marginY + i * spec.cellH, text: text.slice(r.start, r.end) }));
 }
 
 export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintOptions): { heightMm: number } {
@@ -168,7 +170,10 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
     const { values, cols } = o.heat;
     // A plane covers the whole grid, not just rows that hold text: tint every
     // painted row (the page, plus overflow rows when they are painted).
-    const heatRows = Math.min(Math.floor(values.length / cols), o.overflow ? Math.max(spec.rows, rowsShown) : spec.rows);
+    const heatRows = Math.min(
+      Math.floor(values.length / cols),
+      o.overflow ? Math.max(spec.rows, rowsShown) : spec.rows,
+    );
     for (let i = 0; i < heatRows; i++) {
       for (let c = 0; c < Math.min(cols, spec.cols); c++) {
         const fill = heatFill(values[i * cols + c] ?? 0);

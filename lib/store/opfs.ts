@@ -108,7 +108,9 @@ export class OpfsPageStore implements PageStore {
    * Open (creating if needed) `a4/pages` and `a4/trash` under `root`
    * (default: the origin's OPFS root).
    */
-  static async open(options: { root?: FileSystemDirectoryHandle; locks?: LockLike | null } = {}): Promise<OpfsPageStore> {
+  static async open(
+    options: { root?: FileSystemDirectoryHandle; locks?: LockLike | null } = {},
+  ): Promise<OpfsPageStore> {
     let root = options.root;
     if (!root) {
       if (typeof navigator === "undefined" || !navigator.storage?.getDirectory) {

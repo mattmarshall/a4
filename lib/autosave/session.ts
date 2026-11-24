@@ -226,7 +226,12 @@ export class PageSession<Id extends string = PageName> {
         // A page missing from its own store is recreated under its name; a
         // folder file is never recreated: its text goes to the library.
         const desired = this.#copies ? this.#copyName(name, ` (recovered ${stamp()})`) : this.#copyName(name, "");
-        await this.#relocate(desired, (created, moved) => ({ type: "recreated", original: name, name: created, moved }));
+        await this.#relocate(desired, (created, moved) => ({
+          type: "recreated",
+          original: name,
+          name: created,
+          moved,
+        }));
       } else {
         this.#fail(error);
       }

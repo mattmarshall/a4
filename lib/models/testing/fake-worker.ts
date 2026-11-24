@@ -6,7 +6,9 @@ export class FakeWorker extends EventTarget {
   terminated = false;
   constructor() {
     super();
-    this.channel.port1.addEventListener("message", (event) => this.dispatchEvent(new MessageEvent("message", { data: event.data })));
+    this.channel.port1.addEventListener("message", (event) =>
+      this.dispatchEvent(new MessageEvent("message", { data: event.data })),
+    );
     this.channel.port1.start();
   }
   postMessage(message: unknown, transfer: Transferable[]) {

@@ -20,8 +20,7 @@ export interface TokenPiece {
   end: number;
 }
 
-const PIECE =
-  /\n+| +(?= \S)|[ ]?\p{L}+|[ ]?\p{N}+|[ ]?[^\s\p{L}\p{N}]+| +|\s/gu;
+const PIECE = /\n+| +(?= \S)|[ ]?\p{L}+|[ ]?\p{N}+|[ ]?[^\s\p{L}\p{N}]+| +|\s/gu;
 
 const NON_LATIN = /[^\u0000-ɏ]/u;
 

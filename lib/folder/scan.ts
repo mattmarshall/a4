@@ -65,7 +65,10 @@ async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T
   return out;
 }
 
-export async function scanFolder(root: FileSystemDirectoryHandle, options: { limit?: number } = {}): Promise<FolderScan> {
+export async function scanFolder(
+  root: FileSystemDirectoryHandle,
+  options: { limit?: number } = {},
+): Promise<FolderScan> {
   const walk = await walkFolder(root, options.limit ?? SCAN_ENTRY_LIMIT);
   const files = await mapLimited(walk.files, 4, async ({ path, handle }): Promise<FolderFile | null> => {
     let file: File;

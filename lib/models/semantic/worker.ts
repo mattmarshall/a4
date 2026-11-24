@@ -21,7 +21,10 @@ import { DOWNLOAD_BYTES, EMBEDDING_MODEL, EMBEDDING_REVISION, SEMANTIC_REPETITIO
 import { scoreUnits } from "./similarity.ts";
 import { extractUnits } from "./units.ts";
 
-type Extractor = (texts: string[], options: { pooling: "mean"; normalize: boolean }) => Promise<{ data: Float32Array; dims: number[] }>;
+type Extractor = (
+  texts: string[],
+  options: { pooling: "mean"; normalize: boolean },
+) => Promise<{ data: Float32Array; dims: number[] }>;
 
 const TOTAL = DOWNLOAD_BYTES.model + DOWNLOAD_BYTES.runtime;
 
@@ -42,7 +45,10 @@ function importLibrary() {
     env.remotePathTemplate = `{model}/resolve/${EMBEDDING_REVISION}/`;
     const wasm = env.backends.onnx.wasm;
     if (wasm) {
-      wasm.wasmPaths = { mjs: new URL(ortMjsUrl, self.location.href).href, wasm: new URL(ortWasmUrl, self.location.href).href };
+      wasm.wasmPaths = {
+        mjs: new URL(ortMjsUrl, self.location.href).href,
+        wasm: new URL(ortWasmUrl, self.location.href).href,
+      };
       wasm.numThreads = 1;
     }
     return lib;
@@ -123,7 +129,11 @@ servePort(
         await new Promise<void>((resolve) => (wake = resolve));
         wake = null;
       }
-      if (failure) throw new ModelError("network", `Couldn’t download the model: ${failure instanceof Error ? failure.message : String(failure)}`);
+      if (failure)
+        throw new ModelError(
+          "network",
+          `Couldn’t download the model: ${failure instanceof Error ? failure.message : String(failure)}`,
+        );
       yield { loadedBytes: BigInt(TOTAL), totalBytes: BigInt(TOTAL), ready: true };
     },
 
@@ -138,7 +148,10 @@ servePort(
       const units = extractUnits(text);
       let vectors: Float32Array[] = [];
       if (units.length) {
-        const output = await extractor!(units.map((u) => u.text), { pooling: "mean", normalize: true });
+        const output = await extractor!(
+          units.map((u) => u.text),
+          { pooling: "mean", normalize: true },
+        );
         const dim = output.dims[output.dims.length - 1];
         vectors = units.map((_, i) => output.data.slice(i * dim, (i + 1) * dim));
       }

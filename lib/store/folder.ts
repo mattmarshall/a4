@@ -89,7 +89,10 @@ export interface WalkResult {
  * Walk a folder breadth-first, collecting `.md` and `.mdc` files and skipping
  * the folders `skipFolder` names. Stops after `limit` entries.
  */
-export async function walkFolder(root: FileSystemDirectoryHandle, limit: number = SCAN_ENTRY_LIMIT): Promise<WalkResult> {
+export async function walkFolder(
+  root: FileSystemDirectoryHandle,
+  limit: number = SCAN_ENTRY_LIMIT,
+): Promise<WalkResult> {
   const files: WalkedFile[] = [];
   const queue: { dir: FileSystemDirectoryHandle; prefix: string }[] = [{ dir: root, prefix: "" }];
   let visited = 0;
@@ -263,5 +266,8 @@ export class FolderPageFiles implements PageFiles<FilePath> {
 
 /** True when this browser can pick a folder and write to it. */
 export function folderPickerSupported(): boolean {
-  return typeof window !== "undefined" && typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function";
+  return (
+    typeof window !== "undefined" &&
+    typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function"
+  );
 }

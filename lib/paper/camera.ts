@@ -79,7 +79,11 @@ function perspective(fovY: number, aspect: number, near: number, far: number): M
 
 const sub = (a: Vec3, b: Vec3): Vec3 => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const dot = (a: Vec3, b: Vec3) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const cross = (a: Vec3, b: Vec3): Vec3 => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const cross = (a: Vec3, b: Vec3): Vec3 => [
+  a[1] * b[2] - a[2] * b[1],
+  a[2] * b[0] - a[0] * b[2],
+  a[0] * b[1] - a[1] * b[0],
+];
 const normalize = (a: Vec3): Vec3 => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
@@ -114,8 +118,7 @@ export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight }: CameraOptions)
   const margin = 18;
   const fitH = (PAPER_H / 2 + margin) / Math.tan(FOV_Y / 2);
   const fitW = (PAPER_W / 2 + margin) / (Math.tan(FOV_Y / 2) * aspect);
-  const dist =
-    pxPerMm && cssHeight ? cssHeight / (2 * Math.tan(FOV_Y / 2) * pxPerMm) : Math.max(fitH, fitW);
+  const dist = pxPerMm && cssHeight ? cssHeight / (2 * Math.tan(FOV_Y / 2) * pxPerMm) : Math.max(fitH, fitW);
   const eye: Vec3 = [dist * Math.sin(t) * Math.sin(w), dist * Math.cos(t), dist * Math.sin(t) * Math.cos(w)];
   const target: Vec3 = [0, 0, 0];
   const f = normalize(sub(target, eye));
@@ -124,10 +127,22 @@ export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight }: CameraOptions)
   const r = normalize(cross(f, up));
   // View matrix rows: r, up, −f (column-major storage).
   const view = new Float32Array([
-    r[0], up[0], -f[0], 0,
-    r[1], up[1], -f[1], 0,
-    r[2], up[2], -f[2], 0,
-    -dot(r, eye), -dot(up, eye), dot(f, eye), 1,
+    r[0],
+    up[0],
+    -f[0],
+    0,
+    r[1],
+    up[1],
+    -f[1],
+    0,
+    r[2],
+    up[2],
+    -f[2],
+    0,
+    -dot(r, eye),
+    -dot(up, eye),
+    dot(f, eye),
+    1,
   ]);
   const viewProj = multiply(perspective(FOV_Y, aspect, 10, dist * 4), view);
   return { viewProj, invViewProj: invert(viewProj), eye };

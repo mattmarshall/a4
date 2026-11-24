@@ -43,9 +43,12 @@ export function checkGridShape(grid: Grid): void {
   const { rows, cols, rowsUsed } = grid;
   if (cols < 1) throw new RangeError("grid has no columns");
   if (rowsUsed < 1 || rowsUsed > rows) throw new RangeError(`rows_used ${rowsUsed} is outside 1..${rows}`);
-  if (grid.cells.length !== rows * cols) throw new RangeError(`grid has ${grid.cells.length} cells, expected ${rows * cols}`);
-  if (grid.rowLengths.length !== rows) throw new RangeError(`grid has ${grid.rowLengths.length} row lengths, expected ${rows}`);
-  if (grid.continuation.length !== rows) throw new RangeError(`grid has ${grid.continuation.length} continuation flags, expected ${rows}`);
+  if (grid.cells.length !== rows * cols)
+    throw new RangeError(`grid has ${grid.cells.length} cells, expected ${rows * cols}`);
+  if (grid.rowLengths.length !== rows)
+    throw new RangeError(`grid has ${grid.rowLengths.length} row lengths, expected ${rows}`);
+  if (grid.continuation.length !== rows)
+    throw new RangeError(`grid has ${grid.continuation.length} continuation flags, expected ${rows}`);
   grid.rowLengths.forEach((n, i) => {
     if (n > cols) throw new RangeError(`row ${i} length ${n} exceeds ${cols} columns`);
   });

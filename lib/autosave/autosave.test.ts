@@ -291,10 +291,16 @@ test("a crashed folder draft is written to the file when the file is unchanged",
   const { root, files, library, kv, path } = await folderSetup("v1\n");
   const page = await files.read(path);
   new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "v1\nunsaved", page.revision);
-  const report = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
-    copies: library,
-    copyName: fileCopyName,
-  });
+  const report = await recoverDrafts(
+    files,
+    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Set(),
+    Date.now(),
+    {
+      copies: library,
+      copyName: fileCopyName,
+    },
+  );
   assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md", savedAs: "AGENTS.md" }]);
   assert.equal(root.fileAt("AGENTS.md")!.text, "v1\nunsaved\n");
   assert.deepEqual(await library.list(), []);
@@ -305,10 +311,16 @@ test("a crashed folder draft becomes a library copy when the file changed", asyn
   const page = await files.read(path);
   new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "crashed edits", page.revision);
   root.fileAt("AGENTS.md")!.setContent("changed later\n");
-  const [r] = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
-    copies: library,
-    copyName: fileCopyName,
-  });
+  const [r] = await recoverDrafts(
+    files,
+    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Set(),
+    Date.now(),
+    {
+      copies: library,
+      copyName: fileCopyName,
+    },
+  );
   assert.equal(r.kind, "copied");
   assert.match(r.savedAs ?? "", /^AGENTS\.md \(recovered /);
   assert.equal((await library.read(n(r.savedAs ?? ""))).text, "crashed edits");
@@ -319,10 +331,16 @@ test("a crashed draft of a deleted folder file goes to the library, not the fold
   const { root, files, library, kv, path } = await folderSetup("v1\n");
   new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "orphan", null);
   root.remove("AGENTS.md");
-  const [r] = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
-    copies: library,
-    copyName: fileCopyName,
-  });
+  const [r] = await recoverDrafts(
+    files,
+    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Set(),
+    Date.now(),
+    {
+      copies: library,
+      copyName: fileCopyName,
+    },
+  );
   assert.equal(r.kind, "recreated");
   assert.equal(root.fileAt("AGENTS.md"), undefined);
   assert.equal((await library.read(n(r.savedAs ?? ""))).text, "orphan");
@@ -415,7 +433,13 @@ test("a resumed draft whose page changed since becomes a conflict copy", async (
   store.failWrites = 0;
   await store.inner.write(n("Brief"), "changed in another tab");
   const events: SessionEvent[] = [];
-  const again = new PageSession({ store, journal, scheduler, page: await store.read(n("Brief")), onEvent: (e) => events.push(e) });
+  const again = new PageSession({
+    store,
+    journal,
+    scheduler,
+    page: await store.read(n("Brief")),
+    onEvent: (e) => events.push(e),
+  });
   await scheduler.advance(0);
   assert.equal((await store.read(n("Brief"))).text, "changed in another tab");
   const conflict = events.find((e) => e.type === "conflict") as { copy: string };

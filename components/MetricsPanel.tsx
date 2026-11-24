@@ -14,15 +14,7 @@ export function num(x: number): string {
   return x.toLocaleString("en-US");
 }
 
-function Bar({
-  value,
-  threshold,
-  state,
-}: {
-  value: number;
-  threshold?: number;
-  state?: "over" | "warn" | "good";
-}) {
+function Bar({ value, threshold, state }: { value: number; threshold?: number; state?: "over" | "warn" | "good" }) {
   return (
     <div className="bar" data-state={state}>
       <i style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />
@@ -115,8 +107,7 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
       {lens === "syntax" ? (
         <>
           <div className="legend-row">
-            <span className="swatch" style={{ background: "var(--accent)" }} /> Syntax: quotes, braces, colons,
-            markup
+            <span className="swatch" style={{ background: "var(--accent)" }} /> Syntax: quotes, braces, colons, markup
           </div>
           <div className="legend-row">
             <span className="swatch" style={{ background: "#8f8a80" }} /> Words and numbers
@@ -208,9 +199,9 @@ export function MetricsPanel({
           </div>
         </div>
         <p className="panel-foot">
-          {spec.name} page: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} × {spec.cellH.toFixed(2)} mm
-          ({fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate. Nothing you write leaves
-          this browser.
+          {spec.name} page: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} × {spec.cellH.toFixed(2)} mm (
+          {fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate. Nothing you write leaves this
+          browser.
         </p>
       </InspectorSection>
 

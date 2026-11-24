@@ -70,7 +70,8 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
     const onInput = () => latest.current.onValue(el.value);
     const onFocus = () => latest.current.onFocus?.();
     const onRender = (e: Event) => latest.current.onRender?.((e as CustomEvent<A4Render>).detail);
-    const onView = (e: Event) => latest.current.onViewChange?.((e as CustomEvent<{ tilt: number; turn: number }>).detail);
+    const onView = (e: Event) =>
+      latest.current.onViewChange?.((e as CustomEvent<{ tilt: number; turn: number }>).detail);
     const onPose = (e: Event) => latest.current.onPoseChange?.((e as CustomEvent<Pose>).detail);
     el.addEventListener("input", onInput);
     el.addEventListener("a4-focus", onFocus);

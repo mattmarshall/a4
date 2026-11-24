@@ -11,8 +11,9 @@ import { isStoreError } from "./types.ts";
 
 // Every backend passes the same contract.
 pageStoreContract("memory", async () => new MemoryPageStore());
-pageStoreContract("key-value (localStorage layout)", async () =>
-  new KeyValuePageStore(new MemoryKeyValue(), { kind: "local-storage", durable: true }),
+pageStoreContract(
+  "key-value (localStorage layout)",
+  async () => new KeyValuePageStore(new MemoryKeyValue(), { kind: "local-storage", durable: true }),
 );
 pageStoreContract("OPFS (in-memory fake)", async () =>
   OpfsPageStore.open({ root: asDirectoryHandle(new FakeDirectoryHandle()), locks: null }),
@@ -20,8 +21,25 @@ pageStoreContract("OPFS (in-memory fake)", async () =>
 
 test("name rules", () => {
   assert.equal(parsePageName("  Agent   charter  "), "Agent charter");
-  for (const bad of ["", "   ", "a/b", "a\\b", "a:b", "what?", 'say "hi"', "<x>", "a|b", ".env", "x".repeat(81), "bell\u0007"]) {
-    assert.throws(() => parsePageName(bad), (e: unknown) => isStoreError(e, "invalid-name"), JSON.stringify(bad));
+  for (const bad of [
+    "",
+    "   ",
+    "a/b",
+    "a\\b",
+    "a:b",
+    "what?",
+    'say "hi"',
+    "<x>",
+    "a|b",
+    ".env",
+    "x".repeat(81),
+    "bell\u0007",
+  ]) {
+    assert.throws(
+      () => parsePageName(bad),
+      (e: unknown) => isStoreError(e, "invalid-name"),
+      JSON.stringify(bad),
+    );
   }
   assert.equal(parsePageName("x".repeat(80)).length, 80);
   assert.equal(parsePageName("tab\there"), "tab here");
@@ -129,7 +147,10 @@ test("sanitized names always parse, and never split a surrogate pair", () => {
   const taken = [`${"y".repeat(78)}😀`];
   const next = nextAvailableName(`${"y".repeat(78)}😀`, taken);
   assert.ok(next.isWellFormed() && next.endsWith(" 2"), next);
-  assert.throws(() => parsePageName("a\uD800"), (e: unknown) => isStoreError(e, "invalid-name"));
+  assert.throws(
+    () => parsePageName("a\uD800"),
+    (e: unknown) => isStoreError(e, "invalid-name"),
+  );
 });
 
 test("OPFS: a failed first write leaves no empty page, and moves change nothing", async () => {
@@ -140,14 +161,20 @@ test("OPFS: a failed first write leaves no empty page, and moves change nothing"
   await assert.rejects(store.create(parsePageName("Fresh"), "x"));
   await assert.rejects(store.rename(parsePageName("Brief"), parsePageName("Renamed")));
   await assert.rejects(store.trash(parsePageName("Brief")));
-  assert.deepEqual((await store.list()).map((p) => p.name), ["Brief"]);
+  assert.deepEqual(
+    (await store.list()).map((p) => p.name),
+    ["Brief"],
+  );
   assert.deepEqual(await store.listTrash(), []);
   root.volume.failWritable = false;
   const entry = await store.trash(parsePageName("Brief"));
   root.volume.failWritable = true;
   await assert.rejects(store.restore(entry.id));
   assert.deepEqual(await store.list(), []);
-  assert.deepEqual((await store.listTrash()).map((t) => t.id), [entry.id]);
+  assert.deepEqual(
+    (await store.listTrash()).map((t) => t.id),
+    [entry.id],
+  );
   root.volume.failWritable = false;
   assert.equal((await store.read((await store.restore(entry.id)).name)).text, "keep me");
 });

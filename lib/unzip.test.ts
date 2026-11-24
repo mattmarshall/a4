@@ -46,7 +46,10 @@ test("reads Info-ZIP archives with data descriptors and unflagged UTF-8 names", 
   const entries = openZip(fixture("infozip-descriptors.zip"));
   const byName = new Map(entries.map((e) => [e.name, e]));
   assert.ok(byName.get("pages/")?.isDirectory);
-  assert.equal(await text(byName.get("pages/Brief.md")!.read()), "SITUATION BRIEF\r\n\r\nPurpose:\tbrief the agent.\r\n");
+  assert.equal(
+    await text(byName.get("pages/Brief.md")!.read()),
+    "SITUATION BRIEF\r\n\r\nPurpose:\tbrief the agent.\r\n",
+  );
   assert.equal(await text(byName.get("pages/Café brief · 漢字.md")!.read()), "Café brief · 漢字\n");
   assert.equal(await text(byName.get("pages/notes/handoff.txt")!.read()), "Handoff notes, plain text.\n");
 });

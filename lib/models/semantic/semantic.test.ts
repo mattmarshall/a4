@@ -16,9 +16,15 @@ test("units: sentences across wrapped lines", () => {
   ].join("\n");
   const units = extractUnits(text);
   assert.equal(units.length, 2);
-  assert.equal(text.slice(units[0].start, units[0].end), "The deploy failed at noon because the signing\ntoken expired overnight.");
+  assert.equal(
+    text.slice(units[0].start, units[0].end),
+    "The deploy failed at noon because the signing\ntoken expired overnight.",
+  );
   assert.equal(units[0].text, "The deploy failed at noon because the signing token expired overnight.");
-  assert.equal(text.slice(units[1].start, units[1].end), "We rotated the token and\nredeployed the service right away.");
+  assert.equal(
+    text.slice(units[1].start, units[1].end),
+    "We rotated the token and\nredeployed the service right away.",
+  );
   assert.ok(units.every((u) => u.kind === "prose"));
 });
 
@@ -78,7 +84,10 @@ test("model lens values: a 0.90 match fills each unit's cells with 0.75", () => 
   const score = scoreUnits(text, units, withSimilarity(0.9), T);
   assert.ok(Math.abs(cellValue(0.9) - 0.75) < 1e-9);
   // Row 0 holds unit 0 ("First sentence goes here."), row 1 holds unit 1.
-  for (const [row, unit] of [[0, units[0]], [1, units[1]]] as const) {
+  for (const [row, unit] of [
+    [0, units[0]],
+    [1, units[1]],
+  ] as const) {
     const len = unit.end - unit.start;
     for (let c = 0; c < len; c++) assert.ok(Math.abs(score.values[row * 80 + c] - 0.75) < 1e-5);
     assert.equal(score.values[row * 80 + len], 0);

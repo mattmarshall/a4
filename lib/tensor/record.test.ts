@@ -29,7 +29,10 @@ test("sheet record: a corrupt record names the first mismatching row", () => {
 
 test("sheet record: a mismatch further down names that row", () => {
   const bad = create(SheetSchema, { spec: pageSpecMessage(T), text: "a\nb\nc", grid: encodeGrid("a\nb\nd", T) });
-  assert.throws(() => readSheet(toBinary(SheetSchema, bad)), (e: unknown) => e instanceof SheetRecordError && e.row === 2);
+  assert.throws(
+    () => readSheet(toBinary(SheetSchema, bad)),
+    (e: unknown) => e instanceof SheetRecordError && e.row === 2,
+  );
 });
 
 test("sheet record: missing grid, garbage bytes, and lone surrogates are refused", () => {

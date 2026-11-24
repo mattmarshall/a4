@@ -17,14 +17,7 @@ export const MAX_PAGE_BYTES = 1024 * 1024;
 
 const PAGE_EXTENSIONS = [".md", ".txt"];
 
-export type SkipReason =
-  | "macos-metadata"
-  | "hidden"
-  | "not-a-page"
-  | "binary"
-  | "encrypted"
-  | "too-large"
-  | "corrupt";
+export type SkipReason = "macos-metadata" | "hidden" | "not-a-page" | "binary" | "encrypted" | "too-large" | "corrupt";
 
 export interface ImportReport {
   /** Pages created, including renamed ones. */

@@ -219,7 +219,8 @@ export function servePort(port: PortLike, client: SheetModelClient): () => void 
         const method = client[name] as (req: unknown, signal: AbortSignal) => unknown;
         if (desc.methodKind === "unary") {
           const result = await (method(request, controller.signal) as Promise<never>);
-          if (!controller.signal.aborted) send(port, { id: frame.id, payload: toBinary(desc.output, result), end: true });
+          if (!controller.signal.aborted)
+            send(port, { id: frame.id, payload: toBinary(desc.output, result), end: true });
         } else {
           for await (const item of method(request, controller.signal) as AsyncIterable<never>) {
             if (controller.signal.aborted) break;

@@ -1,22 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { analyze, compressibility } from "@/lib/analyze";
 import { realScheduler, type SaveStatus } from "@/lib/autosave";
 import { describeImport } from "@/lib/import";
 import { isLensId, LENSES, type LensId } from "@/lib/lenses";
-import {
-  DEFAULT_PRESET,
-  isPresetId,
-  PRESET_ORDER,
-  PRESETS,
-  PX_PER_MM_ACTUAL,
-  type PresetId,
-} from "@/lib/page-spec";
+import { DEFAULT_PRESET, isPresetId, PRESET_ORDER, PRESETS, PX_PER_MM_ACTUAL, type PresetId } from "@/lib/page-spec";
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
 import { KEYS, readKey, writeKey } from "@/lib/storage";
-import { baseName, copyNameFor, decodeRef, encodeRef, libraryRef, sameRef, type PageName, type PageRef } from "@/lib/store";
+import {
+  baseName,
+  copyNameFor,
+  decodeRef,
+  encodeRef,
+  libraryRef,
+  sameRef,
+  type PageName,
+  type PageRef,
+} from "@/lib/store";
 import { FLAT, type Pose } from "@/lib/paper/deform";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
@@ -79,7 +89,6 @@ function useCompressibility(text: string): number | null {
   return value;
 }
 
-
 export function SaveStatusPill({ status }: { status: SaveStatus }) {
   return (
     <span className="save-pill" data-status={status} role="status" aria-live="polite" title={STATUS_LABEL[status]}>
@@ -88,7 +97,13 @@ export function SaveStatusPill({ status }: { status: SaveStatus }) {
   );
 }
 
-function PageNameField({ name, onRename }: { name: PageName | null; onRename: (input: string) => Promise<string | null> }) {
+function PageNameField({
+  name,
+  onRename,
+}: {
+  name: PageName | null;
+  onRename: (input: string) => Promise<string | null>;
+}) {
   const [value, setValue] = useState(name ?? "");
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
@@ -210,9 +225,11 @@ export function Workbench() {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        void lib.flushAll().then((saved) =>
-          saved ? notify("Saved") : notify("Saving failed. A4 keeps your edits and will keep trying.", "warn"),
-        );
+        void lib
+          .flushAll()
+          .then((saved) =>
+            saved ? notify("Saved") : notify("Saving failed. A4 keeps your edits and will keep trying.", "warn"),
+          );
       }
     }
     window.addEventListener("keydown", onKey);
@@ -225,7 +242,13 @@ export function Workbench() {
     function editable(el: Element | null): boolean {
       if (!el || el === document.body) return false;
       const tag = el.tagName;
-      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "A4-SHEET" || (el as HTMLElement).isContentEditable;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        tag === "A4-SHEET" ||
+        (el as HTMLElement).isContentEditable
+      );
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -233,7 +256,13 @@ export function Workbench() {
         else if (focus) setFocus(false);
         return;
       }
-      if ((e.key === "f" || e.key === "F") && !e.metaKey && !e.ctrlKey && !e.altKey && !editable(document.activeElement)) {
+      if (
+        (e.key === "f" || e.key === "F") &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !editable(document.activeElement)
+      ) {
         e.preventDefault();
         setFocus((f) => !f);
       }
@@ -246,7 +275,9 @@ export function Workbench() {
   useEffect(() => {
     const el = deskRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setDesk({ width: entry.contentRect.width, height: entry.contentRect.height }));
+    const ro = new ResizeObserver(([entry]) =>
+      setDesk({ width: entry.contentRect.width, height: entry.contentRect.height }),
+    );
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -306,9 +337,13 @@ export function Workbench() {
         scheduler: realScheduler,
         delayMs: RESCORE_MS,
         score: (_slot, text, preset) => scoreRef.current(SEMANTIC_REPETITION_ID, text, PRESETS[preset as PresetId]),
-        onResult: (slot, result, _text, preset) => setScored((s) => ({ ...s, [slot]: { ...result, preset: preset as PresetId } })),
+        onResult: (slot, result, _text, preset) =>
+          setScored((s) => ({ ...s, [slot]: { ...result, preset: preset as PresetId } })),
         onError: (_slot, error) =>
-          notifyScoreRef.current(`Semantic repetition: ${error instanceof Error ? error.message : String(error)}`, "warn"),
+          notifyScoreRef.current(
+            `Semantic repetition: ${error instanceof Error ? error.message : String(error)}`,
+            "warn",
+          ),
       }),
   );
   useEffect(() => () => schedule.stop(), [schedule]);
@@ -336,7 +371,9 @@ export function Workbench() {
   function planesFor(slot: Slot): Record<string, A4Plane> | undefined {
     const result = scored[slot];
     if (!result || result.preset !== spec.id) return undefined;
-    return Object.fromEntries(result.planes.map((p) => [planeKey(p.pluginId, p.name), { text: p.text, values: p.values, label: p.label }]));
+    return Object.fromEntries(
+      result.planes.map((p) => [planeKey(p.pluginId, p.name), { text: p.text, values: p.values, label: p.label }]),
+    );
   }
   /** The plane a model lens shows: the plugin's first plane in either slot's latest result. */
   const lensPlane = (pluginId: string) =>
@@ -360,7 +397,8 @@ export function Workbench() {
     if (modelLens !== SEMANTIC_REPETITION_ID) return null;
     const result = scored[target];
     const text = target === "a" ? textA : textB;
-    if (!result) return { sheet: mode === "compare" ? target.toUpperCase() : "", restating: 0, units: 0, pairs: [], stale: true };
+    if (!result)
+      return { sheet: mode === "compare" ? target.toUpperCase() : "", restating: 0, units: 0, pairs: [], stale: true };
     const value = (name: string) => result.scores.find((x) => x.name === name)?.value ?? 0;
     return {
       sheet: mode === "compare" ? target.toUpperCase() : "",
@@ -374,13 +412,19 @@ export function Workbench() {
   // Fit to page: the result opens as B, beside its source as A.
   // Fit to page: one request at a time, owned here so it outlives the Models
   // panel (collapsing it, hiding the inspector, or focus mode don't stop it).
-  const fitDeps = useRef({ spec, openFitResult: (_n: string, _r: TransformResult, _ref: PageRef) => Promise.resolve() });
+  const fitDeps = useRef({
+    spec,
+    openFitResult: (_n: string, _r: TransformResult, _ref: PageRef) => Promise.resolve(),
+  });
   const [fitJob] = useState(
     () =>
       new FitJob<PageRef>({
         grant: (text) => grantConsent(FIT_TO_PAGE_ID, text),
         run: async (text, options) =>
-          (await models.host()).transform(FIT_TO_PAGE_ID, text, fitDeps.current.spec, { instruction: "fit", ...options }),
+          (await models.host()).transform(FIT_TO_PAGE_ID, text, fitDeps.current.spec, {
+            instruction: "fit",
+            ...options,
+          }),
         onResult: (name, result, ref) => fitDeps.current.openFitResult(name, result, ref),
         onAuthFailed: () => forgetApiKey(),
         maxAttempts: MAX_ATTEMPTS,
@@ -460,7 +504,8 @@ export function Workbench() {
   }
 
   function downloadText() {
-    const fileName = targetSlot.ref?.kind === "file" ? baseName(targetSlot.ref.path) : `${slugFromText(targetSlot.name ?? "")}.md`;
+    const fileName =
+      targetSlot.ref?.kind === "file" ? baseName(targetSlot.ref.path) : `${slugFromText(targetSlot.name ?? "")}.md`;
     saveFile(new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" }), fileName);
   }
 
@@ -483,7 +528,10 @@ export function Workbench() {
     try {
       const report = await lib.importArchive(new Uint8Array(await file.arrayBuffer()));
       if (!report) return;
-      notify(describeImport(report), report.skipped.length || report.created.some((c) => c.renamedFrom) ? "warn" : "info");
+      notify(
+        describeImport(report),
+        report.skipped.length || report.created.some((c) => c.renamedFrom) ? "warn" : "info",
+      );
     } catch (error) {
       notify(`Couldn’t import “${file.name}”: ${error instanceof Error ? error.message : String(error)}`, "warn");
     }
@@ -521,7 +569,10 @@ export function Workbench() {
         value={encodeRef(state.ref)}
         onChange={(e) => {
           const ref = decodeRef(e.target.value);
-          if (ref) lib.openInSlot(slot, ref).catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
+          if (ref)
+            lib
+              .openInSlot(slot, ref)
+              .catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
         }}
       >
         <optgroup label="Library">
@@ -544,7 +595,10 @@ export function Workbench() {
     );
   }
 
-  const folderName = lib.folder.state.status === "connected" || lib.folder.state.status === "reconnect" ? lib.folder.state.name : "Folder";
+  const folderName =
+    lib.folder.state.status === "connected" || lib.folder.state.status === "reconnect"
+      ? lib.folder.state.name
+      : "Folder";
   const targetAnalysis = target === "a" ? analysisA : analysisB;
   const legendShown = Boolean(modelLens) || lens !== "ink";
   const sheetsStyle = { "--a4-3d-height": `${stageHeight}px` } as CSSProperties;
@@ -700,7 +754,13 @@ export function Workbench() {
                 <>
                   <div className="menu-heading">Grid</div>
                   {PRESET_ORDER.map((id) => (
-                    <MenuItem key={id} kind="radio" checked={presetId === id} close={close} onSelect={() => setPresetId(id)}>
+                    <MenuItem
+                      key={id}
+                      kind="radio"
+                      checked={presetId === id}
+                      close={close}
+                      onSelect={() => setPresetId(id)}
+                    >
                       <strong>
                         {PRESETS[id].name} · {PRESETS[id].cols}×{PRESETS[id].rows}
                       </strong>
@@ -723,12 +783,22 @@ export function Workbench() {
                     <strong>3D</strong>
                     <span>Paper you can fold, curl, and light (WebGPU)</span>
                   </MenuItem>
-                  <MenuItem kind="radio" checked={effectiveRender === "flat"} close={close} onSelect={() => setRender("flat")}>
+                  <MenuItem
+                    kind="radio"
+                    checked={effectiveRender === "flat"}
+                    close={close}
+                    onSelect={() => setRender("flat")}
+                  >
                     <strong>Flat</strong>
                   </MenuItem>
                   <div className="menu-sep" />
                   <div className="menu-heading">Zoom</div>
-                  <MenuItem kind="radio" checked={zoom.kind === "fit"} close={close} onSelect={() => setZoom({ kind: "fit" })}>
+                  <MenuItem
+                    kind="radio"
+                    checked={zoom.kind === "fit"}
+                    close={close}
+                    onSelect={() => setZoom({ kind: "fit" })}
+                  >
                     <strong>Fit to the desk</strong>
                   </MenuItem>
                   <MenuItem
@@ -831,11 +901,13 @@ export function Workbench() {
                 .catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
             }}
             onDuplicateFile={(path) => {
-              void runReported(() => lib.duplicatePage({ kind: "file", path }), notify, `copy “${path}” into the library`).then(
-                (name) => {
-                  if (name) notify(`Copied “${path}” into the library as “${name}”.`);
-                },
-              );
+              void runReported(
+                () => lib.duplicatePage({ kind: "file", path }),
+                notify,
+                `copy “${path}” into the library`,
+              ).then((name) => {
+                if (name) notify(`Copied “${path}” into the library as “${name}”.`);
+              });
             }}
             onNewFile={(path) => lib.createFile(path, "", target)}
             onSaveToFolder={async (path) => {
@@ -862,7 +934,11 @@ export function Workbench() {
                   const state = slot === "a" ? lib.slotA : lib.slotB;
                   const analysis = slot === "a" ? analysisA : analysisB;
                   return (
-                    <div key={slot} className="sheet-col" data-active={mode === "compare" && target === slot ? "" : undefined}>
+                    <div
+                      key={slot}
+                      className="sheet-col"
+                      data-active={mode === "compare" && target === slot ? "" : undefined}
+                    >
                       {mode === "compare" ? (
                         <div className="sheet-caption">
                           <b>{slot.toUpperCase()}</b>
@@ -925,7 +1001,12 @@ export function Workbench() {
 
           {posePanel && effectiveRender === "3d" && !focus ? (
             <div className="pose-panel" role="dialog" aria-label="Pose and camera">
-              <button type="button" className="btn pose-close" onClick={() => setPosePanel(false)} aria-label="Close pose and camera">
+              <button
+                type="button"
+                className="btn pose-close"
+                onClick={() => setPosePanel(false)}
+                aria-label="Close pose and camera"
+              >
                 ×
               </button>
               <SheetControls
@@ -964,7 +1045,12 @@ export function Workbench() {
           <aside className="sidebar inspector" aria-label="Inspector">
             <div className="inspector-head">
               <span>Inspector</span>
-              <button type="button" className="btn" onClick={() => setShowInspector(false)} aria-label="Close the inspector">
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setShowInspector(false)}
+                aria-label="Close the inspector"
+              >
                 ×
               </button>
             </div>

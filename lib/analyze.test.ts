@@ -56,7 +56,9 @@ test("coverage and crowding", () => {
 test("a 40-row wall of text is Busy", () => {
   const words = "the export moved earlier so finance gets invoices sooner each month".split(" ");
   const text = Array.from({ length: 40 }, (_, i) =>
-    Array.from({ length: 12 }, (_, j) => `${words[(i + j) % words.length]}${i}`).join(" ").slice(0, 78),
+    Array.from({ length: 12 }, (_, j) => `${words[(i + j) % words.length]}${i}`)
+      .join(" ")
+      .slice(0, 78),
   ).join("\n");
   const a = analyze(text, T);
   assert.ok(a.crowding >= THRESHOLDS.busyCrowding, `crowding ${a.crowding}`);
@@ -190,11 +192,17 @@ test("every warn or bad signal has its finding, and Reads clean never sits besid
       const a = analyze(text, preset);
       for (const [metric, tone] of Object.entries(a.signals)) {
         if (tone === "warn" || tone === "bad") {
-          assert.ok(a.findings.some((f) => f.id === metric), `${preset.id}: ${metric} is ${tone} without a finding for ${JSON.stringify(text.slice(0, 40))}`);
+          assert.ok(
+            a.findings.some((f) => f.id === metric),
+            `${preset.id}: ${metric} is ${tone} without a finding for ${JSON.stringify(text.slice(0, 40))}`,
+          );
         }
       }
       if (a.findings.some((f) => f.id === "clean")) {
-        assert.ok(Object.values(a.signals).every((t) => t === "ok" || t === "na"), `Reads clean beside a signal: ${JSON.stringify(text.slice(0, 40))}`);
+        assert.ok(
+          Object.values(a.signals).every((t) => t === "ok" || t === "na"),
+          `Reads clean beside a signal: ${JSON.stringify(text.slice(0, 40))}`,
+        );
       }
     }
   }

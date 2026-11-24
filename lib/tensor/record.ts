@@ -53,7 +53,8 @@ export function verifySheet(sheet: Sheet): void {
  * surrogate can't be written faithfully and is refused.
  */
 export function writeSheet(sheet: Sheet): Uint8Array {
-  if (!sheet.text.isWellFormed()) throw new SheetRecordError("sheet text contains a lone surrogate and can't be stored as UTF-8");
+  if (!sheet.text.isWellFormed())
+    throw new SheetRecordError("sheet text contains a lone surrogate and can't be stored as UTF-8");
   verifySheet(sheet);
   return toBinary(SheetSchema, sheet);
 }

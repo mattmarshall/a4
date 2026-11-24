@@ -43,7 +43,13 @@ function stub(replies: Reply[]) {
               }
             },
             finalMessage: async () =>
-              ({ id: "msg", model: "claude-opus-5-5", role: "assistant", stop_reason: reply.stop ?? "end_turn", content }) as never,
+              ({
+                id: "msg",
+                model: "claude-opus-5-5",
+                role: "assistant",
+                stop_reason: reply.stop ?? "end_turn",
+                content,
+              }) as never,
           };
         },
       },
@@ -57,7 +63,14 @@ function plugin(replies: Reply[], apiKey: string | null = "sk-test") {
   return { ...s, plugin: fitToPagePlugin({ sdk: async () => sdk, client: () => s.client, apiKey: () => apiKey }) };
 }
 
-async function run(p: ReturnType<typeof fitToPagePlugin>, request = create(TransformRequestSchema, { sheet: sheetRecord("Too long.\n".repeat(70), T), instruction: "fit", attempt: 1 })) {
+async function run(
+  p: ReturnType<typeof fitToPagePlugin>,
+  request = create(TransformRequestSchema, {
+    sheet: sheetRecord("Too long.\n".repeat(70), T),
+    instruction: "fit",
+    attempt: 1,
+  }),
+) {
   const events = [];
   for await (const e of p.transform(request)) events.push(e);
   return events;
@@ -133,8 +146,14 @@ test("fit adapter: without a key nothing is sent", async () => {
 });
 
 test("fit adapter: refusal and cut-off replies fail the run", async () => {
-  await assert.rejects(run(plugin([{ text: "", stop: "refusal" }]).plugin), (e: unknown) => e instanceof ModelError && e.code === "refused");
-  await assert.rejects(run(plugin([{ text: "partial", stop: "max_tokens" }]).plugin), (e: unknown) => e instanceof ModelError && e.code === "plugin");
+  await assert.rejects(
+    run(plugin([{ text: "", stop: "refusal" }]).plugin),
+    (e: unknown) => e instanceof ModelError && e.code === "refused",
+  );
+  await assert.rejects(
+    run(plugin([{ text: "partial", stop: "max_tokens" }]).plugin),
+    (e: unknown) => e instanceof ModelError && e.code === "plugin",
+  );
 });
 
 test("fit adapter: SDK errors map to the host's codes", () => {
@@ -152,7 +171,9 @@ test("fit adapter: SDK errors map to the host's codes", () => {
 });
 
 test("fit adapter: a stream error surfaces as the mapped code", async () => {
-  const { plugin: p } = plugin([{ throws: new sdk.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()) }]);
+  const { plugin: p } = plugin([
+    { throws: new sdk.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()) },
+  ]);
   await assert.rejects(run(p), (e: unknown) => e instanceof ModelError && e.code === "auth");
 });
 
@@ -164,9 +185,15 @@ test("fit adapter through the host: consent required, repaired until it fits", a
     connect: async () => fitToPagePlugin({ sdk: async () => sdk, client: () => s.client, apiKey: () => "sk-test" }),
   });
   const text = "Too long.\n".repeat(70);
-  await assert.rejects(host.transform(FIT_TO_PAGE_ID, text, T, { instruction: "fit" }), (e: unknown) => e instanceof ModelError && e.code === "consent-required");
+  await assert.rejects(
+    host.transform(FIT_TO_PAGE_ID, text, T, { instruction: "fit" }),
+    (e: unknown) => e instanceof ModelError && e.code === "consent-required",
+  );
   assert.equal(s.requests.length, 0);
-  const result = await host.transform(FIT_TO_PAGE_ID, text, T, { instruction: "fit", consent: grantConsent(FIT_TO_PAGE_ID, text) });
+  const result = await host.transform(FIT_TO_PAGE_ID, text, T, {
+    instruction: "fit",
+    consent: grantConsent(FIT_TO_PAGE_ID, text),
+  });
   assert.equal(result.fits, true);
   assert.equal(result.rowsUsed, 58);
   assert.equal(result.attempts, 2);

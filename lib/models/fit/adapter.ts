@@ -64,18 +64,25 @@ function decodeHistory(bytes: Uint8Array): MessageParam[] {
 /** Map SDK failures to the host's error codes, most specific first. */
 export function mapError(sdk: Sdk, error: unknown, signal?: AbortSignal): ModelError {
   if (error instanceof ModelError) return error;
-  if (error instanceof sdk.APIUserAbortError || signal?.aborted) return new ModelError("cancelled", "Canceled.", { cause: error });
+  if (error instanceof sdk.APIUserAbortError || signal?.aborted)
+    return new ModelError("cancelled", "Canceled.", { cause: error });
   if (error instanceof sdk.AuthenticationError || error instanceof sdk.PermissionDeniedError) {
     return new ModelError("auth", "Anthropic didn’t accept the API key.", { cause: error });
   }
   if (error instanceof sdk.RateLimitError) {
     return new ModelError("network", "Anthropic is rate limiting requests. Try again in a minute.", { cause: error });
   }
-  if (error instanceof sdk.APIConnectionError) return new ModelError("network", `Couldn’t reach ${FIT_HOST}.`, { cause: error });
+  if (error instanceof sdk.APIConnectionError)
+    return new ModelError("network", `Couldn’t reach ${FIT_HOST}.`, { cause: error });
   if (error instanceof sdk.APIError) {
     const status = typeof error.status === "number" ? error.status : 0;
-    if (status >= 500) return new ModelError("network", "Anthropic’s API is unavailable right now. Try again shortly.", { cause: error });
-    return new ModelError("plugin", `Anthropic returned an error${status ? ` (${status})` : ""}: ${error.message}`, { cause: error });
+    if (status >= 500)
+      return new ModelError("network", "Anthropic’s API is unavailable right now. Try again shortly.", {
+        cause: error,
+      });
+    return new ModelError("plugin", `Anthropic returned an error${status ? ` (${status})` : ""}: ${error.message}`, {
+      cause: error,
+    });
   }
   return new ModelError("plugin", error instanceof Error ? error.message : String(error), { cause: error });
 }
@@ -101,7 +108,10 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
 
       const history: MessageParam[] = request.resume.length ? decodeHistory(request.resume) : [];
       if (!history.length) {
-        history.push({ role: "user", content: firstRequest(sheet.text, layoutRows(sheet.text, shape.cols).length, shape) });
+        history.push({
+          role: "user",
+          content: firstRequest(sheet.text, layoutRows(sheet.text, shape.cols).length, shape),
+        });
       } else {
         const feedback = request.feedback;
         if (!feedback) throw new ModelError("invalid-result", "A repair attempt needs fit feedback.");
@@ -140,7 +150,8 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
       }
 
       if (message.stop_reason === "refusal") throw new ModelError("refused", "Claude declined to rewrite this page.");
-      if (message.stop_reason === "max_tokens") throw new ModelError("plugin", "The rewrite was cut off before it finished.");
+      if (message.stop_reason === "max_tokens")
+        throw new ModelError("plugin", "The rewrite was cut off before it finished.");
       const reply = message.content
         .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")
         .map((block) => block.text)
@@ -148,7 +159,10 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
       // Append the reply exactly as returned: the conversation stays append-only.
       history.push({ role: "assistant", content: message.content } as unknown as MessageParam);
       yield {
-        event: { case: "candidate", value: { text: stripWrappingFence(reply), resume: encodeHistory(history), model: message.model } },
+        event: {
+          case: "candidate",
+          value: { text: stripWrappingFence(reply), resume: encodeHistory(history), model: message.model },
+        },
       };
     },
   });

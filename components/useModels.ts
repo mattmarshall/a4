@@ -79,7 +79,10 @@ export function useModels(): ModelsState {
     [host],
   );
 
-  const score = useCallback(async (id: string, text: string, spec: PageSpec) => (await host()).score(id, text, spec), [host]);
+  const score = useCallback(
+    async (id: string, text: string, spec: PageSpec) => (await host()).score(id, text, spec),
+    [host],
+  );
 
   return { status, progress, errors, prepare, score, host };
 }

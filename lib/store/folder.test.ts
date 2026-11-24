@@ -21,7 +21,11 @@ async function rejectsWith(promise: Promise<unknown>, code: PageStoreErrorCode) 
 }
 
 // The folder backend passes the core contract unchanged.
-pageFilesContract("folder (in-memory fake)", async () => folder().store, (stem) => p(`${stem}.md`));
+pageFilesContract(
+  "folder (in-memory fake)",
+  async () => folder().store,
+  (stem) => p(`${stem}.md`),
+);
 
 test("nested files are read and written by relative path", async () => {
   const { root, store } = folder();
@@ -47,8 +51,14 @@ test("invalid UTF-8 and very large files are unreadable, with the reason", async
   root.put("notes.md", new Uint8Array([0x61, 0xff, 0x62]));
   root.put("CHANGELOG.md", "x".repeat(MAX_FILE_BYTES + 1));
   root.put("ok.md", "x".repeat(MAX_FILE_BYTES));
-  await assert.rejects(store.read(p("notes.md")), (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "not-utf8");
-  await assert.rejects(store.read(p("CHANGELOG.md")), (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "too-large");
+  await assert.rejects(
+    store.read(p("notes.md")),
+    (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "not-utf8",
+  );
+  await assert.rejects(
+    store.read(p("CHANGELOG.md")),
+    (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "too-large",
+  );
   assert.equal((await store.read(p("ok.md"))).size, MAX_FILE_BYTES);
 });
 
@@ -99,10 +109,14 @@ test("the walk skips dependency, build, and hidden folders but keeps agent folde
   }
   const { files, partial } = await walkFolder(asDirectoryHandle(root));
   assert.equal(partial, false);
-  assert.deepEqual(
-    files.map((f) => f.path).sort(),
-    [".agents/skills/x/SKILL.md", ".claude/agents/reviewer.md", ".cursor/rules/style.mdc", ".github/copilot-instructions.md", "AGENTS.md", "docs/guide.md"],
-  );
+  assert.deepEqual(files.map((f) => f.path).sort(), [
+    ".agents/skills/x/SKILL.md",
+    ".claude/agents/reviewer.md",
+    ".cursor/rules/style.mdc",
+    ".github/copilot-instructions.md",
+    "AGENTS.md",
+    "docs/guide.md",
+  ]);
 });
 
 test("the walk stops at the entry limit and reports a partial list", async () => {

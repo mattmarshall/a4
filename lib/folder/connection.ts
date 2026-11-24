@@ -92,7 +92,8 @@ export class IdbHandleStore implements HandleStore {
       const store = tx.objectStore("folders");
       const keys = store.getAllKeys();
       const values = store.getAll();
-      tx.oncomplete = () => resolve(keys.result.map((k, i) => [String(k), values.result[i] as FileSystemDirectoryHandle]));
+      tx.oncomplete = () =>
+        resolve(keys.result.map((k, i) => [String(k), values.result[i] as FileSystemDirectoryHandle]));
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -311,7 +312,10 @@ export class FolderConnection {
       const journal = this.journalFor(id);
       for (const draft of journal.all()) {
         if (draft.tabId !== this.#tabId && liveTabs?.has(draft.tabId)) continue;
-        const name = await availableName(library, fileCopyName(draft.name, ` (recovered ${stamp(new Date(draft.at || Date.now()))})`));
+        const name = await availableName(
+          library,
+          fileCopyName(draft.name, ` (recovered ${stamp(new Date(draft.at || Date.now()))})`),
+        );
         await library.create(name, draft.text);
         journal.clearFor(draft.tabId, draft.name);
         copies.push(name);

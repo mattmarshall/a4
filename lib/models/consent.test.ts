@@ -62,14 +62,23 @@ test("consent: a token for different text is refused before the plugin runs", as
 
 test("consent: a token for another plugin, or a forged one, is refused", async () => {
   const { host, calls } = remote();
-  await assert.rejects(host.transform("remote", "page", T, { instruction: "fit", consent: grantConsent("other", "page") }), refused);
+  await assert.rejects(
+    host.transform("remote", "page", T, { instruction: "fit", consent: grantConsent("other", "page") }),
+    refused,
+  );
   const forged = { pluginId: "remote", revision: "x", characters: 4 } as unknown as ConsentToken;
   await assert.rejects(host.transform("remote", "page", T, { instruction: "fit", consent: forged }), refused);
   assert.deepEqual(calls, []);
 });
 
 test("consent: in-browser plugins need no token", async () => {
-  const card = create(ModelCardSchema, { id: "local", name: "Local", operations: [Operation.TRANSFORM], placement: Placement.BROWSER, views: [View.TEXT] });
+  const card = create(ModelCardSchema, {
+    id: "local",
+    name: "Local",
+    operations: [Operation.TRANSFORM],
+    placement: Placement.BROWSER,
+    views: [View.TEXT],
+  });
   const host = new ModelHost();
   host.register({
     card,

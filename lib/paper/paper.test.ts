@@ -88,7 +88,8 @@ test("fully folded: the sheet covers one third and panels never pass through eac
       if (y > HINGE_BOTTOM + 6) bottom.push(p);
       if (y < HINGE_TOP - 12) top.push(p);
       // Flat parts of folded panels rest above the middle third (height > 0).
-      if (y > HINGE_BOTTOM + 6 || y < HINGE_TOP - 12) assert.ok(p[1] > 2.5, `panel point (${x}, ${y}) at height ${p[1]}`);
+      if (y > HINGE_BOTTOM + 6 || y < HINGE_TOP - 12)
+        assert.ok(p[1] > 2.5, `panel point (${x}, ${y}) at height ${p[1]}`);
     }
   }
   assert.ok(Math.max(...zs) - Math.min(...zs) <= PAPER_H / 3 + 8, "footprint is about one third");
@@ -111,8 +112,16 @@ test("the curl only moves points past its line, and lifts the corner", () => {
 });
 
 test("curl and fold are exclusive", () => {
-  assert.deepEqual(withPose({ foldBottom: 1, foldTop: 0.5, curl: 0 }, { curl: 0.3 }), { foldBottom: 0, foldTop: 0, curl: 0.3 });
-  assert.deepEqual(withPose({ foldBottom: 0, foldTop: 0, curl: 0.6 }, { foldTop: 0.2 }), { foldBottom: 0, foldTop: 0.2, curl: 0 });
+  assert.deepEqual(withPose({ foldBottom: 1, foldTop: 0.5, curl: 0 }, { curl: 0.3 }), {
+    foldBottom: 0,
+    foldTop: 0,
+    curl: 0.3,
+  });
+  assert.deepEqual(withPose({ foldBottom: 0, foldTop: 0, curl: 0.6 }, { foldTop: 0.2 }), {
+    foldBottom: 0,
+    foldTop: 0.2,
+    curl: 0,
+  });
 });
 
 const TEXT = Array.from({ length: 12 }, (_, i) => `Row ${i} ${"abcdefghij".repeat(6)}`).join("\n");
@@ -231,7 +240,10 @@ test("the fold animation: bottom up, top down, hold, unfold, end flat", () => {
   let prev = foldPoseAt(0);
   for (let t = 0.01; t <= FOLD_DURATION; t += 0.01) {
     const p = foldPoseAt(t);
-    assert.ok(Math.abs(p.foldBottom - prev.foldBottom) < 0.05 && Math.abs(p.foldTop - prev.foldTop) < 0.05, `jump at ${t}`);
+    assert.ok(
+      Math.abs(p.foldBottom - prev.foldBottom) < 0.05 && Math.abs(p.foldTop - prev.foldTop) < 0.05,
+      `jump at ${t}`,
+    );
     prev = p;
   }
 });
@@ -255,7 +267,10 @@ test("print rows: page rows only, positioned on the grid", async () => {
   const rows = layoutRows(text, T.cols);
   const out = printRows(rows, text, T);
   assert.equal(out.length, T.rows);
-  assert.deepEqual(out.slice(0, 3).map((r) => r.text.length), [80, 80, 10]);
+  assert.deepEqual(
+    out.slice(0, 3).map((r) => r.text.length),
+    [80, 80, 10],
+  );
   assert.ok(Math.abs(out[1].topMm - (T.marginY + T.cellH)) < 1e-9);
 });
 

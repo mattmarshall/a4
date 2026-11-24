@@ -283,20 +283,23 @@ export function useLibrary(notify: Notify) {
   }, []);
 
   // Assigned below; session events need to open copies.
-  const openRef = useRef<(slot: Slot, target: PageRef | PageName | null, options?: { remember?: boolean }) => Promise<void>>(
-    async () => {},
-  );
+  const openRef = useRef<
+    (slot: Slot, target: PageRef | PageName | null, options?: { remember?: boolean }) => Promise<void>
+  >(async () => {});
 
   /** A file session stopped and its text is now a library page: open that page in the slot. */
-  const followCopy = useCallback(async (slot: Slot, copy: PageName) => {
-    const typed = latestText.current[slot];
-    await openRef.current(slot, libraryRef(copy));
-    const open = sessions.current[slot];
-    if (open && open.session.text !== typed) {
-      (open.session as PageSession<PageName>).update(typed);
-      setSlot(slot, { text: typed, status: open.session.status });
-    }
-  }, [setSlot]);
+  const followCopy = useCallback(
+    async (slot: Slot, copy: PageName) => {
+      const typed = latestText.current[slot];
+      await openRef.current(slot, libraryRef(copy));
+      const open = sessions.current[slot];
+      if (open && open.session.text !== typed) {
+        (open.session as PageSession<PageName>).update(typed);
+        setSlot(slot, { text: typed, status: open.session.status });
+      }
+    },
+    [setSlot],
+  );
 
   const onSessionEvent = useCallback(
     (slot: Slot, ref: PageRef, event: SessionEvent<string>) => {
@@ -309,7 +312,9 @@ export function useLibrary(notify: Notify) {
             setPages((list) =>
               byRecent(
                 list.map((p) =>
-                  p.name === event.result.name ? { ...p, size: event.result.size, modifiedAt: event.result.modifiedAt } : p,
+                  p.name === event.result.name
+                    ? { ...p, size: event.result.size, modifiedAt: event.result.modifiedAt }
+                    : p,
                 ),
               ),
             );
@@ -320,7 +325,12 @@ export function useLibrary(notify: Notify) {
             setFolderFiles((files) =>
               files.map((f) =>
                 f.path === ref.path
-                  ? { ...f, size: event.result.size, modifiedAt: event.result.modifiedAt, rows: f.group === "context" ? rows : f.rows }
+                  ? {
+                      ...f,
+                      size: event.result.size,
+                      modifiedAt: event.result.modifiedAt,
+                      rows: f.group === "context" ? rows : f.rows,
+                    }
                   : f,
               ),
             );
@@ -358,7 +368,10 @@ export function useLibrary(notify: Notify) {
             const open = sessions.current[slot];
             if (open) open.ref = libraryRef(event.name);
             remember(slot, libraryRef(event.name));
-            notifyRef.current(`“${event.original}” was deleted elsewhere, so your edits were saved as “${event.name}”.`, "warn");
+            notifyRef.current(
+              `“${event.original}” was deleted elsewhere, so your edits were saved as “${event.name}”.`,
+              "warn",
+            );
             void refresh();
           }
           broadcast("");
@@ -394,7 +407,10 @@ export function useLibrary(notify: Notify) {
         for (const s of SLOTS) {
           const open = sessions.current[s];
           latestText.current[s] = open?.session.text ?? "";
-          setSlot(s, open ? { ...refPatch(open.ref), text: open.session.text, status: open.session.status } : EMPTY_SLOT);
+          setSlot(
+            s,
+            open ? { ...refPatch(open.ref), text: open.session.text, status: open.session.status } : EMPTY_SLOT,
+          );
           remember(s, open?.ref ?? null);
         }
         rewatch();
@@ -507,7 +523,9 @@ export function useLibrary(notify: Notify) {
           await refresh();
           notifyRef.current(
             `Recovered unsaved edits to ${shown
-              .map((r) => (r.kind === "applied" ? `“${r.page}”` : `“${r.page}” (saved in the library as “${r.savedAs}”)`))
+              .map((r) =>
+                r.kind === "applied" ? `“${r.page}”` : `“${r.page}” (saved in the library as “${r.savedAs}”)`,
+              )
               .join(", ")}.`,
             "warn",
           );
@@ -685,7 +703,10 @@ export function useLibrary(notify: Notify) {
     [broadcast, openInSlot, refresh],
   );
 
-  const slotOf = useCallback((ref: PageRef): Slot | undefined => SLOTS.find((s) => sameRef(sessions.current[s]?.ref ?? null, ref)), []);
+  const slotOf = useCallback(
+    (ref: PageRef): Slot | undefined => SLOTS.find((s) => sameRef(sessions.current[s]?.ref ?? null, ref)),
+    [],
+  );
 
   /** Rename a library page. Returns an error message, or null on success. */
   const renamePage = useCallback(
@@ -905,7 +926,8 @@ export function useLibrary(notify: Notify) {
     setFolderPartial(false);
     unreadable.current.clear();
     const list = await refresh();
-    if (copies.length) notifyRef.current(`Saved leftover edits in the library: ${copies.map((c) => `“${c}”`).join(", ")}.`, "warn");
+    if (copies.length)
+      notifyRef.current(`Saved leftover edits in the library: ${copies.map((c) => `“${c}”`).join(", ")}.`, "warn");
     for (const slot of fileSlots) {
       const other = sessions.current[slot === "a" ? "b" : "a"]?.ref;
       const next = list.find((p) => !(other?.kind === "library" && other.name === p.name))?.name ?? null;
@@ -919,9 +941,14 @@ export function useLibrary(notify: Notify) {
   const openFolder = useCallback(async () => {
     const connection = connectionRef.current;
     if (!connection) return;
-    const picker = (window as unknown as {
-      showDirectoryPicker?: (options?: { mode?: "read" | "readwrite"; id?: string }) => Promise<FileSystemDirectoryHandle>;
-    }).showDirectoryPicker;
+    const picker = (
+      window as unknown as {
+        showDirectoryPicker?: (options?: {
+          mode?: "read" | "readwrite";
+          id?: string;
+        }) => Promise<FileSystemDirectoryHandle>;
+      }
+    ).showDirectoryPicker;
     if (!picker) return;
     let handle: FileSystemDirectoryHandle;
     const asked = Date.now();
@@ -931,7 +958,10 @@ export function useLibrary(notify: Notify) {
       if (errorName(error) === "AbortError") {
         // A cancel takes a person longer than this: the browser refused to show the picker.
         if (Date.now() - asked < 250) {
-          notifyRef.current("This browser didn’t show a folder picker. Open A4 in Chrome or Edge to edit a folder.", "warn");
+          notifyRef.current(
+            "This browser didn’t show a folder picker. Open A4 in Chrome or Edge to edit a folder.",
+            "warn",
+          );
         }
         return;
       }
@@ -953,7 +983,8 @@ export function useLibrary(notify: Notify) {
     try {
       const state = await connection.reconnect();
       if (state.status === "connected") await onConnected(state.folder);
-      else if (state.status === "reconnect") notifyRef.current(`A4 still doesn’t have access to “${state.name}”.`, "warn");
+      else if (state.status === "reconnect")
+        notifyRef.current(`A4 still doesn’t have access to “${state.name}”.`, "warn");
     } catch (error) {
       notifyRef.current(`Couldn’t reconnect: ${errorMessage(error)}`, "warn");
     }

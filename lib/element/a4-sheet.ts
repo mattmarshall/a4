@@ -211,8 +211,10 @@ export class A4SheetElement extends HTMLElement {
   #fontFamily = DEFAULT_FONT;
   #fontsRequested = false;
   #resize: ResizeObserver | null = null;
-  #drag: { kind: "select"; anchor: number } | { kind: "orbit"; x: number; y: number; tilt: number; yaw: number } | null =
-    null;
+  #drag:
+    | { kind: "select"; anchor: number }
+    | { kind: "orbit"; x: number; y: number; tilt: number; yaw: number }
+    | null = null;
   #onBeforePrint = () => this.#fillPrint();
   #onDocSelection = () => {
     if (this.#root.activeElement === this.#input) this.#schedule();
@@ -409,9 +411,16 @@ export class A4SheetElement extends HTMLElement {
     if (!name) throw new RangeError("A plane needs a name.");
     const expected = this.#cellCount(plane.text);
     if (!(plane.values instanceof Float32Array) || plane.values.length !== expected) {
-      throw new RangeError(`Plane "${name}" has ${plane.values?.length ?? 0} values; its text's grid has ${expected} cells.`);
+      throw new RangeError(
+        `Plane "${name}" has ${plane.values?.length ?? 0} values; its text's grid has ${expected} cells.`,
+      );
     }
-    this.#planes.set(name, { text: plane.text, values: plane.values, label: plane.label ?? name, cols: this.#spec.cols });
+    this.#planes.set(name, {
+      text: plane.text,
+      values: plane.values,
+      label: plane.label ?? name,
+      cols: this.#spec.cols,
+    });
     this.#schedule();
   }
 
@@ -547,7 +556,10 @@ export class A4SheetElement extends HTMLElement {
     if (family) this.#fontFamily = family;
     if (this.#fontsRequested || typeof document.fonts === "undefined") return;
     this.#fontsRequested = true;
-    Promise.all([document.fonts.load(`400 16px ${this.#fontFamily}`), document.fonts.load(`600 16px ${this.#fontFamily}`)])
+    Promise.all([
+      document.fonts.load(`400 16px ${this.#fontFamily}`),
+      document.fonts.load(`600 16px ${this.#fontFamily}`),
+    ])
       .catch(() => {})
       .finally(() => this.#schedule());
   }
@@ -715,7 +727,9 @@ export class A4SheetElement extends HTMLElement {
     const tilt = Math.max(0, Math.min(65, d.tilt + (e.clientY - d.y) * 0.25));
     this.#view = { ...this.#view, tilt, yaw };
     this.#schedule();
-    this.dispatchEvent(new CustomEvent("a4-viewchange", { bubbles: true, composed: true, detail: { tilt, turn: yaw } }));
+    this.dispatchEvent(
+      new CustomEvent("a4-viewchange", { bubbles: true, composed: true, detail: { tilt, turn: yaw } }),
+    );
   }
 
   #pointerUp() {

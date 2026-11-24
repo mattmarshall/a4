@@ -106,7 +106,8 @@ export class FileWatcher {
           continue;
         }
         const stat = await this.#stat(entry.path);
-        const same = stat && entry.last && stat.lastModified === entry.last.lastModified && stat.size === entry.last.size;
+        const same =
+          stat && entry.last && stat.lastModified === entry.last.lastModified && stat.size === entry.last.size;
         if (same || !stat) {
           // Unchanged, or gone: a missing file is handled by the next save.
           if (!stat) entry.last = null;

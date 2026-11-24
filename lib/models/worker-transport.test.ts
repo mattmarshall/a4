@@ -1,7 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { DescribeRequestSchema, ModelCardSchema, Operation, Placement, ScoreRequestSchema } from "../gen/a4/v1/model_pb.js";
+import {
+  DescribeRequestSchema,
+  ModelCardSchema,
+  Operation,
+  Placement,
+  ScoreRequestSchema,
+} from "../gen/a4/v1/model_pb.js";
 import { PRESETS } from "../page-spec.ts";
 import { sheetRecord } from "../tensor/record.ts";
 import { implement } from "./client.ts";
@@ -9,7 +15,12 @@ import { ModelError } from "./errors.ts";
 import { FakeWorker } from "./testing/fake-worker.ts";
 import { connectPort, fromWorker, isClosed, servePort, type PortLike } from "./worker-transport.ts";
 
-const card = create(ModelCardSchema, { id: "echo", name: "Echo", operations: [Operation.SCORE], placement: Placement.BROWSER });
+const card = create(ModelCardSchema, {
+  id: "echo",
+  name: "Echo",
+  operations: [Operation.SCORE],
+  placement: Placement.BROWSER,
+});
 
 function pair(handlers: Parameters<typeof implement>[0]) {
   const channel = new MessageChannel();
@@ -26,7 +37,9 @@ function pair(handlers: Parameters<typeof implement>[0]) {
 test("worker transport: Describe and Score round-trip as protobuf frames", async () => {
   const { client, close } = pair({
     score: (req) => ({
-      planes: [{ name: "len", shape: [60, 80], values: new Array(4800).fill(req.sheet!.text.length), text: req.sheet!.text }],
+      planes: [
+        { name: "len", shape: [60, 80], values: new Array(4800).fill(req.sheet!.text.length), text: req.sheet!.text },
+      ],
       scores: [{ name: "chars", value: req.sheet!.text.length }],
     }),
   });
@@ -72,7 +85,10 @@ test("worker transport: plugin errors keep their code across the port", async ()
       client.score(create(ScoreRequestSchema)),
       (e: unknown) => e instanceof ModelError && e.code === "not-ready" && e.message === "Download the model first.",
     );
-    await assert.rejects(client.encode(create((await import("../gen/a4/v1/model_pb.js")).EncodeRequestSchema)), (e: unknown) => e instanceof ModelError && e.code === "unimplemented");
+    await assert.rejects(
+      client.encode(create((await import("../gen/a4/v1/model_pb.js")).EncodeRequestSchema)),
+      (e: unknown) => e instanceof ModelError && e.code === "unimplemented",
+    );
   } finally {
     close();
   }
@@ -131,7 +147,10 @@ test("worker transport: a crashed worker fails pending calls at once, and later 
   assert.ok(Date.now() - started < 1000);
   assert.ok(worker.terminated);
   assert.ok(isClosed(client));
-  await assert.rejects(client.describe(create(DescribeRequestSchema)), (e: unknown) => e instanceof ModelError && e.code === "unavailable");
+  await assert.rejects(
+    client.describe(create(DescribeRequestSchema)),
+    (e: unknown) => e instanceof ModelError && e.code === "unavailable",
+  );
   release();
 });
 

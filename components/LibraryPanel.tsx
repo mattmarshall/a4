@@ -251,7 +251,12 @@ export function LibraryPanel({
       </div>
 
       <div className="lib-trash">
-        <button type="button" className="lib-trash-toggle" aria-expanded={showTrash} onClick={() => setShowTrash((s) => !s)}>
+        <button
+          type="button"
+          className="lib-trash-toggle"
+          aria-expanded={showTrash}
+          onClick={() => setShowTrash((s) => !s)}
+        >
           {showTrash ? "▾" : "▸"} Trash ({trash.length})
         </button>
         {showTrash ? (
@@ -287,7 +292,9 @@ export function LibraryPanel({
                 type="button"
                 className="btn btn-outline lib-empty-trash"
                 onClick={() => {
-                  if (window.confirm(`Permanently delete ${trash.length} page(s) in the trash? This can’t be undone.`)) {
+                  if (
+                    window.confirm(`Permanently delete ${trash.length} page(s) in the trash? This can’t be undone.`)
+                  ) {
                     onPurge(trash.map((t) => t.id));
                   }
                 }}
@@ -552,7 +559,8 @@ function FolderSection({
     return (
       <section className="lib-folder" aria-label="Folder not found">
         <p className="lib-note">
-          <strong>Folder not found.</strong> {state.name ? `“${state.name}” was moved or deleted.` : "The remembered folder is gone."}
+          <strong>Folder not found.</strong>{" "}
+          {state.name ? `“${state.name}” was moved or deleted.` : "The remembered folder is gone."}
         </p>
         <div className="lib-path-actions">
           <button type="button" className="btn btn-outline" onClick={onOpenFolder}>
@@ -606,7 +614,9 @@ function FolderSection({
       ) : null}
 
       {folder.scanning && folder.files.length === 0 ? <p className="lib-note">Scanning…</p> : null}
-      {folder.partial ? <p className="lib-note">The folder is very large: the list stops after 20,000 entries.</p> : null}
+      {folder.partial ? (
+        <p className="lib-note">The folder is very large: the list stops after 20,000 entries.</p>
+      ) : null}
 
       <h3 className="lib-group">Context files</h3>
       <ul className="lib-list">
@@ -618,7 +628,12 @@ function FolderSection({
 
       {other.length > 0 ? (
         <>
-          <button type="button" className="lib-trash-toggle" aria-expanded={showOther} onClick={() => setShowOther((v) => !v)}>
+          <button
+            type="button"
+            className="lib-trash-toggle"
+            aria-expanded={showOther}
+            onClick={() => setShowOther((v) => !v)}
+          >
             {showOther ? "▾" : "▸"} Other Markdown ({other.length})
           </button>
           {showOther ? <ul className="lib-list">{other.map(row)}</ul> : null}

@@ -63,7 +63,10 @@ export async function recoverDrafts<Id extends string = PageName>(
         recovery = { kind: "copied", page: draft.name, savedAs: await saveCopy(draft) };
       }
     } catch (error) {
-      if (options.copies && (isStoreError(error, "not-found") || isStoreError(error, "unreadable") || isStoreError(error, "conflict"))) {
+      if (
+        options.copies &&
+        (isStoreError(error, "not-found") || isStoreError(error, "unreadable") || isStoreError(error, "conflict"))
+      ) {
         // A folder file that is gone or unreadable is never recreated.
         recovery = { kind: "recreated", page: draft.name, savedAs: await saveCopy(draft) };
       } else {
@@ -87,7 +90,11 @@ export const MIGRATED_KEY = "a4:migrated";
  * first line. Skips empty slots and bundled sample text. Runs once; the old
  * keys are kept.
  */
-export async function migrateLegacySlots(store: PageStore, kv: KeyValue, skipTexts: readonly string[]): Promise<PageName[]> {
+export async function migrateLegacySlots(
+  store: PageStore,
+  kv: KeyValue,
+  skipTexts: readonly string[],
+): Promise<PageName[]> {
   try {
     if (kv.get(MIGRATED_KEY)) return [];
   } catch {

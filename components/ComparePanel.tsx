@@ -38,15 +38,43 @@ export function ComparePanel({
   onCopyAToB: () => void;
 }) {
   const rows: Row[] = [
-    { name: "Rows used", a: a.rowsUsed, b: b.rowsUsed, format: (x) => (x === null ? "–" : num(x)), better: "lower", delta: count },
-    { name: "Overflow", a: a.overflow, b: b.overflow, format: (x) => (x === null ? "–" : num(x)), better: "lower", delta: count },
-    { name: "Tokens ≈", a: a.tokens, b: b.tokens, format: (x) => (x === null ? "–" : num(x)), better: "lower", delta: count },
+    {
+      name: "Rows used",
+      a: a.rowsUsed,
+      b: b.rowsUsed,
+      format: (x) => (x === null ? "–" : num(x)),
+      better: "lower",
+      delta: count,
+    },
+    {
+      name: "Overflow",
+      a: a.overflow,
+      b: b.overflow,
+      format: (x) => (x === null ? "–" : num(x)),
+      better: "lower",
+      delta: count,
+    },
+    {
+      name: "Tokens ≈",
+      a: a.tokens,
+      b: b.tokens,
+      format: (x) => (x === null ? "–" : num(x)),
+      better: "lower",
+      delta: count,
+    },
     { name: "Syntax", a: a.syntax, b: b.syntax, format: (x) => pct(x), better: "lower", delta: pts },
     { name: "Repetition", a: a.repetition, b: b.repetition, format: (x) => pct(x), better: "lower", delta: pts },
     { name: "Narrative", a: a.narrative, b: b.narrative, format: (x) => pct(x), better: "higher", delta: pts },
     { name: "Crowding", a: a.crowding, b: b.crowding, format: (x) => pct(x), delta: pts },
     { name: "Indentation", a: a.indentation, b: b.indentation, format: (x) => pct(x), better: "lower", delta: pts },
-    { name: "Duplicate lines", a: a.duplicateLines, b: b.duplicateLines, format: (x) => (x === null ? "–" : num(x)), better: "lower", delta: count },
+    {
+      name: "Duplicate lines",
+      a: a.duplicateLines,
+      b: b.duplicateLines,
+      format: (x) => (x === null ? "–" : num(x)),
+      better: "lower",
+      delta: count,
+    },
     { name: "Compressibility", a: compressA, b: compressB, format: (x) => pct(x), delta: pts },
   ];
 
@@ -111,9 +139,9 @@ export function ComparePanel({
           </button>
         </div>
         <p className="panel-foot">
-          Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A,
-          write the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either
-          page from the menu above its sheet.
+          Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A, write
+          the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either page
+          from the menu above its sheet.
         </p>
       </InspectorSection>
 

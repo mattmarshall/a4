@@ -115,7 +115,11 @@ test("recover applies a crashed file draft on connect", async () => {
   const id = kv.get(FOLDER_KEY)!;
   if (first.status !== "connected") return;
   const page = await first.folder.sheet.read(parseFilePath("AGENTS.md"));
-  new Journal<FilePath>(kv, "dead-tab", { prefix: `a4:folder:${id}:` }).set(page.name, "# Agents\nunsaved", page.revision);
+  new Journal<FilePath>(kv, "dead-tab", { prefix: `a4:folder:${id}:` }).set(
+    page.name,
+    "# Agents\nunsaved",
+    page.revision,
+  );
   const next = make("tab2");
   await next.restore();
   const report = await next.recover(new MemoryPageStore(), new Set(["tab2"]));

@@ -57,6 +57,7 @@ export function isModelErrorCode(value: string): value is ModelErrorCode {
 /** Wrap anything thrown into a ModelError, keeping an existing one. */
 export function toModelError(error: unknown): ModelError {
   if (error instanceof ModelError) return error;
-  if (error instanceof DOMException && error.name === "AbortError") return new ModelError("cancelled", "Canceled.", { cause: error });
+  if (error instanceof DOMException && error.name === "AbortError")
+    return new ModelError("cancelled", "Canceled.", { cause: error });
   return new ModelError("plugin", error instanceof Error ? error.message : String(error), { cause: error });
 }

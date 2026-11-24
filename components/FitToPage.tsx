@@ -139,12 +139,7 @@ export function FitToPage({
         </span>
       ) : null}
 
-      <dialog
-        ref={dialog}
-        className="consent-dialog"
-        aria-labelledby="consent-title"
-        onCancel={() => job.dismiss()}
-      >
+      <dialog ref={dialog} className="consent-dialog" aria-labelledby="consent-title" onCancel={() => job.dismiss()}>
         {phase.kind === "confirm" ? (
           <form
             method="dialog"
@@ -157,8 +152,8 @@ export function FitToPage({
             <dl>
               <dt>Destination</dt>
               <dd>
-                <code>{FIT_HOST}</code> (Anthropic), directly from this browser. A4’s server never sees the page or
-                your key.
+                <code>{FIT_HOST}</code> (Anthropic), directly from this browser. A4’s server never sees the page or your
+                key.
               </dd>
               <dt>Model</dt>
               <dd>

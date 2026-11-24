@@ -53,7 +53,12 @@ function rowsPlugin(counts: number[]) {
         requests.push(req);
         const n = counts[requests.length - 1];
         yield { event: { case: "progress", value: { characters: n } } };
-        yield { event: { case: "candidate", value: { text: lines(n), resume: new Uint8Array([requests.length]), model: "m" } } };
+        yield {
+          event: {
+            case: "candidate",
+            value: { text: lines(n), resume: new Uint8Array([requests.length]), model: "m" },
+          },
+        };
       },
     },
   });
@@ -90,9 +95,16 @@ test("sheet views: a grid reader receives a grid that decodes to the page text",
 test("per-cell planes: a 60 × 79 plane for a 60 × 80 grid is rejected", async () => {
   const { host } = fake({
     operations: [Operation.SCORE],
-    handlers: { score: (req) => ({ planes: [{ name: "p", shape: [60, 79], values: new Array(60 * 79).fill(0), text: req.sheet!.text }] }) },
+    handlers: {
+      score: (req) => ({
+        planes: [{ name: "p", shape: [60, 79], values: new Array(60 * 79).fill(0), text: req.sheet!.text }],
+      }),
+    },
   });
-  await assert.rejects(host.score("fake", "x", T), (e: unknown) => e instanceof ModelError && e.code === "invalid-result" && /60 × 79/.test(e.message));
+  await assert.rejects(
+    host.score("fake", "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === "invalid-result" && /60 × 79/.test(e.message),
+  );
 });
 
 test("per-cell planes: a matching plane is returned with its text and values", async () => {
@@ -100,7 +112,15 @@ test("per-cell planes: a matching plane is returned with its text and values", a
     operations: [Operation.SCORE],
     handlers: {
       score: (req) => ({
-        planes: [{ name: "heat", label: "Heat", shape: [60, 80], values: Array.from({ length: 4800 }, (_, i) => (i === 0 ? 1 : 0)), text: req.sheet!.text }],
+        planes: [
+          {
+            name: "heat",
+            label: "Heat",
+            shape: [60, 80],
+            values: Array.from({ length: 4800 }, (_, i) => (i === 0 ? 1 : 0)),
+            text: req.sheet!.text,
+          },
+        ],
         findings: [{ kind: "restates", spans: [{ start: 0, end: 1 }], value: 0.9, label: "x" }],
       }),
     },
@@ -115,9 +135,14 @@ test("per-cell planes: a matching plane is returned with its text and values", a
 test("per-cell planes: a plane computed for other text is rejected", async () => {
   const { host } = fake({
     operations: [Operation.SCORE],
-    handlers: { score: () => ({ planes: [{ name: "p", shape: [60, 80], values: new Array(4800).fill(0), text: "stale" }] }) },
+    handlers: {
+      score: () => ({ planes: [{ name: "p", shape: [60, 80], values: new Array(4800).fill(0), text: "stale" }] }),
+    },
   });
-  await assert.rejects(host.score("fake", "x", T), (e: unknown) => e instanceof ModelError && e.code === "invalid-result");
+  await assert.rejects(
+    host.score("fake", "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+  );
 });
 
 test("host-enforced fit: a result laying out to 63 rows is over by 3", async () => {
@@ -162,20 +187,39 @@ test("fit with repairs: keeps the fewest rows even when a later attempt is worse
 });
 
 test("a plugin that describes itself under another id is refused", async () => {
-  const card = create(ModelCardSchema, { id: "real", name: "Real", operations: [Operation.SCORE], placement: Placement.BROWSER });
+  const card = create(ModelCardSchema, {
+    id: "real",
+    name: "Real",
+    operations: [Operation.SCORE],
+    placement: Placement.BROWSER,
+  });
   const host = new ModelHost();
   host.register({ card, connect: async () => implement({ describe: () => ({ card: { ...card, id: "other" } }) }) });
-  await assert.rejects(host.score("real", "x", T), (e: unknown) => e instanceof ModelError && e.code === "invalid-result");
+  await assert.rejects(
+    host.score("real", "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+  );
 });
 
 test("a card that sends text off the device must name its destination", () => {
   const host = new ModelHost();
-  const card = create(ModelCardSchema, { id: "r", operations: [Operation.TRANSFORM], placement: Placement.REMOTE, sendsTextOffDevice: true });
+  const card = create(ModelCardSchema, {
+    id: "r",
+    operations: [Operation.TRANSFORM],
+    placement: Placement.REMOTE,
+    sendsTextOffDevice: true,
+  });
   assert.throws(() => host.register({ card, connect: async () => implement({}) }), ModelError);
 });
 
 test("a plugin whose worker crashed is reconnected on the next call", async () => {
-  const card = create(ModelCardSchema, { id: "w", name: "Worker", operations: [Operation.SCORE], views: [View.TEXT], placement: Placement.BROWSER });
+  const card = create(ModelCardSchema, {
+    id: "w",
+    name: "Worker",
+    operations: [Operation.SCORE],
+    views: [View.TEXT],
+    placement: Placement.BROWSER,
+  });
   const workers: FakeWorker[] = [];
   const host = new ModelHost();
   host.register({
@@ -183,7 +227,10 @@ test("a plugin whose worker crashed is reconnected on the next call", async () =
     connect: async () => {
       const worker = new FakeWorker();
       workers.push(worker);
-      servePort(worker.channel.port2 as unknown as PortLike, implement({ describe: () => ({ card }), score: () => ({}) }));
+      servePort(
+        worker.channel.port2 as unknown as PortLike,
+        implement({ describe: () => ({ card }), score: () => ({}) }),
+      );
       return connectPort(fromWorker(worker));
     },
   });
@@ -232,12 +279,22 @@ test("changing a card after registration can't turn consent off", async () => {
 test("the host rejects spans outside the page, deep planes, and duplicate plane names", async () => {
   const text = "Short page.";
   const cases: [string, Parameters<typeof implement>[0]["score"]][] = [
-    ["span past the end", () => ({ findings: [{ kind: "similar", spans: [{ start: 2, end: 120 }], value: 1, label: "x" }] })],
-    ["negative span", () => ({ findings: [{ kind: "similar", spans: [{ start: -1, end: 3 }], value: 1, label: "x" }] })],
+    [
+      "span past the end",
+      () => ({ findings: [{ kind: "similar", spans: [{ start: 2, end: 120 }], value: 1, label: "x" }] }),
+    ],
+    [
+      "negative span",
+      () => ({ findings: [{ kind: "similar", spans: [{ start: -1, end: 3 }], value: 1, label: "x" }] }),
+    ],
   ];
   for (const [label, score] of cases) {
     const { host } = fake({ operations: [Operation.SCORE], handlers: { score } });
-    await assert.rejects(host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && e.code === "invalid-result", label);
+    await assert.rejects(
+      host.score("fake", text, PRESETS.terminal),
+      (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+      label,
+    );
   }
   const grid = (await import("../tensor/codec.ts")).encodeGrid(text, PRESETS.terminal);
   const plane = (name: string, depth: number) => ({
@@ -247,10 +304,30 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
     values: new Array(grid.rows * grid.cols * depth).fill(0),
   });
   const deep = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 2)] }) } });
-  await assert.rejects(deep.host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && /depth 2/.test(e.message));
-  const twice = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 1), plane("p", 1)] }) } });
-  await assert.rejects(twice.host.score("fake", text, PRESETS.terminal), (e: unknown) => e instanceof ModelError && /two planes/.test(e.message));
-  const ok = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 1), plane("q", 1)], findings: [{ kind: "k", spans: [{ start: 0, end: text.length }], value: 1, label: "" }] }) } });
+  await assert.rejects(
+    deep.host.score("fake", text, PRESETS.terminal),
+    (e: unknown) => e instanceof ModelError && /depth 2/.test(e.message),
+  );
+  const twice = fake({
+    operations: [Operation.SCORE],
+    handlers: { score: () => ({ planes: [plane("p", 1), plane("p", 1)] }) },
+  });
+  await assert.rejects(
+    twice.host.score("fake", text, PRESETS.terminal),
+    (e: unknown) => e instanceof ModelError && /two planes/.test(e.message),
+  );
+  const ok = fake({
+    operations: [Operation.SCORE],
+    handlers: {
+      score: () => ({
+        planes: [plane("p", 1), plane("q", 1)],
+        findings: [{ kind: "k", spans: [{ start: 0, end: text.length }], value: 1, label: "" }],
+      }),
+    },
+  });
   const result = await ok.host.score("fake", text, PRESETS.terminal);
-  assert.deepEqual(result.planes.map((p) => p.name), ["p", "q"]);
+  assert.deepEqual(
+    result.planes.map((p) => p.name),
+    ["p", "q"],
+  );
 });

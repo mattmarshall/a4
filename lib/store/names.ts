@@ -34,10 +34,11 @@ export function parsePageName(input: string): PageName {
     throw new InvalidPageNameError(input, `A page name can be at most ${MAX_NAME_LENGTH} characters.`);
   }
   if (FORBIDDEN.test(name)) {
-    throw new InvalidPageNameError(input, "A page name can’t contain / \\ : * ? \" < > | or control characters.");
+    throw new InvalidPageNameError(input, 'A page name can’t contain / \\ : * ? " < > | or control characters.');
   }
   if (name.startsWith(".")) throw new InvalidPageNameError(input, "A page name can’t start with a period.");
-  if (!name.isWellFormed()) throw new InvalidPageNameError(input, "A page name can’t contain an unpaired surrogate character.");
+  if (!name.isWellFormed())
+    throw new InvalidPageNameError(input, "A page name can’t contain an unpaired surrogate character.");
   return name as PageName;
 }
 

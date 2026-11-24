@@ -35,10 +35,7 @@ test("re-importing your own export changes nothing", async () => {
   await store.create(n("Charter"), "AGENT CHARTER\n");
   const report = await importZip(store, (await buildLibraryArchive(store)).bytes);
   assert.equal(report.created.length, 0);
-  assert.deepEqual(
-    report.unchanged.map((u) => u.name).sort(),
-    ["Brief", "Charter"],
-  );
+  assert.deepEqual(report.unchanged.map((u) => u.name).sort(), ["Brief", "Charter"]);
   assert.equal(describeImport(report), "Imported 0 pages, 2 unchanged.");
 });
 
@@ -81,10 +78,7 @@ test("a macOS Finder archive imports pages and skips metadata, hidden, and other
     "Café brief · 漢字": "Café brief · 漢字\n",
   });
   const reasons = report.skipped.map((s) => s.reason).sort();
-  assert.deepEqual(
-    [...new Set(reasons)].sort(),
-    ["hidden", "macos-metadata", "not-a-page"],
-  );
+  assert.deepEqual([...new Set(reasons)].sort(), ["hidden", "macos-metadata", "not-a-page"]);
   assert.equal(report.skipped.filter((s) => s.reason === "hidden").length, 2);
   assert.equal(report.skipped.filter((s) => s.reason === "not-a-page").length, 1);
   assert.match(describeImport(report), /^Imported 3 pages, 10 skipped \(.*macOS metadata.*\)\.$/);

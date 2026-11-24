@@ -34,10 +34,13 @@ try {
   for (const f of new Set([...a, ...b])) {
     if (!a.includes(f)) problems.push(`missing from ${COMMITTED}: ${f}`);
     else if (!b.includes(f)) problems.push(`stale file in ${COMMITTED}: ${f}`);
-    else if (!readFileSync(join(COMMITTED, f)).equals(readFileSync(join(fresh, f)))) problems.push(`out of date: ${COMMITTED}/${f}`);
+    else if (!readFileSync(join(COMMITTED, f)).equals(readFileSync(join(fresh, f))))
+      problems.push(`out of date: ${COMMITTED}/${f}`);
   }
   if (problems.length) {
-    console.error(`Generated protobuf code is out of date. Run \`pnpm proto\` and commit the result.\n  ${problems.join("\n  ")}`);
+    console.error(
+      `Generated protobuf code is out of date. Run \`pnpm proto\` and commit the result.\n  ${problems.join("\n  ")}`,
+    );
     process.exitCode = 1;
   } else {
     console.log(`${COMMITTED} matches proto/ (${a.length} files).`);

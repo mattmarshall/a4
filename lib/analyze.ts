@@ -190,13 +190,7 @@ export function classifyLines(lines: string[]): LineKind[] {
       const clean = syntaxShare <= THRESHOLDS.proseMaxSyntax && !opensStructure;
       if (clean && words >= THRESHOLDS.proseMinWords) {
         kind = "prose";
-      } else if (
-        clean &&
-        words >= 1 &&
-        previous === "prose" &&
-        !LIST_MARKER.test(line) &&
-        !KEY_VALUE.test(line)
-      ) {
+      } else if (clean && words >= 1 && previous === "prose" && !LIST_MARKER.test(line) && !KEY_VALUE.test(line)) {
         // Short tail of a wrapped paragraph.
         kind = "prose";
       } else {
@@ -326,7 +320,11 @@ export function signals(m: Metrics): Signals {
     repetition: m.repetition >= t.noisyRepetition && m.repeatedTerms.length > 0 ? "bad" : "ok",
     duplicates: m.duplicateLines >= t.noisyDuplicateLines ? "bad" : "ok",
     narrative:
-      m.narrative === null || narrativeBase < t.lowNarrativeMinLines ? "na" : m.narrative < t.lowNarrative ? "bad" : "ok",
+      m.narrative === null || narrativeBase < t.lowNarrativeMinLines
+        ? "na"
+        : m.narrative < t.lowNarrative
+          ? "bad"
+          : "ok",
     crowding: m.crowding >= t.busyCrowding ? "bad" : "ok",
     indentation: m.indentation >= t.busyIndentation ? "bad" : "ok",
   };
@@ -373,8 +371,7 @@ export function findingsFor(m: Metrics, verdict: Verdict, s: Signals = signals(m
       id: "overflow",
       severity: "critical",
       title: `${m.overflow} ${m.overflow === 1 ? "row" : "rows"} over the page`,
-      detail:
-        "Cut what the agent does not need, or split this into two pages that each serve one purpose.",
+      detail: "Cut what the agent does not need, or split this into two pages that each serve one purpose.",
     });
   }
 
@@ -437,8 +434,7 @@ export function findingsFor(m: Metrics, verdict: Verdict, s: Signals = signals(m
       id: "narrative",
       severity: "warning",
       title: `Only ${pct(m.narrative)} of lines read as sentences`,
-      detail:
-        "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”.",
+      detail: "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”.",
     });
   }
 

@@ -33,7 +33,14 @@ function Slider({
       <span>
         {label} <em>{format ? format(value) : value.toFixed(2)}</em>
       </span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </label>
   );
 }
@@ -67,15 +74,60 @@ export function SheetControls({
         <button type="button" className="btn btn-outline" onClick={onFold}>
           ▶ Fold
         </button>
-        <Slider label="Bottom fold" value={pose.foldBottom} min={0} max={1} step={0.01} onChange={(v) => onPose(withPose(pose, { foldBottom: v }))} />
-        <Slider label="Top fold" value={pose.foldTop} min={0} max={1} step={0.01} onChange={(v) => onPose(withPose(pose, { foldTop: v }))} />
-        <Slider label="Corner curl" value={pose.curl} min={0} max={1} step={0.01} onChange={(v) => onPose(withPose(pose, { curl: v }))} />
+        <Slider
+          label="Bottom fold"
+          value={pose.foldBottom}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onPose(withPose(pose, { foldBottom: v }))}
+        />
+        <Slider
+          label="Top fold"
+          value={pose.foldTop}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onPose(withPose(pose, { foldTop: v }))}
+        />
+        <Slider
+          label="Corner curl"
+          value={pose.curl}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(v) => onPose(withPose(pose, { curl: v }))}
+        />
       </div>
       <div className="ctl-group">
         <span className="ctl-title">Camera</span>
-        <Slider label="Tilt" value={view.tilt} min={0} max={65} step={1} format={deg} onChange={(v) => onView({ ...view, tilt: v })} />
-        <Slider label="Turn" value={view.turn} min={-180} max={180} step={1} format={deg} onChange={(v) => onView({ ...view, turn: v })} />
-        <Slider label="Light" value={view.light} min={0} max={360} step={1} format={deg} onChange={(v) => onView({ ...view, light: v })} />
+        <Slider
+          label="Tilt"
+          value={view.tilt}
+          min={0}
+          max={65}
+          step={1}
+          format={deg}
+          onChange={(v) => onView({ ...view, tilt: v })}
+        />
+        <Slider
+          label="Turn"
+          value={view.turn}
+          min={-180}
+          max={180}
+          step={1}
+          format={deg}
+          onChange={(v) => onView({ ...view, turn: v })}
+        />
+        <Slider
+          label="Light"
+          value={view.light}
+          min={0}
+          max={360}
+          step={1}
+          format={deg}
+          onChange={(v) => onView({ ...view, light: v })}
+        />
         <button type="button" className="btn btn-outline" onClick={onReset}>
           Reset
         </button>

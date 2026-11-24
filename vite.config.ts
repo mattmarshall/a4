@@ -37,10 +37,15 @@ function keepWindowGuardInWorkers(): Plugin {
     transform(code, id) {
       if (!/@huggingface[\\/]transformers[\\/]dist[\\/]transformers\.web\.js$/.test(id.split("?")[0])) return null;
       if (!code.includes(guard)) {
-        this.error("transformers.js no longer contains the expected window guard; review keepWindowGuardInWorkers in vite.config.ts.");
+        this.error(
+          "transformers.js no longer contains the expected window guard; review keepWindowGuardInWorkers in vite.config.ts.",
+        );
       }
       return {
-        code: code.replace(guard, 'typeof globalThis.window !== "undefined" && typeof globalThis.window.document !== "undefined"'),
+        code: code.replace(
+          guard,
+          'typeof globalThis.window !== "undefined" && typeof globalThis.window.document !== "undefined"',
+        ),
         map: null,
       };
     },

@@ -36,7 +36,19 @@ test("incident JSON is noisy or overflowing; the narrative is neither", () => {
 });
 
 test("the narrative carries the JSON's key facts", () => {
-  for (const fact of ["INC-2291", "CHG-8812", "13:55", "14:02", "15:47", "98%", "1,840", "41", "AI-1", "AI-4", "eu-west-1"]) {
+  for (const fact of [
+    "INC-2291",
+    "CHG-8812",
+    "13:55",
+    "14:02",
+    "15:47",
+    "98%",
+    "1,840",
+    "41",
+    "AI-1",
+    "AI-4",
+    "eu-west-1",
+  ]) {
     assert.ok(INCIDENT_NARRATIVE.includes(fact), fact);
   }
 });

@@ -142,7 +142,10 @@ export function openZip(bytes: Uint8Array, limits: UnzipLimits = DEFAULT_UNZIP_L
     throw new ZipError("unsupported", "Multi-part zip archives aren’t supported.");
   }
   if (count > limits.maxEntries) {
-    throw new ZipError("too-many-entries", `This archive has ${count.toLocaleString("en-US")} entries; the limit is ${limits.maxEntries.toLocaleString("en-US")}.`);
+    throw new ZipError(
+      "too-many-entries",
+      `This archive has ${count.toLocaleString("en-US")} entries; the limit is ${limits.maxEntries.toLocaleString("en-US")}.`,
+    );
   }
   if (cdOffset + cdSize > eocd) throw new ZipError("corrupt", "This zip archive is damaged.");
 
@@ -196,7 +199,8 @@ export function openZip(bytes: Uint8Array, limits: UnzipLimits = DEFAULT_UNZIP_L
           throw new ZipError("corrupt", `“${name}” is damaged.`);
         }
         // The local header's name and extra lengths can differ from the central copy.
-        const start = localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
+        const start =
+          localOffset + 30 + view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
         if (start + compressedSize > bytes.length) throw new ZipError("corrupt", `“${name}” is truncated.`);
         const body = bytes.subarray(start, start + compressedSize);
         let data: Uint8Array;

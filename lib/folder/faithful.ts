@@ -105,7 +105,14 @@ export function matchLines(a: readonly string[], b: readonly string[]): [number,
   return pairs;
 }
 
-function myers(a: readonly string[], b: readonly string[], a0: number, a1: number, b0: number, b1: number): [number, number][] {
+function myers(
+  a: readonly string[],
+  b: readonly string[],
+  a0: number,
+  a1: number,
+  b0: number,
+  b1: number,
+): [number, number][] {
   const n = a1 - a0;
   const m = b1 - b0;
   if (n === 0 || m === 0) return [];
@@ -117,7 +124,8 @@ function myers(a: readonly string[], b: readonly string[], a0: number, a1: numbe
   for (let d = 0; d <= max && found < 0; d++) {
     trace.push(v.slice(offset - d - 1, offset + d + 2));
     for (let k = -d; k <= d; k += 2) {
-      let x = k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1]) ? v[offset + k + 1] : v[offset + k - 1] + 1;
+      let x =
+        k === -d || (k !== d && v[offset + k - 1] < v[offset + k + 1]) ? v[offset + k + 1] : v[offset + k - 1] + 1;
       let y = x - k;
       while (x < n && y < m && a[a0 + x] === b[b0 + y]) {
         x++;
@@ -160,7 +168,14 @@ function myers(a: readonly string[], b: readonly string[], a0: number, a1: numbe
   return out.reverse();
 }
 
-function greedy(a: readonly string[], b: readonly string[], a0: number, a1: number, b0: number, b1: number): [number, number][] {
+function greedy(
+  a: readonly string[],
+  b: readonly string[],
+  a0: number,
+  a1: number,
+  b0: number,
+  b1: number,
+): [number, number][] {
   const positions = new Map<string, number[]>();
   for (let i = a0; i < a1; i++) {
     const list = positions.get(a[i]);
@@ -227,7 +242,8 @@ export function sheetFiles(files: PageFiles<FilePath>): PageFiles<FilePath> {
       try {
         current = await files.read(path);
       } catch (error) {
-        if (expected && error instanceof FileUnreadableError) throw new PageConflictError(path, expected, "" as Revision);
+        if (expected && error instanceof FileUnreadableError)
+          throw new PageConflictError(path, expected, "" as Revision);
         throw error;
       }
       if (expected && current.revision !== expected) throw new PageConflictError(path, expected, current.revision);

@@ -38,8 +38,16 @@ test("property: decode(encode(text)) is the original text, for many shapes", () 
   const next = rng(0xa4);
   for (let i = 0; i < 2000; i++) {
     const text = randomText(next);
-    for (const shape of [{ cols: 80, rows: 60 }, { cols: 5, rows: 3 }, { cols: 1, rows: 1 }]) {
-      assert.equal(decodeGrid(encodeGrid(text, shape)), text, `round trip failed for ${JSON.stringify(text)} at ${shape.cols} cols`);
+    for (const shape of [
+      { cols: 80, rows: 60 },
+      { cols: 5, rows: 3 },
+      { cols: 1, rows: 1 },
+    ]) {
+      assert.equal(
+        decodeGrid(encodeGrid(text, shape)),
+        text,
+        `round trip failed for ${JSON.stringify(text)} at ${shape.cols} cols`,
+      );
     }
   }
 });
@@ -113,7 +121,18 @@ test("row metadata: a line of exactly one row", () => {
 });
 
 test("lossless round trip: edge cases", () => {
-  for (const text of ["", "\n", "\n\n\n", "a ", "trailing   \n  lead", "\0mid\0", "\uD800", "😀😀", "x".repeat(160), "x".repeat(160) + "\n"]) {
+  for (const text of [
+    "",
+    "\n",
+    "\n\n\n",
+    "a ",
+    "trailing   \n  lead",
+    "\0mid\0",
+    "\uD800",
+    "😀😀",
+    "x".repeat(160),
+    "x".repeat(160) + "\n",
+  ]) {
     assert.equal(decodeGrid(encodeGrid(text, T)), text);
   }
 });

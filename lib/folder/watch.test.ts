@@ -16,7 +16,13 @@ async function setup() {
   const root = new FakeDirectoryHandle("a4", volume);
   root.put("AGENTS.md", "# Agents\n");
   const kv = new MemoryKeyValue();
-  const connection = new FolderConnection({ kv, handles: new MemoryHandleStore(), tabId: "tab1", supported: true, locks: null });
+  const connection = new FolderConnection({
+    kv,
+    handles: new MemoryHandleStore(),
+    tabId: "tab1",
+    supported: true,
+    locks: null,
+  });
   const state = await connection.open(asDirectoryHandle(root));
   if (state.status !== "connected") throw new Error("not connected");
   const folder = state.folder;

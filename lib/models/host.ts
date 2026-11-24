@@ -119,7 +119,8 @@ export class ModelHost {
 
   register(entry: PluginEntry): void {
     checkCard(entry.card);
-    if (this.#plugins.has(entry.card.id)) throw new ModelError("invalid-result", `Model "${entry.card.id}" is already registered.`);
+    if (this.#plugins.has(entry.card.id))
+      throw new ModelError("invalid-result", `Model "${entry.card.id}" is already registered.`);
     // A private, frozen copy: later changes to the caller's card object change nothing here.
     const card = deepFreeze(clone(ModelCardSchema, entry.card));
     const policy: Policy = { egress: card.sendsTextOffDevice ? { host: card.destinationHost } : "none" };
@@ -158,7 +159,8 @@ export class ModelHost {
       pending = (async () => {
         const client = await entry.connect();
         const described = await client.describe(create(DescribeRequestSchema));
-        if (described.card?.id !== id) throw new ModelError("invalid-result", `Model "${id}" describes itself as "${described.card?.id ?? ""}".`);
+        if (described.card?.id !== id)
+          throw new ModelError("invalid-result", `Model "${id}" describes itself as "${described.card?.id ?? ""}".`);
         return client;
       })();
       pending.catch(() => this.#clients.delete(id));
@@ -170,7 +172,10 @@ export class ModelHost {
   #require(id: string, operation: Operation): ModelCard {
     const card = this.card(id);
     if (!card.operations.includes(operation)) {
-      throw new ModelError("unsupported-operation", `${card.name || id} doesn't support ${Operation[operation].toLowerCase()}.`);
+      throw new ModelError(
+        "unsupported-operation",
+        `${card.name || id} doesn't support ${Operation[operation].toLowerCase()}.`,
+      );
     }
     return card;
   }
@@ -203,7 +208,8 @@ export class ModelHost {
 
   async score(id: string, text: string, spec: PageSpec, signal?: AbortSignal): Promise<ScoreResult> {
     const card = this.#require(id, Operation.SCORE);
-    if (this.#policy(id).egress !== "none") throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
+    if (this.#policy(id).egress !== "none")
+      throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
     const client = await this.#client(id);
     let response;
     try {
@@ -216,15 +222,29 @@ export class ModelHost {
     const names = new Set<string>();
     const planes = response.planes.map((plane): PlaneResult => {
       const [rows, cols, depth = 1] = plane.shape;
-      if (rows !== grid.rows || cols !== grid.cols || plane.shape.length > 3 || plane.values.length !== rows * cols * depth) {
-        throw new ModelError("invalid-result", `${who} returned a ${plane.shape.join(" × ")} plane for a ${grid.rows} × ${grid.cols} grid.`);
+      if (
+        rows !== grid.rows ||
+        cols !== grid.cols ||
+        plane.shape.length > 3 ||
+        plane.values.length !== rows * cols * depth
+      ) {
+        throw new ModelError(
+          "invalid-result",
+          `${who} returned a ${plane.shape.join(" × ")} plane for a ${grid.rows} × ${grid.cols} grid.`,
+        );
       }
       // The sheet paints one value per cell; deeper planes aren't supported yet.
-      if (depth !== 1) throw new ModelError("invalid-result", `${who} returned a plane with depth ${depth}; only depth 1 is supported.`);
+      if (depth !== 1)
+        throw new ModelError(
+          "invalid-result",
+          `${who} returned a plane with depth ${depth}; only depth 1 is supported.`,
+        );
       if (!plane.name) throw new ModelError("invalid-result", `${who} returned a plane without a name.`);
-      if (names.has(plane.name)) throw new ModelError("invalid-result", `${who} returned two planes named "${plane.name}".`);
+      if (names.has(plane.name))
+        throw new ModelError("invalid-result", `${who} returned two planes named "${plane.name}".`);
       names.add(plane.name);
-      if (plane.text !== text) throw new ModelError("invalid-result", `${card.name || id} scored different text than it was sent.`);
+      if (plane.text !== text)
+        throw new ModelError("invalid-result", `${card.name || id} scored different text than it was sent.`);
       return {
         pluginId: id,
         pluginName: card.name,
@@ -237,15 +257,31 @@ export class ModelHost {
       };
     });
     const span = (s: TextSpan) => {
-      if (!(Number.isInteger(s.start) && Number.isInteger(s.end) && 0 <= s.start && s.start <= s.end && s.end <= text.length)) {
-        throw new ModelError("invalid-result", `${who} returned a span ${s.start}–${s.end} outside the ${text.length}-character page.`);
+      if (
+        !(
+          Number.isInteger(s.start) &&
+          Number.isInteger(s.end) &&
+          0 <= s.start &&
+          s.start <= s.end &&
+          s.end <= text.length
+        )
+      ) {
+        throw new ModelError(
+          "invalid-result",
+          `${who} returned a span ${s.start}–${s.end} outside the ${text.length}-character page.`,
+        );
       }
       return { start: s.start, end: s.end };
     };
     return {
       planes,
       scores: response.scores.map((s) => ({ name: s.name, value: s.value })),
-      findings: response.findings.map((f) => ({ kind: f.kind, spans: f.spans.map(span), value: f.value, label: f.label })),
+      findings: response.findings.map((f) => ({
+        kind: f.kind,
+        spans: f.spans.map(span),
+        value: f.value,
+        label: f.label,
+      })),
     };
   }
 
@@ -291,7 +327,15 @@ export class ModelHost {
       options.onAttempt?.({ attempt, rowsUsed, fits });
       if (!best || rowsUsed < best.rowsUsed) best = { text: result, rowsUsed, model: candidate.model };
       if (fits) {
-        return { text: result, model: candidate.model, rowsUsed, rowsAllowed: spec.rows, fits: true, overBy: 0, attempts: attempt };
+        return {
+          text: result,
+          model: candidate.model,
+          rowsUsed,
+          rowsAllowed: spec.rows,
+          fits: true,
+          overBy: 0,
+          attempts: attempt,
+        };
       }
       resume = candidate.resume;
       last = { rowsUsed };

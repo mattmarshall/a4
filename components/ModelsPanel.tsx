@@ -62,7 +62,14 @@ export function ModelsPanel({
   fit?: ReactNode;
 }) {
   return (
-    <InspectorSection id="models" title="Models" label="Models" defaultOpen={false} openWhen={semanticActive} className="models">
+    <InspectorSection
+      id="models"
+      title="Models"
+      label="Models"
+      defaultOpen={false}
+      openWhen={semanticActive}
+      className="models"
+    >
       <ul className="model-list">
         {BUNDLED_CARDS.map((card) => {
           const status = models.status[card.id];
@@ -98,7 +105,12 @@ export function ModelsPanel({
               ) : null}
               {status === "ready" && card.id === SEMANTIC_REPETITION_ID ? (
                 <div className="panel-actions">
-                  <button type="button" className="btn btn-outline" aria-pressed={semanticActive} onClick={() => onScore(card.id)}>
+                  <button
+                    type="button"
+                    className="btn btn-outline"
+                    aria-pressed={semanticActive}
+                    onClick={() => onScore(card.id)}
+                  >
                     {semanticActive ? "Rescore page" : "Show on the page"}
                   </button>
                 </div>

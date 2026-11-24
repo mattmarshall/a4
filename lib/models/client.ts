@@ -57,7 +57,8 @@ export function implement(handlers: Partial<SheetModelHandlers>): SheetModelClie
     } else {
       client[name] = async function* (req: unknown, signal?: AbortSignal) {
         if (!handler) throw new ModelError("unimplemented", `${name} is not implemented`);
-        for await (const item of handler(req, signal) as AsyncIterable<unknown>) yield create(desc.output, item as never);
+        for await (const item of handler(req, signal) as AsyncIterable<unknown>)
+          yield create(desc.output, item as never);
       };
     }
   }

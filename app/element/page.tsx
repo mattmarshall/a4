@@ -26,8 +26,8 @@ export default function ElementPage() {
           <code>&lt;a4-sheet&gt;</code>
         </h1>
         <p className="lede">
-          One editable A4 page of context in a single custom element. It renders in 3D with WebGPU, or flat, and
-          keeps its text input, renderer, and styles in its own shadow root. No framework is required.
+          One editable A4 page of context in a single custom element. It renders in 3D with WebGPU, or flat, and keeps
+          its text input, renderer, and styles in its own shadow root. No framework is required.
         </p>
       </header>
       <ElementDemo />
@@ -45,7 +45,9 @@ export default function ElementPage() {
             <td>
               <code>value</code>
             </td>
-            <td>Initial text (then use the <code>value</code> property)</td>
+            <td>
+              Initial text (then use the <code>value</code> property)
+            </td>
           </tr>
           <tr>
             <td>
@@ -88,8 +90,8 @@ export default function ElementPage() {
         Events: <code>input</code> (composed), <code>a4-focus</code>, <code>a4-render</code> (&quot;3d&quot; or
         &quot;flat&quot;), <code>a4-viewchange</code>, <code>a4-posechange</code>. Methods: <code>focus()</code>,{" "}
         <code>fold()</code>, <code>setSelectionRange()</code>, <code>setPlane(name, {"{ text, values }"})</code>,{" "}
-        <code>removePlane(name)</code>. Styling hooks: <code>--a4-font</code>,{" "}
-        <code>--a4-desk</code>, <code>--a4-3d-height</code>, <code>--a4-radius</code>, <code>--a4-shadow</code>.
+        <code>removePlane(name)</code>. Styling hooks: <code>--a4-font</code>, <code>--a4-desk</code>,{" "}
+        <code>--a4-3d-height</code>, <code>--a4-radius</code>, <code>--a4-shadow</code>.
       </p>
     </main>
   );

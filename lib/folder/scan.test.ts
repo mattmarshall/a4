@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-opfs.ts";
 import { isContextFile, PAGE_ROWS, scanFolder } from "./scan.ts";
 
-const lines = (n: number) => Array.from({ length: n }, (_, i) => `Line ${i + 1} of the agent context.`).join("\n") + "\n";
+const lines = (n: number) =>
+  Array.from({ length: n }, (_, i) => `Line ${i + 1} of the agent context.`).join("\n") + "\n";
 
 test("context file patterns", () => {
   for (const path of [
@@ -23,7 +24,13 @@ test("context file patterns", () => {
   ]) {
     assert.ok(isContextFile(path), path);
   }
-  for (const path of ["README.md", "docs/guide.md", ".github/PULL_REQUEST_TEMPLATE.md", ".claude/notes.md", "style.mdc"]) {
+  for (const path of [
+    "README.md",
+    "docs/guide.md",
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".claude/notes.md",
+    "style.mdc",
+  ]) {
     assert.ok(!isContextFile(path), path);
   }
 });

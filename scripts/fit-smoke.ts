@@ -35,7 +35,9 @@ const source = SAMPLE_PAIRS[0].a;
 const host = new ModelHost();
 host.register({ card: FIT_TO_PAGE_CARD, connect: async () => fitToPagePlugin() });
 
-console.log(`Source: "${SAMPLE_PAIRS[0].name}" sample A, ${source.length} characters, ${layoutRows(source, spec.cols).length} rows (page holds ${spec.rows}).`);
+console.log(
+  `Source: "${SAMPLE_PAIRS[0].name}" sample A, ${source.length} characters, ${layoutRows(source, spec.cols).length} rows (page holds ${spec.rows}).`,
+);
 const started = Date.now();
 let lastReported = 0;
 const result = await host.transform(FIT_TO_PAGE_ID, source, spec, {
@@ -50,7 +52,9 @@ const result = await host.transform(FIT_TO_PAGE_ID, source, spec, {
   },
   onAttempt: ({ attempt, rowsUsed, fits }) => {
     lastReported = 0;
-    console.log(`  attempt ${attempt} laid out to ${rowsUsed} rows${fits ? " (fits)" : ", asking for a shorter version"}`);
+    console.log(
+      `  attempt ${attempt} laid out to ${rowsUsed} rows${fits ? " (fits)" : ", asking for a shorter version"}`,
+    );
   },
 });
 const seconds = ((Date.now() - started) / 1000).toFixed(1);

@@ -124,7 +124,6 @@ export function pageStoreContract(label: string, makeStore: () => Promise<PageSt
       assert.deepEqual(await store.listTrash(), []);
     });
 
-
     test("names are unique ignoring case", async () => {
       const store = await makeStore();
       await store.create(n("Brief"), "one");
