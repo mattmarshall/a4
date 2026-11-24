@@ -36,7 +36,7 @@ were then checked against the code.
 | 6 | `refactor-model-plugins` | `cf94171` | M1–M5, M9, M10, M12 |
 | 7 | `refactor-sheet-element` | `39c41e0` | E3, E4, E7–E15 |
 | 8 | `refactor-styles` | `402e8ca` | C1–C5, A8 |
-| 9 | `fix-review-leftovers` | — | S5–S7, S12, the rest of U12 and U13, A11 |
+| 9 | `fix-review-leftovers` | `ab32c5c` | S5–S7, S12, the rest of U12 and U13, A11 |
 
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.

@@ -133,8 +133,8 @@ the most repeated term and its count.
 - **THEN** a critical finding says the page is 7 rows over and suggests cutting or splitting by purpose
 
 #### Scenario: Repeated term finding
-- **WHEN** "status" is the most repeated term with 14 occurrences and repetition is at least 40%
-- **THEN** a warning finding names "status" and 14 and suggests stating shared values once
+- **WHEN** the page holds 14 rows that each read "status status r<n>", so "status" is the most repeated term with 28 occurrences, and repetition is at least 40%
+- **THEN** a warning finding names "status" and 28 and suggests stating shared values once
 
 ### Requirement: One set of signals
 The verdict, the findings, and the state of each metric bar (ok, warn, or

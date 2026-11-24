@@ -757,6 +757,7 @@ tasks, are archived under `openspec/changes/archive/`:
   changes)
 - `2026-11-24-refactor-sheet-element`
 - `2026-11-24-refactor-styles` (styles only, with no spec changes)
+- `2026-11-24-fix-review-leftovers`
 
 ```bash
 openspec list --specs

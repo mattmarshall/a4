@@ -63,11 +63,13 @@ None.
 ### Modified Capabilities
 
 - `page-storage`:
-  - The typed contract requirement covers `sheetFiles` and states the
-    contract's rules.
-  - A new requirement makes name claims (create under a unique name,
-    rename, restore) atomic across tabs, and safe on case-insensitive
-    storage.
+  - The typed contract requirement covers `sheetFiles`.
+  - New requirements:
+    - "Page listings" states what a list returns;
+    - "Name claims are serialized across tabs" makes create under a unique
+      name, rename, and restore atomic across tabs;
+    - "Renames never lose a page" keeps renames safe on case-insensitive
+      storage and across interruptions.
 - `density-analysis`: the repeated-term scenario under "Actionable findings"
   names the count the page actually has.
 
