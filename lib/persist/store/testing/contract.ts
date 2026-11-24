@@ -7,12 +7,18 @@
  * `pageFilesContract` covers the core every backend implements; `id` turns a
  * test stem into the backend's identifier. `pageStoreContract` runs the core
  * suite with page names, then the library operations.
+ *
+ * Revisions are opaque: the suites check only what callers rely on (a write's
+ * revision is the next read's, it lets the next write through, and a stale
+ * one is a conflict), so a view whose revisions are those of other bytes,
+ * such as `sheetFiles`, passes the same tests. With `text: "sheet"`, the
+ * suite stores only sheet text (no tab, CR, or leading byte-order mark), and
+ * a page's size is checked against the list rather than against the text.
  */
 
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { parsePageName } from "../names.ts";
-import { revisionOf } from "../revision.ts";
 import { isStoreError, type PageFiles, type PageStore } from "../types.ts";
 import { forgePageName } from "./forge.ts";
 
@@ -25,11 +31,18 @@ async function rejectsWith(promise: Promise<unknown>, code: Parameters<typeof is
   });
 }
 
+export interface PageFilesContractOptions {
+  /** "exact" (the default): text round-trips byte for byte. "sheet": only sheet text is stored. */
+  readonly text?: "exact" | "sheet";
+}
+
 export function pageFilesContract<Id extends string>(
   label: string,
   makeStore: () => Promise<PageFiles<Id>>,
   id: (stem: string) => Id,
+  options: PageFilesContractOptions = {},
 ): void {
+  const exact = (options.text ?? "exact") === "exact";
   describe(`PageFiles contract: ${label}`, () => {
     test("starts empty", async () => {
       const store = await makeStore();
@@ -41,17 +54,20 @@ export function pageFilesContract<Id extends string>(
       const texts = ["Purpose: brief the agent.\n", "", "Unicode — “quotes”, café, 漢字\n\n  indented\n"];
       for (const [i, text] of texts.entries()) {
         const created = await store.create(id(`Page ${i}`), text);
-        assert.equal(created.revision, revisionOf(text));
         const page = await store.read(id(`Page ${i}`));
         assert.equal(page.text, text);
-        assert.equal(page.revision, revisionOf(text));
-        assert.equal(page.size, new TextEncoder().encode(text).length);
+        assert.equal(page.revision, created.revision);
+        assert.equal(page.size, created.size);
+        if (exact) assert.equal(page.size, new TextEncoder().encode(text).length);
       }
-      const names = (await store.list()).map((p) => p.name).sort();
+      const listed = await store.list();
+      const names = listed.map((p) => p.name).sort();
       assert.deepEqual(names, [id("Page 0"), id("Page 1"), id("Page 2")].sort());
+      for (const summary of listed) assert.equal(summary.size, (await store.read(summary.name)).size);
     });
 
-    test("text round-trips exactly, including a leading byte-order mark", async () => {
+    const sheetOnly = exact ? false : "sheet text has no CR or byte-order mark";
+    test("text round-trips exactly, including a leading byte-order mark", { skip: sheetOnly }, async () => {
       const store = await makeStore();
       const created = await store.create(id("Brief"), "\ufeffhello\r\n");
       const page = await store.read(id("Brief"));
@@ -87,8 +103,10 @@ export function pageFilesContract<Id extends string>(
       const store = await makeStore();
       const first = await store.create(id("Brief"), "v1");
       const second = await store.write(id("Brief"), "v2", first.revision);
-      assert.equal(second.revision, revisionOf("v2"));
-      assert.equal((await store.read(id("Brief"))).text, "v2");
+      assert.notEqual(second.revision, first.revision);
+      const page = await store.read(id("Brief"));
+      assert.equal(page.text, "v2");
+      assert.equal(page.revision, second.revision);
       assert.ok(second.modifiedAt >= first.modifiedAt);
     });
 
@@ -103,9 +121,12 @@ export function pageFilesContract<Id extends string>(
     test("identical content is not a conflict", async () => {
       const store = await makeStore();
       await store.create(id("Brief"), "v1");
-      await store.write(id("Brief"), "same");
-      const ok = await store.write(id("Brief"), "next", revisionOf("same"));
-      assert.equal(ok.revision, revisionOf("next"));
+      // Two tabs save the same text; either may write next with its revision.
+      const first = await store.write(id("Brief"), "same");
+      const second = await store.write(id("Brief"), "same");
+      assert.equal(second.revision, first.revision);
+      const ok = await store.write(id("Brief"), "next", first.revision);
+      assert.equal((await store.read(id("Brief"))).revision, ok.revision);
     });
 
     test("holds an arbitrary number of pages", async () => {
@@ -117,8 +138,24 @@ export function pageFilesContract<Id extends string>(
   });
 }
 
-export function pageStoreContract(label: string, makeStore: () => Promise<PageStore>): void {
+export interface PageStoreContractOptions {
+  /**
+   * Two stores over one storage and one set of locks, standing for two tabs.
+   * Without it, the cases that race two tabs are skipped.
+   */
+  readonly tabs?: () => Promise<readonly [PageStore, PageStore]>;
+}
+
+const sortedNames = async (store: PageStore) => (await store.list()).map((p) => p.name as string).sort();
+
+export function pageStoreContract(
+  label: string,
+  makeStore: () => Promise<PageStore>,
+  options: PageStoreContractOptions = {},
+): void {
   pageFilesContract(label, makeStore, n);
+  const tabs = options.tabs;
+  const needsTabs = tabs ? false : "needs two tabs over one storage";
   describe(`PageStore contract: ${label}`, () => {
     test("starts with an empty trash", async () => {
       const store = await makeStore();
@@ -130,6 +167,85 @@ export function pageStoreContract(label: string, makeStore: () => Promise<PageSt
       await store.create(n("Brief"), "one");
       await rejectsWith(store.create(n("brief"), "two"), "exists");
       assert.equal((await store.read(n("Brief"))).text, "one");
+    });
+
+    test("createUnique takes the first free name, ignoring case", async () => {
+      const store = await makeStore();
+      await store.create(n("Brief"), "one");
+      const second = await store.createUnique("brief", "two");
+      const third = await store.createUnique("Brief", "three");
+      assert.equal(second.name, "brief 2");
+      assert.equal(third.name, "Brief 3");
+      assert.equal((await store.read(n("brief 2"))).text, "two");
+      assert.equal((await store.read(third.name)).revision, third.revision);
+      const fresh = await store.createUnique("New page", "");
+      assert.equal(fresh.name, "New page");
+    });
+
+    test("createUnique refuses text that isn't well-formed and stores nothing", async () => {
+      const store = await makeStore();
+      await rejectsWith(store.createUnique("Brief", "a\uD800b"), "invalid-text");
+      assert.deepEqual(await store.list(), []);
+    });
+
+    test("two tabs creating a page at once get different names", { skip: needsTabs }, async () => {
+      const [a, b] = await (tabs as NonNullable<typeof tabs>)();
+      const [one, two] = await Promise.all([a.createUnique("Untitled", "one"), b.createUnique("Untitled", "two")]);
+      assert.deepEqual([one.name, two.name].sort(), ["Untitled", "Untitled 2"]);
+      assert.equal((await a.read(one.name)).text, "one");
+      assert.equal((await a.read(two.name)).text, "two");
+    });
+
+    test("a restore racing a create in another tab gets its own name", { skip: needsTabs }, async () => {
+      const [a, b] = await (tabs as NonNullable<typeof tabs>)();
+      await a.create(n("Brief"), "old");
+      const entry = await a.trash(n("Brief"));
+      const [restored, created] = await Promise.all([a.restore(entry.id), b.createUnique("Brief", "new")]);
+      assert.deepEqual(await sortedNames(a), ["Brief", "Brief 2"]);
+      assert.equal((await a.read(restored.name)).text, "old");
+      assert.equal((await a.read(created.name)).text, "new");
+    });
+
+    test("a rename racing a create of its target: one fails with name taken, no text is lost", {
+      skip: needsTabs,
+    }, async () => {
+      const [a, b] = await (tabs as NonNullable<typeof tabs>)();
+      await a.create(n("Notes"), "renamed");
+      const [renamed, created] = await Promise.allSettled([
+        a.rename(n("Notes"), n("Brief")),
+        b.create(n("Brief"), "created"),
+      ]);
+      const failed = [renamed, created].filter((r) => r.status === "rejected");
+      assert.equal(failed.length, 1);
+      assert.ok(isStoreError((failed[0] as PromiseRejectedResult).reason, "exists"));
+      const texts = await Promise.all((await a.list()).map(async (p) => (await a.read(p.name)).text));
+      if (renamed.status === "fulfilled") {
+        assert.deepEqual(await sortedNames(a), ["Brief"]);
+        assert.deepEqual(texts, ["renamed"]);
+      } else {
+        assert.deepEqual(await sortedNames(a), ["Brief", "Notes"]);
+        assert.deepEqual(texts.sort(), ["created", "renamed"]);
+      }
+    });
+
+    test("two tabs renaming in opposite directions both finish", { skip: needsTabs }, async () => {
+      const [a, b] = await (tabs as NonNullable<typeof tabs>)();
+      await a.create(n("One"), "text");
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const deadlock = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("the renames deadlocked")), 2000);
+      });
+      try {
+        await Promise.race([
+          Promise.allSettled([a.rename(n("One"), n("Two")), b.rename(n("Two"), n("One"))]),
+          deadlock,
+        ]);
+      } finally {
+        clearTimeout(timer);
+      }
+      const names = await sortedNames(a);
+      assert.equal(names.length, 1);
+      assert.equal((await a.read(n(names[0] as string))).text, "text");
     });
 
     test("invalid names are rejected", async () => {

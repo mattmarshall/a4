@@ -108,6 +108,8 @@ export interface FolderPageFilesOptions {
   id: string;
   /** Web Locks shared with other tabs, or null for none. */
   locks: Locks | null;
+  /** Where `list` stops, like the scan (default `SCAN_ENTRY_LIMIT` entries). */
+  scanLimit?: number;
 }
 
 export class FolderPageFiles implements PageFiles<FilePath> {
@@ -116,11 +118,13 @@ export class FolderPageFiles implements PageFiles<FilePath> {
   readonly id: string;
   readonly fs: FolderFs;
   readonly #locks: Locks | null;
+  readonly #scanLimit: number;
 
   constructor(fs: FolderFs, options: FolderPageFilesOptions) {
     this.fs = fs;
     this.id = options.id;
     this.#locks = options.locks;
+    this.#scanLimit = options.scanLimit ?? SCAN_ENTRY_LIMIT;
   }
 
   get name(): string {
@@ -133,7 +137,7 @@ export class FolderPageFiles implements PageFiles<FilePath> {
   }
 
   async list(): Promise<PageSummary<FilePath>[]> {
-    const { files } = await walkFolder(this.fs);
+    const { files } = await walkFolder(this.fs, this.#scanLimit);
     const out: PageSummary<FilePath>[] = [];
     for (const path of files) {
       const stat = await this.fs.stat(path);

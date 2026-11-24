@@ -124,6 +124,7 @@ test("binary, oversized, and damaged entries are skipped", async () => {
       ["damaged.md", "corrupt"],
     ],
   );
+  assert.equal(describeImport(report), "Imported 1 page, 3 skipped (1 binary, 1 over 1 MiB, 1 damaged).");
 });
 
 test("an archive-level failure leaves the library unchanged", async () => {

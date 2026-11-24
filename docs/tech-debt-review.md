@@ -17,6 +17,30 @@ were then checked against the code.
 - **Confirmed:** read in the code at the cited lines.
 - **Plausible:** reasoned from the code, not yet run.
 
+## Status (2026-11-24)
+
+**Every finding is done.**
+- All eight planned changes shipped to a4.marsh.build and are archived under
+  `openspec/changes/archive/`, each with every task checked off.
+- A ninth change, `fix-review-leftovers`, closed the seven findings the plan
+  never assigned or a change covered only in part.
+- The test count went from 262 to 570.
+
+| Phase | Change | Commit | Findings |
+| --- | --- | --- | --- |
+| 1 | `fix-review-bugs` | `e6e755e` | B1–B21 |
+| 2 | `add-code-guardrails` | `6e90f23` | T1, T2, T4, T5, M8 |
+| 3 | `refactor-typed-contracts` | `864d96f` | S1–S4, E1, E2, E5, E6, A1, A2, A6, U6, U7, M6, M7, M11 |
+| 4 | `refactor-workspace-controller` | `c699394` | S8–S10, U1–U5, U8–U11 |
+| 5 | `refactor-lib-layout` | `84b1687` | S11, A3–A5, A7, A9, A10, T3 |
+| 6 | `refactor-model-plugins` | `cf94171` | M1–M5, M9, M10, M12 |
+| 7 | `refactor-sheet-element` | `39c41e0` | E3, E4, E7–E15 |
+| 8 | `refactor-styles` | `402e8ca` | C1–C5, A8 |
+| 9 | `fix-review-leftovers` | — | S5–S7, S12, the rest of U12 and U13, A11 |
+
+The rest of this document is the review as written on 2026-11-23, with a
+status line added to each area.
+
 ## Summary
 
 - **The base is sound.**
@@ -52,9 +76,12 @@ were then checked against the code.
 
 Fix these first, in one small change.
 
+**Status:** all 21 are fixed in `fix-review-bugs` (`e6e755e`), each with a
+regression test. The Status column keeps how each bug was verified.
+
 | ID | Severity | Status | What happens | Where | Fix |
 | --- | --- | --- | --- | --- | --- |
-| B1 | high | **Fixed, not committed** | A folder file opened with `visibility: hidden`, so the page was blank on screen and in print. | Workbench.tsx:837, 854 used the library-only `name`. | Hide on `!state.ref`; label from `state.label`. |
+| B1 | high | Fixed | A folder file opened with `visibility: hidden`, so the page was blank on screen and in print. | Workbench.tsx:837, 854 used the library-only `name`. | Hide on `!state.ref`; label from `state.label`. |
 | B2 | high | Reproduced | A library page whose text starts with U+FEFF, or contains a lone surrogate, conflicts on every save. `Blob.text()` drops the BOM, and `write(string)` replaces surrogates, so the revision returned by `create` never matches the stored text. | opfs.ts:145, 164 | Decode with `ignoreBOM: true`; refuse non-well-formed text and names at the boundary; add contract cases. |
 | B3 | high | Reproduced | When a file session moves its text to a library copy, keys typed during the copy are journaled under the old id, then cleared. The session ends dirty and stopped, with no draft. Only the UI's re-apply saves them, so a crash in that window loses them. | session.ts:220-230 | After `create`, keep the draft if the text moved on, and carry the pending text in the event. |
 | B4 | high | Confirmed | Each Open folder… mints a new random folder id. Picking the same folder in two tabs splits the locks (no cross-tab serialization) and the draft namespaces; old drafts and IndexedDB entries are orphaned. | connection.ts:114-118 | Reuse the stored id when `isSameEntry` matches. |
@@ -80,6 +107,10 @@ Fix these first, in one small change.
 
 ### Storage, autosave, and folders (`lib/store`, `lib/autosave`, `lib/folder`)
 
+**Status:** all done. S1–S4 in `refactor-typed-contracts`, S8–S10 in
+`refactor-workspace-controller`, S11 in `refactor-lib-layout`, and S5–S7 and
+S12 in `fix-review-leftovers`.
+
 - **S1 Session kind by cast:** whether a session may follow a copy in its
   own store is guessed from `copies`, then forced with
   `as unknown as PageStore`. A `PageSession<FilePath>` without `copies`
@@ -101,12 +132,26 @@ Fix these first, in one small change.
   `modifiedAt`, `size` under `sheetFiles`, partial lists, and rename
   atomicity. The contract tests also assume `revision === revisionOf(text)`,
   so `sheetFiles`, which sessions actually use, is never run through them.
+  *Done* in `fix-review-leftovers`:
+  - The core suite treats revisions as opaque, and runs on `sheetFiles` with
+    sheet text.
+  - `types.ts` states the rules: an unordered list, stored size, last-write
+    time, the folder list's scan limit, and what an interrupted rename
+    leaves.
 - **S6 Cross-tab races:** `rename` and `restore` lock only one name and pick
   their target outside the lock. A case-only rename can delete the page on
   case-insensitive storage. `KeyValuePageStore` has no lock at all.
+  *Done* in `fix-review-leftovers`:
+  - `rename` holds both names' locks, in sorted order.
+  - `restore` claims its name under the lock.
+  - A case-only rename goes through a temporary page.
+  - `KeyValuePageStore` takes the same locks.
 - **S7 Name races:** `availableName` followed by `create` appears in 6
   places, and another tab can take the name in between. Fix:
   `createUnique(desired, text)` under the store's lock.
+  *Done* in `fix-review-leftovers`: `PageStore.createUnique` claims the
+  name under its lock. Eight callers use it: these six, zip import, and the
+  move from the localStorage fallback. `availableName` is gone.
 - **S8 `FolderConnection` does too much:** IndexedDB, permissions, the
   journal prefix, and recovery, and its `forget()` re-implements recovery
   with different rules. Fix: split it into a registry and an access state
@@ -129,8 +174,15 @@ Fix these first, in one small change.
 - **S12 Fakes drift from browsers:** they are case-sensitive, list in
   insertion order, and never fail a stale snapshot. Fix: options to model
   each.
+  *Done* in `fix-review-leftovers`: `FakeVolume` options model names that
+  ignore case, other listing orders, and stale snapshots. The contract
+  suites also run with them on.
 
 ### UI (`components/`, `app/`)
+
+**Status:** all done. U1–U5 and U8–U11 in `refactor-workspace-controller`,
+U6 and U7 in `refactor-typed-contracts`, and the rest of U12 and U13 in
+`fix-review-leftovers`.
 
 - **U1 `useLibrary` is a god hook.**
   - It owns startup, two sessions, the channel, the folder connection,
@@ -181,6 +233,13 @@ Fix these first, in one small change.
   - "1 MiB", "20,000 entries", and "100 MB" are repeated as literals.
   - 210/297 is hard-coded in the zoom math.
   - "Nothing leaves this browser" is false once Fit to page is used.
+
+  *Done:*
+  - The breakpoint is defined once (`components/breakpoints.ts`).
+  - The zoom math uses the page geometry.
+  - Each model card says where page text goes.
+  - In `fix-review-leftovers`, the copy reads the 1 MiB, 20,000-entry, and
+    100 MiB limits from their constants.
 - **U13 Leftovers:**
   - The `sidebar` class, which the print CSS depends on.
   - The `KEYS.library` name.
@@ -188,7 +247,17 @@ Fix these first, in one small change.
   - `rescanFolder` is unused.
   - The Welcome text still says "sidebar" and "Use New".
 
+  *Done:*
+  - The `sidebar` class, `KEYS.library`, the alias, and `rescanFolder` are
+    gone.
+  - `closeFolder` saves, closes, and forgets the folder.
+  - In `fix-review-leftovers`, the Welcome text names the inspector and
+    Page → New.
+
 ### The `<a4-sheet>` element and 3D (`lib/element`, `lib/paper`)
+
+**Status:** all done. E1, E2, E5, and E6 in `refactor-typed-contracts`; E3,
+E4, and E7–E15 in `refactor-sheet-element`.
 
 - **E1 Untyped events and tag:** event names are repeated as literals in 3
   files, every event detail is cast, and there is no `A4SheetEventMap` or
@@ -241,6 +310,9 @@ Fix these first, in one small change.
 
 ### Models and the tensor (`lib/models`, `lib/tensor`, `proto/`)
 
+**Status:** all done. M6, M7, and M11 in `refactor-typed-contracts`; M8 in
+`add-code-guardrails`; the rest in `refactor-model-plugins`.
+
 - **M1 Adding a plugin touches four places:** two lists ("keep in step"), a
   download map, and `card.id === X` branches in two UI files. Fix: one
   `manifest.ts` with `definePlugin({card, connect, isDownloaded})`, lazy only.
@@ -291,6 +363,10 @@ Fix these first, in one small change.
 
 ### Page model and analysis (`lib/` root)
 
+**Status:** A1, A2, and A6 done in `refactor-typed-contracts`; A3–A5, A7,
+A9, and A10 in `refactor-lib-layout`; A8 in `refactor-styles`; A11 in
+`fix-review-leftovers`.
+
 - **A1 Findings are English prose** (`{id: string, title, detail}`), so a CLI
   gets copy, not data, and the tests check prose with regexes. Fix:
   `Finding` as a discriminated union of data; `describeFinding()` in the UI.
@@ -321,8 +397,12 @@ Fix these first, in one small change.
   formatters, and the metric direction declared twice.
 - **A11 Spec drift:** the spec scenario has 14 occurrences of "status", but
   the test asserts 28.
+  *Done* in `fix-review-leftovers`: the scenario now describes the test's
+  page, 14 rows with 28 occurrences.
 
 ### CSS (`app/globals.css`, 2,017 lines)
+
+**Status:** all done in `refactor-styles`.
 
 - **C1 Dead rules:** `.lens-dim`, `.lens-syn`, `.lens-kind-*` (the canvas
   paints these), `.brand-tag`, `.tool-label`, `--ruler`, overridden sizing,
@@ -348,6 +428,9 @@ Fix these first, in one small change.
   everything into layers in one step, keeping preflight.
 
 ### Tooling and types
+
+**Status:** all done. T1, T2, T4, and T5 in `add-code-guardrails`; T3 in
+`refactor-lib-layout`.
 
 - **T1 Free strictness flags:** these enable with 0 errors:
   `noImplicitOverride`, `noFallthroughCasesInSwitch`,
@@ -404,6 +487,9 @@ proto/a4/v1/    + library_event.proto, analysis.proto, ErrorCode enum, RpcFrame 
 Each phase is one OpenSpec change in `openspec/changes/`, and can ship on its
 own. Pure refactors use `skip_specs`. Bug fixes and changed contracts carry
 spec deltas. The change names below are the plan's phases, in order.
+
+**Status:** all eight are done; the Status table at the top gives each
+one's commit.
 
 1. **`fix-review-bugs`:** B1–B21, each with a regression test. The UI bugs
    need a small test harness for hooks and controllers, which phase 3

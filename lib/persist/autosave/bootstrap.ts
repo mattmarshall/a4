@@ -5,7 +5,7 @@
 
 import { systemClock } from "../../platform/clock.ts";
 import type { KeyValue } from "../../platform/key-value.ts";
-import { availableName, nameFromText, parsePageName, stamp } from "../store/names.ts";
+import { nameFromText, parsePageName, stamp } from "../store/names.ts";
 import { isStoreError, type PageFiles, type PageName, type PageStore } from "../store/types.ts";
 import type { Journal } from "./journal.ts";
 import type { RelocationPolicy } from "./session.ts";
@@ -42,10 +42,8 @@ export async function recoverDrafts<Id extends string = PageName>(
   const copies = policy.kind === "copy-out" ? policy.library : policy.store;
   const copyName = (id: Id, suffix: string) =>
     policy.kind === "copy-out" ? policy.copyName(id, suffix) : `${id}${suffix}`;
-  const saveAs = async (desired: string, text: string): Promise<PageName> => {
-    const name = await availableName(copies, desired);
-    return (await copies.create(name, text)).name;
-  };
+  const saveAs = async (desired: string, text: string): Promise<PageName> =>
+    (await copies.createUnique(desired, text)).name;
   const recoveredName = (draft: { name: Id; at: number }) =>
     copyName(draft.name, ` (recovered ${stamp(new Date(draft.at || now))})`);
   for (const draft of journal.all()) {
@@ -107,8 +105,7 @@ export async function migrateLegacySlots(
       text = null;
     }
     if (!text || text.trim() === "" || skipTexts.includes(text)) continue;
-    const name = await availableName(store, nameFromText(text, key.endsWith("a") ? "Page A" : "Page B"));
-    await store.create(name, text);
+    const { name } = await store.createUnique(nameFromText(text, key.endsWith("a") ? "Page A" : "Page B"), text);
     created.push(name);
   }
   try {

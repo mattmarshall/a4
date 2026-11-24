@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { analyze } from "../lib/analysis/index.ts";
 import { PRESET_IDS, PRESETS } from "../lib/page/index.ts";
 import { ANALYSIS_TEXTS } from "../lib/analysis/testing/texts.ts";
-import { describeFinding, VERDICT_LABEL, VERDICT_SUMMARY } from "./analysis-copy.ts";
+import { describeFinding, formatByteLimit, VERDICT_LABEL, VERDICT_SUMMARY } from "./analysis-copy.ts";
 
 /**
  * The copy every sample page and analysis test text produced when findings
@@ -28,4 +28,10 @@ test("the analysis copy is unchanged for every sample page and test text on ever
     }
   }
   assert.deepEqual(actual, SNAPSHOT);
+});
+
+test("size limits read in binary units", () => {
+  assert.equal(formatByteLimit(1_048_576), "1 MiB");
+  assert.equal(formatByteLimit(104_857_600), "100 MiB");
+  assert.equal(formatByteLimit(512 * 1024), "512 KB");
 });

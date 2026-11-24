@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { describeImport } from "@/lib/archive";
+import { describeImport, MAX_IMPORT_FILE_BYTES } from "@/lib/archive";
 import { type LensId, PRESETS } from "@/lib/page";
 import {
   Operation,
@@ -22,6 +22,7 @@ import { SAMPLE_PAIRS } from "@/lib/content";
 import { SETTINGS, copyNameFor, sameRef, type PageName, type PageRef } from "@/lib/persist";
 import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
+import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type PageActions } from "./LibraryPanel";
@@ -197,8 +198,11 @@ export function Workbench() {
   }
 
   async function importFile(file: File) {
-    if (file.size > 100 * 1024 * 1024) {
-      notify(`Couldn’t import “${file.name}”: files over 100 MB aren’t supported.`, "warn");
+    if (file.size > MAX_IMPORT_FILE_BYTES) {
+      notify(
+        `Couldn’t import “${file.name}”: files over ${formatByteLimit(MAX_IMPORT_FILE_BYTES)} aren’t supported.`,
+        "warn",
+      );
       return;
     }
     try {

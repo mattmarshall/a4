@@ -53,6 +53,18 @@ export const ENGLISH: CopyFormat = {
   count: (n) => n.toLocaleString("en-US"),
 };
 
+const KIB = 1024;
+const MIB = 1024 * KIB;
+
+/**
+ * A size limit, in binary units as the limits are defined: 1,048,576 → "1 MiB",
+ * 104,857,600 → "100 MiB"; anything under a whole MiB in KB (512 KiB → "512 KB").
+ */
+export function formatByteLimit(bytes: number): string {
+  if (bytes >= MIB && bytes % MIB === 0) return `${ENGLISH.count(bytes / MIB)} MiB`;
+  return `${ENGLISH.count(Math.round(bytes / KIB))} KB`;
+}
+
 export interface FindingCopy {
   title: string;
   detail: string;

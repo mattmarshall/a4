@@ -10,7 +10,9 @@
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import {
   type FolderFile,
+  MAX_FILE_BYTES,
   PAGE_ROWS,
+  SCAN_ENTRY_LIMIT,
   fileRef,
   libraryRef,
   sameRef,
@@ -21,6 +23,7 @@ import {
   type TrashId,
 } from "@/lib/persist";
 import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace";
+import { ENGLISH, formatByteLimit } from "./analysis-copy";
 import styles from "./LibraryPanel.module.css";
 
 /** Library commands. Rename returns an error message to show inline, or null. */
@@ -361,7 +364,7 @@ export function LibraryPanel({
 }
 
 const REASON: Record<NonNullable<FolderFile["unreadable"]>, string> = {
-  "too-large": "too large to open (over 1 MiB)",
+  "too-large": `too large to open (over ${formatByteLimit(MAX_FILE_BYTES)})`,
   "not-utf8": "not UTF-8 text",
 };
 
@@ -630,7 +633,9 @@ function FolderSection({
 
       {folder.scanning && folder.files.length === 0 ? <p className={styles.note}>Scanning…</p> : null}
       {folder.partial ? (
-        <p className={styles.note}>The folder is very large: the list stops after 20,000 entries.</p>
+        <p className={styles.note}>
+          The folder is very large: the list stops after {ENGLISH.count(SCAN_ENTRY_LIMIT)} entries.
+        </p>
       ) : null}
 
       <h3 className={`${styles.group} eyebrow`}>Context files</h3>

@@ -70,3 +70,47 @@ test("put creates nested folders, and handles compare by identity", async () => 
   assert.ok(await root.isSameEntry(root));
   assert.ok(!(await root.isSameEntry(new FakeDirectoryHandle("repo"))));
 });
+
+test("caseInsensitive: a second spelling finds the first entry, which keeps its name", async () => {
+  const root = new FakeDirectoryHandle("repo", new FakeVolume(Date.now, { caseInsensitive: true }));
+  const first = await root.getFileHandle("notes.md", { create: true });
+  const second = await root.getFileHandle("Notes.md", { create: true });
+  assert.equal(second, first);
+  assert.deepEqual(
+    (await Array.fromAsync(root.entries())).map(([name]) => name),
+    ["notes.md"],
+  );
+  await root.removeEntry("NOTES.md");
+  assert.equal(root.children.size, 0);
+  const sensitive = new FakeDirectoryHandle("repo");
+  await sensitive.getFileHandle("notes.md", { create: true });
+  await sensitive.getFileHandle("Notes.md", { create: true });
+  assert.equal(sensitive.children.size, 2);
+});
+
+test("listOrder: entries in insertion, reverse, or sorted order", async () => {
+  const listed = async (listOrder: "insertion" | "reverse" | "sorted") => {
+    const root = new FakeDirectoryHandle("repo", new FakeVolume(Date.now, { listOrder }));
+    for (const name of ["b.md", "a.md", "c.md"]) root.put(name, "x");
+    return (await Array.fromAsync(root.entries())).map(([name]) => name);
+  };
+  assert.deepEqual(await listed("insertion"), ["b.md", "a.md", "c.md"]);
+  assert.deepEqual(await listed("reverse"), ["c.md", "a.md", "b.md"]);
+  assert.deepEqual(await listed("sorted"), ["a.md", "b.md", "c.md"]);
+});
+
+test("staleSnapshots: reading a File taken before a write throws NotReadableError", async () => {
+  const root = new FakeDirectoryHandle("repo", new FakeVolume(Date.now, { staleSnapshots: true }));
+  const handle = root.put("AGENTS.md", "v1");
+  const before = await handle.getFile();
+  const writable = await handle.createWritable();
+  await writable.write("v2");
+  await writable.close();
+  await assert.rejects(before.text(), named("NotReadableError"));
+  await assert.rejects(before.arrayBuffer(), named("NotReadableError"));
+  assert.equal(await (await handle.getFile()).text(), "v2");
+  const lenient = new FakeDirectoryHandle("repo").put("AGENTS.md", "v1");
+  const kept = await lenient.getFile();
+  lenient.setContent("v2");
+  assert.equal(await kept.text(), "v1");
+});

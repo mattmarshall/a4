@@ -552,10 +552,26 @@ the page text, so a file can be handed to an agent as is.
     are unavailable. Its pages move into OPFS once OPFS is available.
   - `MemoryPageStore`.
 
+  **Name claims.** Library backends hand out names under a per-name Web Lock
+  (`a4:page:<lowercased name>`), so two tabs never claim one name:
+  - `createUnique(desired, text)` picks "Brief", "Brief 2", and so on, and
+    creates the page while holding the name's lock. Every caller that needs
+    a free name uses it.
+  - `restore` claims its name the same way.
+  - `rename` holds both names' locks, taken in sorted order.
+  - A rename that changes only case goes through a temporary
+    "<name> (renaming)" page, because storage that ignores case sees the two
+    spellings as one file.
+
   `FolderPageFiles` implements only the core, for a folder you open (see
   [Folders](#folders)). New backends must pass the shared suites in
   `lib/persist/store/testing/contract.ts`: `pageFilesContract` for the core, and
   `pageStoreContract` for a library backend.
+
+  The core suite treats revisions as opaque, so the folder runs it twice:
+  - on the raw files;
+  - through `sheetFiles`, the view autosave sessions use, with sheet text
+    (no tab, CR, or byte-order mark) and the file's own revisions and size.
 - **Autosave** (`lib/persist/autosave/`):
   - Every edit is journaled to `localStorage` synchronously, per tab and
     page.

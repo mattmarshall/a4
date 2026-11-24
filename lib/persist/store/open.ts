@@ -9,7 +9,6 @@ import type { DeviceStorage } from "../../platform/device-storage.ts";
 import { StorageKeyValue } from "../../platform/key-value.ts";
 import type { Locks } from "../../platform/locks.ts";
 import { KeyValuePageStore, MemoryPageStore } from "./key-value.ts";
-import { nextAvailableName } from "./names.ts";
 import { OpfsPageStore } from "./opfs.ts";
 import type { PageStore } from "./types.ts";
 
@@ -19,11 +18,15 @@ export interface OpenedStore {
   movedFromFallback: number;
 }
 
-export function localStorageStore(storage: Storage, clock?: Clock): KeyValuePageStore {
+export function localStorageStore(
+  storage: Storage,
+  options: { clock?: Clock; locks?: Locks | null } = {},
+): KeyValuePageStore {
   return new KeyValuePageStore(new StorageKeyValue(storage), {
     kind: "local-storage",
     durable: true,
-    ...(clock ? { clock } : {}),
+    locks: options.locks ?? null,
+    ...(options.clock ? { clock: options.clock } : {}),
   });
 }
 
@@ -31,13 +34,10 @@ export function localStorageStore(storage: Storage, clock?: Clock): KeyValuePage
 export async function movePages(from: PageStore, to: PageStore): Promise<number> {
   const pages = await from.list();
   if (pages.length === 0) return 0;
-  const taken = (await to.list()).map((p) => p.name as string);
   let moved = 0;
   for (const summary of pages) {
     const page = await from.read(summary.name);
-    const name = nextAvailableName(page.name, taken);
-    await to.create(name, page.text);
-    taken.push(name);
+    await to.createUnique(page.name, page.text);
     const entry = await from.trash(page.name);
     await from.purge(entry.id);
     moved++;
@@ -54,12 +54,12 @@ export async function openPageStore(
   if (root) {
     try {
       const store = await OpfsPageStore.open(await root, options);
-      const movedFromFallback = storage ? await movePages(localStorageStore(storage, options.clock), store) : 0;
+      const movedFromFallback = storage ? await movePages(localStorageStore(storage, options), store) : 0;
       return { store, movedFromFallback };
     } catch {
       // Fall through (e.g. Firefox private windows reject OPFS access).
     }
   }
-  if (storage) return { store: localStorageStore(storage, options.clock), movedFromFallback: 0 };
+  if (storage) return { store: localStorageStore(storage, options), movedFromFallback: 0 };
   return { store: new MemoryPageStore({ clock: options.clock }), movedFromFallback: 0 };
 }

@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FolderPageFiles } from "../store/folder.ts";
 import { parseFilePath } from "../store/refs.ts";
-import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-opfs.ts";
+import { pageFilesContract } from "../store/testing/contract.ts";
+import { asDirectoryHandle, BROWSER_LIKE, FakeDirectoryHandle, FakeVolume } from "../store/testing/fake-opfs.ts";
 import { isStoreError } from "../store/types.ts";
 import { layoutRows } from "../../page/index.ts";
 import { matchLines, sheetFiles, toFile, toSheet } from "./faithful.ts";
@@ -187,3 +188,38 @@ test("the adapter rejects a stale revision and leaves the file unchanged", async
   await assert.rejects(files.write(path, "mine", page.revision), (e: unknown) => isStoreError(e, "conflict"));
   assert.equal(root.fileAt("AGENTS.md")!.text, "checked out\n");
 });
+
+test("through sheetFiles, a file's size is its size on disk", async () => {
+  const root = new FakeDirectoryHandle("repo");
+  const raw = "0123456789\r\n".repeat(10);
+  root.put("AGENTS.md", raw);
+  const files = sheetFiles(
+    new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), { id: "t", locks: null }),
+  );
+  const [listed] = await files.list();
+  const page = await files.read(parseFilePath("AGENTS.md"));
+  assert.equal(new TextEncoder().encode(raw).length, 120);
+  assert.equal(listed?.size, 120);
+  assert.equal(page.size, 120);
+  assert.notEqual(new TextEncoder().encode(page.text).length, 120);
+});
+
+// The folder as autosave sessions see it passes the core contract too, with
+// sheet text: its revisions are those of the file on disk.
+for (const [label, volume] of [
+  ["in-memory fake", () => new FakeVolume()],
+  ["browser-like fake", () => new FakeVolume(Date.now, BROWSER_LIKE)],
+] as const) {
+  pageFilesContract(
+    `folder through sheetFiles (${label})`,
+    async () =>
+      sheetFiles(
+        new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(new FakeDirectoryHandle("repo", volume()))), {
+          id: "test",
+          locks: null,
+        }),
+      ),
+    (stem) => parseFilePath(`${stem}.md`),
+    { text: "sheet" },
+  );
+}

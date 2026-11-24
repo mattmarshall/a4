@@ -14,7 +14,6 @@ import {
   type LibraryEvent,
 } from "../persist/library-events.ts";
 import type { Channel } from "../platform/channel.ts";
-import { availableName } from "../persist/store/names.ts";
 import {
   isStoreError,
   type PageName,
@@ -101,8 +100,7 @@ export class LibraryIndex {
 
   /** Create a page under `desired` or a unique variant of it. */
   async create(desired: string, text: string): Promise<PageName> {
-    const name = await availableName(this.store, desired);
-    await this.store.create(name, text);
+    const { name } = await this.store.createUnique(desired, text);
     await this.refresh();
     this.changed();
     return name;

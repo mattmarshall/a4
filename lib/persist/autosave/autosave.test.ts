@@ -26,6 +26,7 @@ class FlakyStore implements PageStore {
   list = () => this.inner.list();
   read = (name: Parameters<PageStore["read"]>[0]) => this.inner.read(name);
   create = (name: Parameters<PageStore["create"]>[0], text: string) => this.inner.create(name, text);
+  createUnique = (desired: string, text: string) => this.inner.createUnique(desired, text);
   rename = (a: Parameters<PageStore["rename"]>[0], b: Parameters<PageStore["rename"]>[1]) => this.inner.rename(a, b);
   trash = (name: Parameters<PageStore["trash"]>[0]) => this.inner.trash(name);
   listTrash = () => this.inner.listTrash();
@@ -394,10 +395,10 @@ test("keys typed while a folder file's text is copied to the library are kept", 
   );
   const library = new MemoryPageStore();
   let release: () => void = () => {};
-  const create = library.create.bind(library);
-  library.create = async (name, text) => {
+  const createUnique = library.createUnique.bind(library);
+  library.createUnique = async (desired, text) => {
     await new Promise<void>((r) => (release = r));
-    return create(name, text);
+    return createUnique(desired, text);
   };
   const kv = new MemoryKeyValue();
   const libraryJournal = new Journal(kv, "tab1", pageNameCodec);

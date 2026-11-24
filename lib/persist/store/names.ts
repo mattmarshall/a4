@@ -6,7 +6,7 @@
  * case. Names are file stems, so these rules keep them portable.
  */
 
-import { InvalidPageNameError, type IdCodec, type PageName, type PageSummary } from "./types.ts";
+import { InvalidPageNameError, type IdCodec, type PageName } from "./types.ts";
 
 /** A page's file extension, in OPFS and in exported archives. */
 export const PAGE_EXTENSION = ".md";
@@ -104,17 +104,6 @@ export function nextAvailableName(desired: string, taken: Iterable<string>): Pag
     const candidate = parsePageName(`${truncate(base, MAX_NAME_LENGTH - suffix.length).trimEnd()}${suffix}`);
     if (!lower.has(candidate.toLocaleLowerCase("en-US"))) return candidate;
   }
-}
-
-export async function availableName(
-  store: { list(): Promise<readonly PageSummary<string>[]> },
-  desired: string,
-): Promise<PageName> {
-  const pages = await store.list();
-  return nextAvailableName(
-    desired,
-    pages.map((p) => p.name),
-  );
 }
 
 /** "2026-11-23 16:05" in local time, for conflict and recovery copies. */

@@ -5,4 +5,4 @@
  */
 
 export { buildLibraryArchive, slugFromText, type LibraryArchive } from "./export.ts";
-export { describeImport, importZip, type ImportReport } from "./import.ts";
+export { describeImport, importZip, MAX_IMPORT_FILE_BYTES, type ImportReport } from "./import.ts";

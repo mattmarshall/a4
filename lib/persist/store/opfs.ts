@@ -10,7 +10,8 @@
 
 import { systemClock, type Clock } from "../../platform/clock.ts";
 import type { Locks } from "../../platform/locks.ts";
-import { nextAvailableName, pageNameCodec, parsePageName, sameName, PAGE_EXTENSION } from "./names.ts";
+import { claimName, lockNames, type NameLock } from "./claims.ts";
+import { pageNameCodec, parsePageName, sameName, sanitizePageName, PAGE_EXTENSION } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import { makeTrashId, parseTrashId } from "./trash-ids.ts";
 import {
@@ -122,6 +123,18 @@ export class OpfsPageStore implements PageStore {
     return this.#locks.request(`a4:page:${name.toLocaleLowerCase("en-US")}`, fn);
   }
 
+  readonly #lock: NameLock = (name, fn) => this.#locked(name, fn);
+
+  /** What `claimName` needs: the names taken now, and the lock. */
+  readonly #claims = { names: () => this.#names(), lock: this.#lock };
+
+  /** Create a page; the caller holds `name`'s lock. */
+  async #createHeld(name: PageName, text: string): Promise<WriteResult> {
+    if (await this.#find(name)) throw new PageExistsError(name);
+    const file = await createFile(this.#pages, fileName(name), text);
+    return { name, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
+  }
+
   async #handle(dir: FileSystemDirectoryHandle, stem: string, create = false): Promise<FileSystemFileHandle | null> {
     try {
       return await dir.getFileHandle(fileName(stem), { create });
@@ -166,11 +179,12 @@ export class OpfsPageStore implements PageStore {
   async create(name: PageName, text: string): Promise<WriteResult> {
     const valid = parsePageName(name);
     assertStorableText(valid, text);
-    return this.#locked(valid, async () => {
-      if (await this.#find(valid)) throw new PageExistsError(valid);
-      const file = await createFile(this.#pages, fileName(valid), text);
-      return { name: valid, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
-    });
+    return this.#locked(valid, () => this.#createHeld(valid, text));
+  }
+
+  async createUnique(desired: string, text: string): Promise<WriteResult> {
+    assertStorableText(sanitizePageName(desired), text);
+    return claimName(desired, this.#claims, (name) => this.#createHeld(name, text));
   }
 
   async write(name: PageName, text: string, expected?: Revision | null): Promise<WriteResult> {
@@ -189,7 +203,9 @@ export class OpfsPageStore implements PageStore {
 
   async rename(from: PageName, to: PageName): Promise<WriteResult> {
     const target = parsePageName(to);
-    return this.#locked(from, async () => {
+    if (target !== from && sameName(target, from)) return this.#renameCase(from, target);
+    // Both names, so no other tab can take the target meanwhile.
+    return lockNames(this.#lock, [from, target], async () => {
       const source = await this.#handle(this.#pages, from);
       if (!source) throw new PageNotFoundError(from);
       const text = await readText(await source.getFile());
@@ -202,6 +218,25 @@ export class OpfsPageStore implements PageStore {
       // Copy, then delete: a crash in between leaves a duplicate, never a loss.
       const file = await createFile(this.#pages, fileName(target), text);
       await this.#pages.removeEntry(fileName(from));
+      return { name: target, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
+    });
+  }
+
+  /**
+   * A rename that changes only case. Storage that ignores case sees one file
+   * under both spellings, so copying to the target and deleting the source
+   * would delete the page. Go through a temporary page instead; each step
+   * copies, then deletes, so the text always has a name the library lists.
+   */
+  async #renameCase(from: PageName, target: PageName): Promise<WriteResult> {
+    return this.#locked(from, async () => {
+      const source = await this.#handle(this.#pages, from);
+      if (!source) throw new PageNotFoundError(from);
+      const text = await readText(await source.getFile());
+      const temporary = await claimName(`${from} (renaming)`, this.#claims, (name) => this.#createHeld(name, text));
+      await this.#pages.removeEntry(fileName(from));
+      const file = await createFile(this.#pages, fileName(target), text);
+      await this.#pages.removeEntry(fileName(temporary.name));
       return { name: target, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
     });
   }
@@ -236,11 +271,10 @@ export class OpfsPageStore implements PageStore {
     const parts = parseTrashId(id);
     if (!source || !parts) throw new PageNotFoundError(id);
     const text = await readText(await source.getFile());
-    const target = nextAvailableName(parts.name, await this.#names());
-    return this.#locked(target, async () => {
-      const file = await createFile(this.#pages, fileName(target), text);
+    return claimName(parts.name, this.#claims, async (target) => {
+      const result = await this.#createHeld(target, text);
       await this.#trash.removeEntry(fileName(id));
-      return { name: target, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
+      return result;
     });
   }
 

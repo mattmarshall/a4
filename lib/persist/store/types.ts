@@ -42,9 +42,12 @@ export interface IdCodec<Id> {
 
 export interface PageSummary<Id extends string = PageName> {
   readonly name: Id;
-  /** UTF-8 size in bytes. */
+  /**
+   * Stored size in bytes. For a folder file seen through `sheetFiles`, it is
+   * the file on disk, not the length of its sheet text.
+   */
   readonly size: number;
-  /** Epoch milliseconds of the last write. */
+  /** Epoch milliseconds of the last write, as the storage records it (a file's `lastModified`). */
   readonly modifiedAt: number;
 }
 
@@ -72,7 +75,11 @@ export interface PageFiles<Id extends string = PageName> {
   /** False when pages will not survive a reload (in-memory). */
   readonly durable: boolean;
 
-  /** All pages, in no particular order. */
+  /**
+   * Each page once, in no particular order. A library backend lists every
+   * page; the folder backend stops where the folder scan stops
+   * (`SCAN_ENTRY_LIMIT` entries).
+   */
   list(): Promise<PageSummary<Id>[]>;
   /** @throws PageNotFoundError */
   read(name: Id): Promise<Page<Id>>;
@@ -91,8 +98,17 @@ export interface PageStore extends PageFiles<PageName> {
   /** @throws PageExistsError (ignoring case), InvalidPageNameError */
   create(name: PageName, text: string): Promise<WriteResult>;
   /**
+   * Create a page under `desired`, or the first free variant of it ("Brief 2",
+   * …), ignoring case. The name is picked and created while holding its lock,
+   * so another tab can't take it in between.
+   * @throws InvalidTextError, StoreUnavailableError
+   */
+  createUnique(desired: string, text: string): Promise<WriteResult>;
+  /**
    * Rename a page, keeping its text. Renaming to a case variant of the same
-   * name is allowed.
+   * name is allowed. An interrupted rename never loses the page: the text
+   * may be left under both names, or under a temporary name the library
+   * lists, but never under none.
    * @throws PageNotFoundError, PageExistsError, InvalidPageNameError
    */
   rename(from: PageName, to: PageName): Promise<WriteResult>;

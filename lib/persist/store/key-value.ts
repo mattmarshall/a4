@@ -8,8 +8,10 @@
  */
 
 import { systemClock, type Clock } from "../../platform/clock.ts";
+import type { Locks } from "../../platform/locks.ts";
+import { claimName, lockNames } from "./claims.ts";
 import { MemoryKeyValue, type KeyValue } from "../../platform/key-value.ts";
-import { nextAvailableName, pageNameCodec, parsePageName, sameName } from "./names.ts";
+import { pageNameCodec, parsePageName, sameName, sanitizePageName } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import { makeTrashId, parseTrashId } from "./trash-ids.ts";
 import {
@@ -34,6 +36,8 @@ export interface KeyValuePageStoreOptions {
   durable?: boolean;
   prefix?: string;
   clock?: Clock;
+  /** Web Locks shared with other tabs (the localStorage backend), or null for none. */
+  locks?: Locks | null;
 }
 
 export class KeyValuePageStore implements PageStore {
@@ -44,6 +48,7 @@ export class KeyValuePageStore implements PageStore {
   readonly #mtime: string;
   readonly #trash: string;
   readonly #clock: Clock;
+  readonly #locks: Locks | null;
 
   constructor(kv: KeyValue, options: KeyValuePageStoreOptions = {}) {
     const prefix = options.prefix ?? "a4:";
@@ -54,6 +59,25 @@ export class KeyValuePageStore implements PageStore {
     this.#mtime = `${prefix}page-mtime:`;
     this.#trash = `${prefix}trash:`;
     this.#clock = options.clock ?? systemClock;
+    this.#locks = options.locks ?? null;
+  }
+
+  /** Hold `name` across tabs, under the same lock name as the OPFS store. */
+  readonly #lock = <T>(name: string, fn: () => Promise<T>): Promise<T> => {
+    if (!this.#locks) return fn();
+    return this.#locks.request(`a4:page:${name.toLocaleLowerCase("en-US")}`, fn);
+  };
+
+  /** What `claimName` needs: the names taken now, and the lock. */
+  readonly #claims = { names: async () => this.#names(), lock: this.#lock };
+
+  /**
+   * Create a page; the caller holds `name`'s lock. The check and the write
+   * make no await, so they are atomic within a tab even without Web Locks.
+   */
+  #createHeld(name: PageName, text: string): WriteResult {
+    if (this.#find(name)) throw new PageExistsError(name);
+    return this.#put(name, text);
   }
 
   #names(): PageName[] {
@@ -100,46 +124,58 @@ export class KeyValuePageStore implements PageStore {
   async create(name: PageName, text: string): Promise<WriteResult> {
     const valid = parsePageName(name);
     assertStorableText(valid, text);
-    if (this.#find(valid)) throw new PageExistsError(valid);
-    return this.#put(valid, text);
+    return this.#lock(valid, async () => this.#createHeld(valid, text));
+  }
+
+  async createUnique(desired: string, text: string): Promise<WriteResult> {
+    assertStorableText(sanitizePageName(desired), text);
+    return claimName(desired, this.#claims, async (name) => this.#createHeld(name, text));
   }
 
   async write(name: PageName, text: string, expected?: Revision | null): Promise<WriteResult> {
     assertStorableText(name, text);
-    const current = this.#kv.get(this.#page + name);
-    if (current === null) throw new PageNotFoundError(name);
-    if (expected != null) {
-      const actual = revisionOf(current);
-      if (actual !== expected) throw new PageConflictError(name, expected, actual);
-    }
-    return this.#put(name, text);
+    return this.#lock(name, async () => {
+      const current = this.#kv.get(this.#page + name);
+      if (current === null) throw new PageNotFoundError(name);
+      if (expected != null) {
+        const actual = revisionOf(current);
+        if (actual !== expected) throw new PageConflictError(name, expected, actual);
+      }
+      return this.#put(name, text);
+    });
   }
 
   async rename(from: PageName, to: PageName): Promise<WriteResult> {
     const target = parsePageName(to);
-    const text = this.#kv.get(this.#page + from);
-    if (text === null) throw new PageNotFoundError(from);
-    const clash = this.#find(target);
-    if (clash && clash !== from) throw new PageExistsError(target);
-    if (target === from) return { ...this.#summary(from, text), revision: revisionOf(text) };
-    const result = this.#put(target, text);
-    this.#kv.remove(this.#page + from);
-    this.#kv.remove(this.#mtime + from);
-    return result;
+    // Both names, so no other tab can take the target meanwhile.
+    return lockNames(this.#lock, [from, target], async () => {
+      const text = this.#kv.get(this.#page + from);
+      if (text === null) throw new PageNotFoundError(from);
+      const clash = this.#find(target);
+      if (clash && clash !== from) throw new PageExistsError(target);
+      if (target === from) return { ...this.#summary(from, text), revision: revisionOf(text) };
+      // Keys are case-sensitive, so even a case-only rename writes a second key before removing the first.
+      const result = this.#put(target, text);
+      this.#kv.remove(this.#page + from);
+      this.#kv.remove(this.#mtime + from);
+      return result;
+    });
   }
 
   async trash(name: PageName): Promise<TrashEntry> {
-    const text = this.#kv.get(this.#page + name);
-    if (text === null) throw new PageNotFoundError(name);
-    const { id, trashedAt } = makeTrashId(
-      name,
-      this.#clock.now(),
-      (candidate) => this.#kv.get(this.#trash + candidate) !== null,
-    );
-    this.#kv.set(this.#trash + id, text);
-    this.#kv.remove(this.#page + name);
-    this.#kv.remove(this.#mtime + name);
-    return { id, name, size: byteLength(text), trashedAt };
+    return this.#lock(name, async () => {
+      const text = this.#kv.get(this.#page + name);
+      if (text === null) throw new PageNotFoundError(name);
+      const { id, trashedAt } = makeTrashId(
+        name,
+        this.#clock.now(),
+        (candidate) => this.#kv.get(this.#trash + candidate) !== null,
+      );
+      this.#kv.set(this.#trash + id, text);
+      this.#kv.remove(this.#page + name);
+      this.#kv.remove(this.#mtime + name);
+      return { id, name, size: byteLength(text), trashedAt };
+    });
   }
 
   async listTrash(): Promise<TrashEntry[]> {
@@ -156,10 +192,11 @@ export class KeyValuePageStore implements PageStore {
     const text = this.#kv.get(this.#trash + id);
     const parts = parseTrashId(id);
     if (text === null || !parts) throw new PageNotFoundError(id);
-    const target = nextAvailableName(parts.name, this.#names());
-    const result = this.#put(target, text);
-    this.#kv.remove(this.#trash + id);
-    return result;
+    return claimName(parts.name, this.#claims, async (target) => {
+      const result = this.#createHeld(target, text);
+      this.#kv.remove(this.#trash + id);
+      return result;
+    });
   }
 
   async purge(id: TrashId): Promise<void> {

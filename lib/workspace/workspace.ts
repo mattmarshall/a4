@@ -30,7 +30,7 @@ import { LIBRARY_CHANNEL } from "../persist/library-events.ts";
 import type { HandleStore } from "../platform/handle-store.ts";
 import type { Platform } from "../platform/index.ts";
 import { readSetting, setSettingsStorage, SETTINGS, writeSetting } from "../persist/settings.ts";
-import { availableName, pageNameCodec, parsePageName } from "../persist/store/names.ts";
+import { pageNameCodec, parsePageName } from "../persist/store/names.ts";
 import { openPageStore, type OpenedStore } from "../persist/store/open.ts";
 import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef } from "../persist/store/refs.ts";
 import {
@@ -590,9 +590,8 @@ export class Workspace<H> {
         if (waiting && ticket.current()) this.#pending.b = { ref: wanted, fallback: libraryRef(pick) };
       } else {
         // Only one page exists: make an empty one for B, unless Compare was left meanwhile.
-        const name = await availableName(library.store, "Untitled");
         if (!ticket.current()) return;
-        await library.store.create(name, "");
+        const { name } = await library.store.createUnique("Untitled", "");
         await library.refresh();
         library.changed();
         await this.#open("b", libraryRef(name), { ticket });

@@ -7,6 +7,12 @@
  * Files hold bytes. A shared `FakeVolume` models what a picked folder adds:
  * a permission state (`queryPermission` / `requestPermission`) and removal
  * (handles to removed entries throw `NotFoundError`).
+ *
+ * `FakeVolumeOptions` model what browsers and disks do differently, so the
+ * contract suites can run against each: names that ignore case (macOS and
+ * Windows disks), listings in another order, and `File` snapshots that go
+ * stale when the file is written (`NotReadableError`). The defaults are
+ * case-sensitive names, insertion order, and snapshots that stay readable.
  */
 
 function domError(name: string, message: string): Error {
@@ -24,9 +30,25 @@ const exact = new TextDecoder("utf-8", { ignoreBOM: true });
 interface FakeFileData {
   bytes: Uint8Array;
   lastModified: number;
+  /** Bumped on every committed change, so a snapshot can tell it's stale. */
+  version: number;
 }
 
 export type FakePermission = "granted" | "prompt" | "denied";
+
+export type FakeListOrder = "insertion" | "reverse" | "sorted";
+
+export interface FakeVolumeOptions {
+  /** Names that differ only in case are the same entry, which keeps its first spelling. */
+  readonly caseInsensitive?: boolean;
+  /** The order `entries()` lists a folder in. */
+  readonly listOrder?: FakeListOrder;
+  /** Reading a `File` taken before a later write throws `NotReadableError`. */
+  readonly staleSnapshots?: boolean;
+}
+
+/** Every option that differs from the defaults: what the contract suites also run under. */
+export const BROWSER_LIKE: FakeVolumeOptions = { caseInsensitive: true, listOrder: "reverse", staleSnapshots: true };
 
 /** State shared by every handle in one fake tree. */
 export class FakeVolume {
@@ -38,8 +60,21 @@ export class FakeVolume {
   prompts = 0;
   /** When true, every `createWritable` fails, as when storage is full. */
   failWritable = false;
-  constructor(clock: () => number = Date.now) {
+  /** When it returns true for a name, `removeEntry` of that name fails, as when the tab dies first. */
+  failRemove: ((name: string) => boolean) | null = null;
+  readonly caseInsensitive: boolean;
+  readonly listOrder: FakeListOrder;
+  readonly staleSnapshots: boolean;
+  constructor(clock: () => number = Date.now, options: FakeVolumeOptions = {}) {
     this.clock = clock;
+    this.caseInsensitive = options.caseInsensitive ?? false;
+    this.listOrder = options.listOrder ?? "insertion";
+    this.staleSnapshots = options.staleSnapshots ?? false;
+  }
+
+  /** The key a name is stored under in a folder. */
+  key(name: string): string {
+    return this.caseInsensitive ? name.toLocaleLowerCase("en-US") : name;
   }
 }
 
@@ -86,6 +121,7 @@ export class FakeWritable {
     }
     this.#file.bytes = bytes;
     this.#file.lastModified = this.#owner.clock();
+    this.#file.version++;
     this.#owner.writes++;
   }
 
@@ -115,7 +151,7 @@ export class FakeFileHandle {
   constructor(name: string, volume: FakeVolume | (() => number)) {
     this.name = name;
     this.volume = volume instanceof FakeVolume ? volume : new FakeVolume(volume);
-    this.data = { bytes: new Uint8Array(), lastModified: this.volume.clock() };
+    this.data = { bytes: new Uint8Array(), lastModified: this.volume.clock(), version: 0 };
   }
 
   get clock(): () => number {
@@ -129,12 +165,18 @@ export class FakeFileHandle {
 
   async getFile(): Promise<FakeFile> {
     checkAccess(this.volume, this.removed, this.name);
-    const bytes = this.data.bytes;
+    const { bytes, version } = this.data;
+    const read = () => {
+      if (this.volume.staleSnapshots && this.data.version !== version) {
+        throw domError("NotReadableError", `${this.name} changed after this snapshot was taken`);
+      }
+      return bytes;
+    };
     return {
       size: bytes.length,
       lastModified: this.data.lastModified,
-      text: async () => lenient.decode(bytes),
-      arrayBuffer: async () => bytes.slice().buffer,
+      text: async () => lenient.decode(read()),
+      arrayBuffer: async () => read().slice().buffer,
     };
   }
 
@@ -152,12 +194,14 @@ export class FakeFileHandle {
   setContent(data: string | Uint8Array, lastModified?: number): void {
     this.data.bytes = toBytes(data);
     this.data.lastModified = lastModified ?? this.volume.clock();
+    this.data.version++;
   }
 }
 
 export class FakeDirectoryHandle {
   readonly kind = "directory" as const;
   readonly name: string;
+  /** Entries by `volume.key(name)`: the name itself, or lowercased when names ignore case. */
   readonly children = new Map<string, FakeFileHandle | FakeDirectoryHandle>();
   readonly volume: FakeVolume;
   removed = false;
@@ -174,41 +218,46 @@ export class FakeDirectoryHandle {
   async getDirectoryHandle(name: string, options: { create?: boolean } = {}): Promise<FakeDirectoryHandle> {
     checkAccess(this.volume, this.removed, this.name);
     if (name.includes("/") || name === "." || name === ".." || name === "") throw new TypeError(`Invalid name ${name}`);
-    const existing = this.children.get(name);
+    const existing = this.children.get(this.volume.key(name));
     if (existing instanceof FakeDirectoryHandle) return existing;
     if (existing) throw domError("TypeMismatchError", `${name} is a file`);
     if (!options.create) throw domError("NotFoundError", `No directory ${name}`);
     const dir = new FakeDirectoryHandle(name, this.volume);
-    this.children.set(name, dir);
+    this.children.set(this.volume.key(name), dir);
     return dir;
   }
 
   async getFileHandle(name: string, options: { create?: boolean } = {}): Promise<FakeFileHandle> {
     checkAccess(this.volume, this.removed, this.name);
     if (name.includes("/") || name === "." || name === ".." || name === "") throw new TypeError(`Invalid name ${name}`);
-    const existing = this.children.get(name);
+    const existing = this.children.get(this.volume.key(name));
     if (existing instanceof FakeFileHandle) return existing;
     if (existing) throw domError("TypeMismatchError", `${name} is a directory`);
     if (!options.create) throw domError("NotFoundError", `No file ${name}`);
     const file = new FakeFileHandle(name, this.volume);
-    this.children.set(name, file);
+    this.children.set(this.volume.key(name), file);
     return file;
   }
 
   async removeEntry(name: string, options: { recursive?: boolean } = {}): Promise<void> {
     checkAccess(this.volume, this.removed, this.name);
-    const entry = this.children.get(name);
+    const entry = this.children.get(this.volume.key(name));
     if (!entry) throw domError("NotFoundError", `No entry ${name}`);
+    if (this.volume.failRemove?.(name))
+      throw domError("NoModificationAllowedError", `Simulated failure removing ${name}`);
     if (entry instanceof FakeDirectoryHandle && entry.children.size > 0 && !options.recursive) {
       throw domError("InvalidModificationError", `${name} is not empty`);
     }
-    this.children.delete(name);
+    this.children.delete(this.volume.key(name));
     markRemoved(entry);
   }
 
   async *entries(): AsyncGenerator<[string, FakeFileHandle | FakeDirectoryHandle]> {
     checkAccess(this.volume, this.removed, this.name);
-    for (const entry of [...this.children.entries()]) yield entry;
+    const entries = [...this.children.values()];
+    if (this.volume.listOrder === "reverse") entries.reverse();
+    if (this.volume.listOrder === "sorted") entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    for (const entry of entries) yield [entry.name, entry];
   }
 
   async isSameEntry(other: unknown): Promise<boolean> {
@@ -234,18 +283,18 @@ export class FakeDirectoryHandle {
     const parts = path.split("/");
     let dir: FakeDirectoryHandle = this;
     for (const part of parts.slice(0, -1)) {
-      let next = dir.children.get(part);
+      let next = dir.children.get(this.volume.key(part));
       if (!(next instanceof FakeDirectoryHandle)) {
         next = new FakeDirectoryHandle(part, this.volume);
-        dir.children.set(part, next);
+        dir.children.set(this.volume.key(part), next);
       }
       dir = next;
     }
     const name = parts[parts.length - 1];
-    let file = dir.children.get(name);
+    let file = dir.children.get(this.volume.key(name));
     if (!(file instanceof FakeFileHandle)) {
       file = new FakeFileHandle(name, this.volume);
-      dir.children.set(name, file);
+      dir.children.set(this.volume.key(name), file);
     }
     file.setContent(data, lastModified);
     return file;
@@ -256,13 +305,14 @@ export class FakeDirectoryHandle {
     const parts = path.split("/");
     let dir: FakeDirectoryHandle = this;
     for (const part of parts.slice(0, -1)) {
-      const next = dir.children.get(part);
+      const next = dir.children.get(this.volume.key(part));
       if (!(next instanceof FakeDirectoryHandle)) return;
       dir = next;
     }
-    const entry = dir.children.get(parts[parts.length - 1]);
+    const key = this.volume.key(parts[parts.length - 1]);
+    const entry = dir.children.get(key);
     if (!entry) return;
-    dir.children.delete(parts[parts.length - 1]);
+    dir.children.delete(key);
     markRemoved(entry);
   }
 
@@ -271,11 +321,11 @@ export class FakeDirectoryHandle {
     const parts = path.split("/");
     let dir: FakeDirectoryHandle = this;
     for (const part of parts.slice(0, -1)) {
-      const next = dir.children.get(part);
+      const next = dir.children.get(this.volume.key(part));
       if (!(next instanceof FakeDirectoryHandle)) return undefined;
       dir = next;
     }
-    const file = dir.children.get(parts[parts.length - 1]);
+    const file = dir.children.get(this.volume.key(parts[parts.length - 1]));
     return file instanceof FakeFileHandle ? file : undefined;
   }
 }

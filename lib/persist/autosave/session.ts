@@ -20,7 +20,7 @@
  *   conflict copy rather than being overwritten.
  */
 
-import { availableName, stamp } from "../store/names.ts";
+import { stamp } from "../store/names.ts";
 import type { FilePath } from "../store/refs.ts";
 import {
   isStoreError,
@@ -40,7 +40,8 @@ import type { Journal } from "./journal.ts";
  * follow a copy in its own store.
  */
 export type SameStorePages<Id extends string> = PageFiles<Id> & {
-  create(name: PageName, text: string): Promise<WriteResult<Id & PageName>>;
+  /** Create a page under a free variant of `desired`, claimed under its lock (`PageStore.createUnique`). */
+  createUnique(desired: string, text: string): Promise<WriteResult<Id & PageName>>;
 };
 
 /** Text that can't be saved over its page follows a copy in the same store. */
@@ -299,8 +300,7 @@ export class PageSession<Id extends string = PageName> {
     const policy = this.#policy;
     try {
       if (policy.kind === "copy-out") {
-        const target = await availableName(policy.library, desired);
-        const result = await policy.library.create(target, text);
+        const result = await policy.library.createUnique(desired, text);
         // Keys typed while the copy was saved belong to the copy now: journal
         // them under it before dropping the old draft, so a crash keeps them.
         const pending = this.#text !== text ? this.#text : undefined;
@@ -315,8 +315,7 @@ export class PageSession<Id extends string = PageName> {
         this.#onEvent(pending === undefined ? moved : withPendingText(moved, pending));
         return;
       }
-      const target = await availableName(policy.store, desired);
-      const result = await policy.store.create(target, text);
+      const result = await policy.store.createUnique(desired, text);
       this.#journal.clear(previous);
       this.#name = result.name;
       this.#accept(result, text);

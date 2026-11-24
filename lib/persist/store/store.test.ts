@@ -2,23 +2,107 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { KeyValuePageStore, MemoryPageStore } from "./key-value.ts";
 import { MemoryKeyValue } from "../../platform/key-value.ts";
+import { FakeLocks } from "../../platform/testing/fakes.ts";
 import { nameFromText, nextAvailableName, parsePageName, sanitizePageName } from "./names.ts";
 import { movePages } from "./open.ts";
 import { OpfsPageStore } from "./opfs.ts";
 import { revisionOf } from "./revision.ts";
 import { pageStoreContract } from "./testing/contract.ts";
-import { asDirectoryHandle, FakeDirectoryHandle } from "./testing/fake-opfs.ts";
+import { asDirectoryHandle, BROWSER_LIKE, FakeDirectoryHandle, FakeVolume } from "./testing/fake-opfs.ts";
 import { isStoreError } from "./types.ts";
 
-// Every backend passes the same contract.
-pageStoreContract("memory", async () => new MemoryPageStore());
+// Every backend passes the same contract. `tabs` gives the races two stores
+// over one storage, standing for two tabs: with shared Web Locks where the
+// backend awaits between its steps (OPFS), and without where it doesn't.
+pageStoreContract("memory", async () => new MemoryPageStore(), {
+  tabs: async () => {
+    const store = new MemoryPageStore();
+    return [store, store];
+  },
+});
+const keyValue = (kv = new MemoryKeyValue(), locks: FakeLocks | null = null) =>
+  new KeyValuePageStore(kv, { kind: "local-storage", durable: true, locks });
+pageStoreContract("key-value (localStorage layout)", async () => keyValue(), {
+  tabs: async () => {
+    const kv = new MemoryKeyValue();
+    return [keyValue(kv), keyValue(kv)];
+  },
+});
+pageStoreContract("key-value with Web Locks", async () => keyValue(new MemoryKeyValue(), new FakeLocks()), {
+  tabs: async () => {
+    const kv = new MemoryKeyValue();
+    const locks = new FakeLocks();
+    return [keyValue(kv, locks), keyValue(kv, locks)];
+  },
+});
+const opfs = (root: FakeDirectoryHandle, locks: FakeLocks | null = null) =>
+  OpfsPageStore.open(asDirectoryHandle(root), { locks });
+const opfsTabs = (volume: () => FakeVolume) => async () => {
+  const root = new FakeDirectoryHandle("", volume());
+  const locks = new FakeLocks();
+  return [await opfs(root, locks), await opfs(root, locks)] as const;
+};
+pageStoreContract("OPFS (in-memory fake)", async () => opfs(new FakeDirectoryHandle()), {
+  tabs: opfsTabs(() => new FakeVolume()),
+});
 pageStoreContract(
-  "key-value (localStorage layout)",
-  async () => new KeyValuePageStore(new MemoryKeyValue(), { kind: "local-storage", durable: true }),
+  "OPFS (fake listing in reverse, with stale snapshots)",
+  async () =>
+    opfs(new FakeDirectoryHandle("", new FakeVolume(Date.now, { listOrder: "reverse", staleSnapshots: true }))),
+  { tabs: opfsTabs(() => new FakeVolume(Date.now, { listOrder: "reverse", staleSnapshots: true })) },
 );
-pageStoreContract("OPFS (in-memory fake)", async () =>
-  OpfsPageStore.open(asDirectoryHandle(new FakeDirectoryHandle()), { locks: null }),
+pageStoreContract(
+  "OPFS (browser-like fake: names ignore case, reverse listing, stale snapshots)",
+  async () => opfs(new FakeDirectoryHandle("", new FakeVolume(Date.now, BROWSER_LIKE))),
+  { tabs: opfsTabs(() => new FakeVolume(Date.now, BROWSER_LIKE)) },
 );
+
+/** Two stores over one storage and one set of locks, standing for two tabs. */
+function twoTabs() {
+  const kv = new MemoryKeyValue();
+  const locks = new FakeLocks();
+  const tab = () => new KeyValuePageStore(kv, { kind: "local-storage", durable: true, locks });
+  return { locks, a: tab(), b: tab() };
+}
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+test("the localStorage backend writes a page only while holding its lock", async () => {
+  const { locks, a, b } = twoTabs();
+  await a.create(parsePageName("Brief"), "v1");
+  let release = () => {};
+  const held = locks.request("a4:page:brief", () => new Promise<void>((resolve) => (release = resolve)));
+  const write = b.write(parsePageName("Brief"), "v2");
+  await settle();
+  assert.equal((await a.read(parsePageName("Brief"))).text, "v1");
+  release();
+  await held;
+  await write;
+  assert.equal((await a.read(parsePageName("Brief"))).text, "v2");
+});
+
+test("OPFS: an interrupted rename leaves the text under a listed name", async () => {
+  const volume = new FakeVolume(Date.now, BROWSER_LIKE);
+  const store = await opfs(new FakeDirectoryHandle("", volume));
+  const texts = async () =>
+    Object.fromEntries(
+      await Promise.all((await store.list()).map(async (p) => [p.name, (await store.read(p.name)).text])),
+    );
+
+  // A rename that dies before deleting the source leaves the text under both names.
+  await store.create(parsePageName("Notes"), "field notes");
+  volume.failRemove = (name) => name === "Notes.md";
+  await assert.rejects(store.rename(parsePageName("Notes"), parsePageName("Brief")));
+  assert.deepEqual(await texts(), { Brief: "field notes", Notes: "field notes" });
+
+  // A case-only rename that dies before deleting its temporary page leaves it listed too.
+  volume.failRemove = null;
+  await store.trash(parsePageName("Notes"));
+  await store.rename(parsePageName("Brief"), parsePageName("brief"));
+  volume.failRemove = (name) => name.endsWith("(renaming).md");
+  await assert.rejects(store.rename(parsePageName("brief"), parsePageName("BRIEF")));
+  assert.deepEqual(await texts(), { BRIEF: "field notes", "brief (renaming)": "field notes" });
+});
 
 test("name rules", () => {
   assert.equal(parsePageName("  Agent   charter  "), "Agent charter");

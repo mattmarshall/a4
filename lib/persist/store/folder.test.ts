@@ -4,7 +4,7 @@ import { FolderPageFiles, MAX_FILE_BYTES, walkFolder } from "./folder.ts";
 import { parseFilePath } from "./refs.ts";
 import { revisionOf } from "./revision.ts";
 import { pageFilesContract } from "./testing/contract.ts";
-import { asDirectoryHandle, FakeDirectoryHandle } from "./testing/fake-opfs.ts";
+import { asDirectoryHandle, BROWSER_LIKE, FakeDirectoryHandle, FakeVolume } from "./testing/fake-opfs.ts";
 import { forgeFilePath } from "./testing/forge.ts";
 import { isStoreError, type PageStoreErrorCode } from "./types.ts";
 import { browserFolderSource } from "../folder/fs-browser.ts";
@@ -25,10 +25,16 @@ async function rejectsWith(promise: Promise<unknown>, code: PageStoreErrorCode) 
   });
 }
 
-// The folder backend passes the core contract unchanged.
+// The folder backend passes the core contract unchanged, also on a disk that
+// ignores case, lists in another order, and lets snapshots go stale.
 pageFilesContract(
   "folder (in-memory fake)",
   async () => folder().store,
+  (stem) => p(`${stem}.md`),
+);
+pageFilesContract(
+  "folder (browser-like fake)",
+  async () => folder(new FakeDirectoryHandle("repo", new FakeVolume(Date.now, BROWSER_LIKE))).store,
   (stem) => p(`${stem}.md`),
 );
 
@@ -131,6 +137,17 @@ test("the walk stops at the entry limit and reports a partial list", async () =>
   assert.equal(result.partial, true);
   assert.equal(result.visited, 20);
   assert.equal(result.files.length, 19); // the "notes" folder counts as one entry
+});
+
+test("the folder's list stops where the scan stops", async () => {
+  const root = new FakeDirectoryHandle("repo");
+  for (let i = 0; i < 30; i++) root.put(`notes/${i}.md`, "x");
+  const store = new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), {
+    id: "test",
+    locks: null,
+    scanLimit: 20,
+  });
+  assert.equal((await store.list()).length, 19); // the "notes" folder counts as one entry
 });
 
 test("a create whose write fails leaves no empty file in the folder", async () => {

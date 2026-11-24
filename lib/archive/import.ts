@@ -7,13 +7,18 @@
  * Pages created earlier in the same import count as existing.
  */
 
-import { nextAvailableName, sanitizePageName } from "../persist/store/names.ts";
+import { sanitizePageName } from "../persist/store/names.ts";
 import type { PageName, PageStore } from "../persist/store/types.ts";
 import { normalizeText } from "../page/index.ts";
 import { DEFAULT_UNZIP_LIMITS, openZip, ZipError, type UnzipLimits } from "./unzip.ts";
 
+const MIB = 1024 * 1024;
+
 /** Largest page file accepted (uncompressed bytes). */
-export const MAX_PAGE_BYTES = 1024 * 1024;
+export const MAX_PAGE_BYTES = MIB;
+
+/** Largest zip file the library will read at all, before opening it. */
+export const MAX_IMPORT_FILE_BYTES = 100 * MIB;
 
 const PAGE_EXTENSIONS = [".md", ".txt"];
 
@@ -116,11 +121,11 @@ export async function importZip(
       continue;
     }
 
-    const name = clash ? nextAvailableName(wanted, existing.values()) : wanted;
-    const result = await store.create(name, text);
+    // Claimed under the store's lock: a page another tab made meanwhile is a clash too.
+    const result = await store.createUnique(wanted, text);
     existing.set(result.name.toLocaleLowerCase("en-US"), result.name);
     textCache.set(result.name, text);
-    report.created.push({ path: entry.name, name: result.name, renamedFrom: clash ? wanted : null });
+    report.created.push({ path: entry.name, name: result.name, renamedFrom: result.name === wanted ? null : wanted });
   }
   return report;
 }
@@ -131,7 +136,7 @@ const REASON_LABEL: Record<SkipReason, string> = {
   "not-a-page": "not .md or .txt",
   binary: "binary",
   encrypted: "encrypted",
-  "too-large": "over 1 MB",
+  "too-large": `over ${MAX_PAGE_BYTES / MIB} MiB`,
   corrupt: "damaged",
 };
 

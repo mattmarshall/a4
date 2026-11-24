@@ -151,7 +151,7 @@ test("verdict: noisy, light, balanced", () => {
   assert.equal(analyze(INCIDENT_NARRATIVE, T).assessment.verdict, "balanced");
 });
 
-test("repeated-term finding names the top term and its count", () => {
+test("density-analysis, Repeated term finding: 14 rows, 28 occurrences of the top term", () => {
   const text = Array.from({ length: 14 }, (_, i) => `status status r${i}`).join("\n");
   const a = analyze(text, T);
   assert.ok(a.metrics.repetition >= DEFAULT_CONFIG.verdict.noisyRepetition);

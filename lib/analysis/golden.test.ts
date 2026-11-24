@@ -9,6 +9,11 @@
  * falls between a preset's width and 80, so the record is unchanged; the
  * last test pins the new rule.
  *
+ * fix-review-leftovers reworded two Welcome lines ("inspector" for
+ * "sidebar", "Page → New" for "Use New"). That moved only the welcome@*
+ * character, ink, term, and repetition numbers; every verdict, and every
+ * other text, is unchanged.
+ *
  * Regenerate (only for an intended change, listed in the test):
  *   A4_WRITE_GOLDEN=1 node --test lib/analysis/golden.test.ts
  */

@@ -20,7 +20,7 @@ How to use it:
 
 1. Write or paste the context you plan to hand an agent, right on the sheet.
 2. Watch the right margin: each bar shows how much ink that row carries. The
-   sidebar tracks fill, syntax, repetition, narrative share, and tokens.
+   inspector tracks fill, syntax, repetition, narrative share, and tokens.
 3. Switch lenses to see where the cells go. Syntax shows scaffolding,
    Repetition shows what you keep restating, Structure shows sentences versus
    fields, and Tokens shows roughly how a model will chunk the text.
@@ -33,5 +33,5 @@ How to use it:
 Rule of thumb: if it does not fit on one page, it is not one idea. Split it
 into pages that each serve a single purpose, and give the agent the stack.
 
-Every page saves itself as a .md file in this browser. Use New to start one.
+Every page saves itself as a .md file in this browser. Page → New starts one.
 `;
