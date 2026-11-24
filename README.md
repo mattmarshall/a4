@@ -92,9 +92,7 @@ push and pull request.
 - **Protobuf compatibility:** `buf breaking` compares `proto/` with `main`
   locally, and in CI with the pull request's base or the previous `main`
   commit. The worker transport (`proto/a4/v1/rpc.proto`) is exempt: a worker
-  and its page always ship together. `buf.yaml` also lets `model.proto` and
-  `sheet.proto` drop the fields that became a `oneof` or an enum in
-  refactor-model-plugins; remove that exception once the change has shipped.
+  and its page always ship together.
 - **First load:** the build records each client chunk's modules in
   `dist/client-chunks.json`. `pnpm check:bundle` fails if the chunks the home
   page loads contain the Fit to page adapter, the semantic worker,
