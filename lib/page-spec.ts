@@ -16,7 +16,10 @@ export const PX_PER_MM_ACTUAL = 96 / 25.4;
 /** IBM Plex Mono's advance width is 600/1000 em. */
 export const GLYPH_ADVANCE_EM = 0.6;
 
-export type PresetId = "terminal" | "pica" | "elite" | "dense";
+/** The presets, in menu order. Every other preset table is keyed by these. */
+export const PRESET_ORDER = ["terminal", "pica", "elite", "dense"] as const;
+
+export type PresetId = (typeof PRESET_ORDER)[number];
 
 export interface PageSpec {
   id: PresetId;
@@ -61,7 +64,7 @@ function derive(
   };
 }
 
-export const PRESETS: Record<PresetId, PageSpec> = {
+export const PRESETS = {
   terminal: derive(
     "terminal",
     "Terminal",
@@ -74,9 +77,7 @@ export const PRESETS: Record<PresetId, PageSpec> = {
   pica: derive("pica", "Pica", "Typewriter 10 cpi × 6 lpi, 1 in margins", INCH / 10, INCH / 6, INCH, INCH),
   elite: derive("elite", "Elite", "Typewriter 12 cpi × 6 lpi, 1 in margins", INCH / 12, INCH / 6, INCH, INCH),
   dense: derive("dense", "Dense", "100 × 80 fine print (≈8.5 pt mono)", 1.8, 3.5, 15, 8.5),
-};
-
-export const PRESET_ORDER: PresetId[] = ["terminal", "pica", "elite", "dense"];
+} as const satisfies Readonly<Record<PresetId, PageSpec>>;
 
 export const DEFAULT_PRESET: PresetId = "terminal";
 

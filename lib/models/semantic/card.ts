@@ -2,8 +2,7 @@
 
 import { create } from "@bufbuild/protobuf";
 import { ModelCardSchema, Operation, Placement, View } from "../../gen/a4/v1/model_pb.js";
-
-export const SEMANTIC_REPETITION_ID = "semantic-repetition";
+import { pluginIdOf } from "../plugin-id.ts";
 
 /** The embedding model, pinned to one Hugging Face commit. */
 export const EMBEDDING_MODEL = "Xenova/all-MiniLM-L6-v2";
@@ -19,7 +18,7 @@ export const DOWNLOAD_BYTES = {
 };
 
 export const SEMANTIC_REPETITION_CARD = create(ModelCardSchema, {
-  id: SEMANTIC_REPETITION_ID,
+  id: "semantic-repetition",
   name: "Semantic repetition",
   version: "1",
   description: "Finds sentences and fields that say the same thing in different words.",
@@ -30,3 +29,5 @@ export const SEMANTIC_REPETITION_CARD = create(ModelCardSchema, {
   downloadBytes: BigInt(DOWNLOAD_BYTES.model + DOWNLOAD_BYTES.runtime),
   model: "all-MiniLM-L6-v2 (8-bit)",
 });
+
+export const SEMANTIC_REPETITION_ID = pluginIdOf(SEMANTIC_REPETITION_CARD);

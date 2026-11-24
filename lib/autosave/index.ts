@@ -1,6 +1,9 @@
 export { Journal, type Draft } from "./journal.ts";
 export {
   PageSession,
+  LibrarySession,
+  createLibrarySession,
+  createFileSession,
   realScheduler,
   DEBOUNCE_MS,
   MAX_WAIT_MS,
@@ -8,6 +11,9 @@ export {
   type SessionEvent,
   type Scheduler,
   type PageSessionOptions,
+  type RelocationPolicy,
+  type SameStorePolicy,
+  type CopyOutPolicy,
 } from "./session.ts";
 export {
   recoverDrafts,
@@ -18,5 +24,4 @@ export {
   MIGRATED_KEY,
   STALE_DRAFT_MS,
   type Recovery,
-  type RecoverOptions,
 } from "./bootstrap.ts";

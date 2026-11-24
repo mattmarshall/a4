@@ -1,0 +1,24 @@
+// Cross-tab library events: what one tab tells the others on the "a4-pages"
+// BroadcastChannel, posted as the binary encoding of LibraryEvent.
+
+syntax = "proto3";
+
+package a4.v1;
+
+message LibraryEvent {
+  oneof event {
+    // The page list changed: a page was created, renamed, trashed, restored,
+    // or imported. Other tabs refresh their list.
+    PagesChanged pages_changed = 1;
+    // A page was saved. Other tabs refresh their list, and a tab showing the
+    // page with no unsaved edits adopts the new text.
+    PageSaved page_saved = 2;
+  }
+}
+
+message PagesChanged {}
+
+message PageSaved {
+  // The page's name in the library.
+  string name = 1;
+}

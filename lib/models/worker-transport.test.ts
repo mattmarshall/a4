@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { create } from "@bufbuild/protobuf";
+import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import {
   DescribeRequestSchema,
   ModelCardSchema,
@@ -8,12 +8,13 @@ import {
   Placement,
   ScoreRequestSchema,
 } from "../gen/a4/v1/model_pb.js";
+import { RpcFrameSchema, type RpcFrame } from "../gen/a4/v1/rpc_pb.js";
 import { PRESETS } from "../page-spec.ts";
 import { sheetRecord } from "../tensor/record.ts";
 import { implement } from "./client.ts";
-import { ModelError } from "./errors.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
 import { FakeWorker } from "./testing/fake-worker.ts";
-import { connectPort, fromWorker, isClosed, servePort, type PortLike } from "./worker-transport.ts";
+import { connectPort, fromWorker, isClosed, servePort } from "./worker-transport.ts";
 
 const card = create(ModelCardSchema, {
   id: "echo",
@@ -24,8 +25,8 @@ const card = create(ModelCardSchema, {
 
 function pair(handlers: Parameters<typeof implement>[0]) {
   const channel = new MessageChannel();
-  const stop = servePort(channel.port2 as unknown as PortLike, implement({ describe: () => ({ card }), ...handlers }));
-  const client = connectPort(channel.port1 as unknown as PortLike);
+  const stop = servePort(channel.port2, implement({ describe: () => ({ card }), ...handlers }));
+  const client = connectPort(channel.port1);
   const close = () => {
     stop();
     channel.port1.close();
@@ -77,17 +78,18 @@ test("worker transport: streaming replies arrive in order, then end", async () =
 test("worker transport: plugin errors keep their code across the port", async () => {
   const { client, close } = pair({
     score: () => {
-      throw new ModelError("not-ready", "Download the model first.");
+      throw new ModelError(ErrorCode.NOT_READY, "Download the model first.");
     },
   });
   try {
     await assert.rejects(
       client.score(create(ScoreRequestSchema)),
-      (e: unknown) => e instanceof ModelError && e.code === "not-ready" && e.message === "Download the model first.",
+      (e: unknown) =>
+        e instanceof ModelError && e.code === ErrorCode.NOT_READY && e.message === "Download the model first.",
     );
     await assert.rejects(
       client.encode(create((await import("../gen/a4/v1/model_pb.js")).EncodeRequestSchema)),
-      (e: unknown) => e instanceof ModelError && e.code === "unimplemented",
+      (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNIMPLEMENTED,
     );
   } finally {
     close();
@@ -109,7 +111,7 @@ test("worker transport: aborting a call cancels it on the server", async () => {
     const controller = new AbortController();
     const call = client.score(create(ScoreRequestSchema), controller.signal);
     setTimeout(() => controller.abort(), 10);
-    await assert.rejects(call, (e: unknown) => e instanceof ModelError && e.code === "cancelled");
+    await assert.rejects(call, (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CANCELED);
     await new Promise((r) => setTimeout(r, 20));
     assert.equal(serverAborted, true);
   } finally {
@@ -132,7 +134,7 @@ test("worker transport: a crashed worker fails pending calls at once, and later 
   const worker = new FakeWorker();
   let release: () => void = () => {};
   servePort(
-    worker.channel.port2 as unknown as PortLike,
+    worker.channel.port2,
     implement({
       describe: () => ({ card }),
       score: () => new Promise((resolve) => (release = () => resolve({}))),
@@ -143,13 +145,13 @@ test("worker transport: a crashed worker fails pending calls at once, and later 
   await new Promise((r) => setTimeout(r, 20));
   const started = Date.now();
   worker.crash();
-  await assert.rejects(scoring, (e: unknown) => e instanceof ModelError && e.code === "unavailable");
+  await assert.rejects(scoring, (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNAVAILABLE);
   assert.ok(Date.now() - started < 1000);
   assert.ok(worker.terminated);
   assert.ok(isClosed(client));
   await assert.rejects(
     client.describe(create(DescribeRequestSchema)),
-    (e: unknown) => e instanceof ModelError && e.code === "unavailable",
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNAVAILABLE,
   );
   release();
 });
@@ -159,5 +161,78 @@ test("worker transport: an unreadable message from the worker also fails the cli
   const client = connectPort(fromWorker(worker));
   const pending = client.describe(create(DescribeRequestSchema));
   worker.dispatchEvent(new MessageEvent("messageerror"));
-  await assert.rejects(pending, (e: unknown) => e instanceof ModelError && e.code === "unavailable");
+  await assert.rejects(pending, (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNAVAILABLE);
+});
+
+/** The raw frames a port receives, decoded. */
+function frames(port: MessagePort): RpcFrame[] {
+  const out: RpcFrame[] = [];
+  port.addEventListener("message", (event: MessageEvent) => {
+    out.push(fromBinary(RpcFrameSchema, new Uint8Array(event.data as ArrayBuffer)));
+  });
+  port.start();
+  return out;
+}
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+test("worker transport: an undecodable request with an id gets an error reply", async () => {
+  const channel = new MessageChannel();
+  const stop = servePort(channel.port2, implement({ describe: () => ({ card }) }));
+  const replies = frames(channel.port1);
+  try {
+    // Field 1 (id 7), then bytes that aren't a valid frame.
+    channel.port1.postMessage(new Uint8Array([0x08, 0x07, 0xff, 0xff, 0xff]).buffer);
+    // A frame with an id and nothing else.
+    channel.port1.postMessage(toBinary(RpcFrameSchema, create(RpcFrameSchema, { id: 9 })).slice().buffer);
+    // Not a frame at all: no id to answer.
+    channel.port1.postMessage("hello");
+    await settle();
+    assert.deepEqual(
+      replies.map((f) => [f.id, f.kind.case, f.kind.case === "error" ? f.kind.value.code : null]),
+      [
+        [7, "error", ErrorCode.UNREADABLE],
+        [9, "error", ErrorCode.UNREADABLE],
+      ],
+    );
+  } finally {
+    stop();
+    channel.port1.close();
+    channel.port2.close();
+  }
+});
+
+test("worker transport: an unknown method gets an unimplemented reply", async () => {
+  const channel = new MessageChannel();
+  const stop = servePort(channel.port2, implement({ describe: () => ({ card }) }));
+  const replies = frames(channel.port1);
+  try {
+    const call = create(RpcFrameSchema, { id: 3, kind: { case: "call", value: { method: "teleport" } } });
+    channel.port1.postMessage(toBinary(RpcFrameSchema, call).slice().buffer);
+    await settle();
+    assert.equal(replies[0]?.kind.case === "error" ? replies[0].kind.value.code : null, ErrorCode.UNIMPLEMENTED);
+  } finally {
+    stop();
+    channel.port1.close();
+    channel.port2.close();
+  }
+});
+
+test("worker transport: a reply that can't be decoded ends its call instead of hanging", async () => {
+  const channel = new MessageChannel();
+  const client = connectPort(channel.port1);
+  const requests = frames(channel.port2);
+  channel.port2.addEventListener("message", () => {
+    const id = requests.at(-1)?.id ?? 0;
+    channel.port2.postMessage(new Uint8Array([0x08, id, 0xff, 0xff]).buffer);
+  });
+  try {
+    await assert.rejects(
+      client.describe(create(DescribeRequestSchema)),
+      (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNREADABLE,
+    );
+  } finally {
+    channel.port1.close();
+    channel.port2.close();
+  }
 });

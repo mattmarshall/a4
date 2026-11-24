@@ -22,17 +22,17 @@ test("every lens covers the text exactly, without altering it", () => {
 test("syntax lens emphasizes braces and quotes, dims letters and digits", () => {
   const text = '{"a": 1}';
   const segs = segmentsFor("syntax", text, analyze(text, T));
-  const clsAt = (i: number): string | undefined => {
+  const styleAt = (i: number): string | undefined => {
     let pos = 0;
     for (const s of segs) {
-      if (i < pos + s.text.length) return s.cls;
+      if (i < pos + s.text.length) return s.style;
       pos += s.text.length;
     }
     return undefined;
   };
-  for (const i of [0, 1, 3, 4, 7]) assert.equal(clsAt(i), "lens-syn", `index ${i}`);
-  assert.equal(clsAt(2), "lens-dim");
-  assert.equal(clsAt(6), "lens-dim");
+  for (const i of [0, 1, 3, 4, 7]) assert.equal(styleAt(i), "syntax", `index ${i}`);
+  assert.equal(styleAt(2), "dim");
+  assert.equal(styleAt(6), "dim");
 });
 
 test("repetition heat grows with frequency", () => {
@@ -40,20 +40,20 @@ test("repetition heat grows with frequency", () => {
   assert.ok(heatLevel(10, 10) > heatLevel(2, 10));
   const text = `${"status ".repeat(10)}owner owner`;
   const segs = segmentsFor("repetition", text, analyze(text, T));
-  const statusCls = segs.find((s) => s.text === "status")?.cls;
-  const ownerCls = segs.find((s) => s.text === "owner")?.cls;
-  assert.equal(statusCls, "lens-heat-4");
-  assert.equal(ownerCls, "lens-heat-1");
+  const statusCls = segs.find((s) => s.text === "status")?.style;
+  const ownerCls = segs.find((s) => s.text === "owner")?.style;
+  assert.equal(statusCls, "heat-4");
+  assert.equal(ownerCls, "heat-1");
 });
 
 test("tokens lens alternates shades between adjacent pieces", () => {
   const text = "hello world";
   const segs = segmentsFor("tokens", text, analyze(text, T));
   assert.deepEqual(
-    segs.map((s) => [s.text, s.cls]),
+    segs.map((s) => [s.text, s.style]),
     [
-      ["hello", "lens-tok-a"],
-      [" world", "lens-tok-b"],
+      ["hello", "token-a"],
+      [" world", "token-b"],
     ],
   );
 });

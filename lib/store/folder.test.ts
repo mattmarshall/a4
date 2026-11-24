@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FolderPageFiles, MAX_FILE_BYTES, walkFolder } from "./folder.ts";
-import { parseFilePath, type FilePath } from "./refs.ts";
+import { parseFilePath } from "./refs.ts";
 import { revisionOf } from "./revision.ts";
 import { pageFilesContract } from "./testing/contract.ts";
 import { asDirectoryHandle, FakeDirectoryHandle } from "./testing/fake-opfs.ts";
-import { isStoreError, type FileUnreadableError, type PageStoreErrorCode } from "./types.ts";
+import { forgeFilePath } from "./testing/forge.ts";
+import { isStoreError, type PageStoreErrorCode } from "./types.ts";
 
 const p = (s: string) => parseFilePath(s);
 
@@ -53,19 +54,19 @@ test("invalid UTF-8 and very large files are unreadable, with the reason", async
   root.put("ok.md", "x".repeat(MAX_FILE_BYTES));
   await assert.rejects(
     store.read(p("notes.md")),
-    (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "not-utf8",
+    (e: unknown) => isStoreError(e, "unreadable") && e.reason === "not-utf8",
   );
   await assert.rejects(
     store.read(p("CHANGELOG.md")),
-    (e: unknown) => isStoreError(e, "unreadable") && (e as FileUnreadableError).reason === "too-large",
+    (e: unknown) => isStoreError(e, "unreadable") && e.reason === "too-large",
   );
   assert.equal((await store.read(p("ok.md"))).size, MAX_FILE_BYTES);
 });
 
 test("only .md and .mdc paths inside the folder are accepted", async () => {
   const { root, store } = folder();
-  await rejectsWith(store.create(".github/workflows/ci.yml" as FilePath, "on: push"), "invalid-name");
-  await rejectsWith(store.write("../outside.md" as FilePath, "x"), "invalid-name");
+  await rejectsWith(store.create(forgeFilePath(".github/workflows/ci.yml"), "on: push"), "invalid-name");
+  await rejectsWith(store.write(forgeFilePath("../outside.md"), "x"), "invalid-name");
   assert.equal(root.children.size, 0);
   await store.create(p(".cursor/rules/style.mdc"), "rule");
   assert.equal(root.fileAt(".cursor/rules/style.mdc")?.text, "rule");

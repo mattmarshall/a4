@@ -30,6 +30,16 @@ export type TrashId = string & { readonly [trashIdBrand]: true };
 
 export type StoreKind = "opfs" | "local-storage" | "memory" | "folder";
 
+/**
+ * Reads and writes an identifier as a stored string. `parse` returns null for
+ * a string that isn't a valid identifier, so a stale or corrupt entry is
+ * skipped instead of aborting a listing or a recovery.
+ */
+export interface IdCodec<Id> {
+  parse(value: string): Id | null;
+  format(id: Id): string;
+}
+
 export interface PageSummary<Id extends string = PageName> {
   readonly name: Id;
   /** UTF-8 size in bytes. */
@@ -98,18 +108,23 @@ export interface PageStore extends PageFiles<PageName> {
 // ---------------------------------------------------------------------------
 // Typed errors
 
-export type PageStoreErrorCode =
-  | "not-found"
-  | "exists"
-  | "invalid-name"
-  | "invalid-text"
-  | "conflict"
-  | "unavailable"
-  | "unreadable";
+/** Each error code and the class that carries it. */
+export interface StoreErrorMap {
+  "not-found": PageNotFoundError;
+  exists: PageExistsError;
+  "invalid-name": InvalidPageNameError;
+  "invalid-text": InvalidTextError;
+  conflict: PageConflictError;
+  unavailable: StoreUnavailableError;
+  unreadable: FileUnreadableError;
+}
 
+export type PageStoreErrorCode = keyof StoreErrorMap;
+
+/** The base of every store error. Only the classes below create one, so a code always means its class. */
 export class PageStoreError extends Error {
   readonly code: PageStoreErrorCode;
-  constructor(code: PageStoreErrorCode, message: string) {
+  protected constructor(code: PageStoreErrorCode, message: string) {
     super(message);
     this.name = "PageStoreError";
     this.code = code;
@@ -117,6 +132,7 @@ export class PageStoreError extends Error {
 }
 
 export class PageNotFoundError extends PageStoreError {
+  override readonly code = "not-found";
   readonly page: string;
   constructor(page: string) {
     super("not-found", `No page named “${page}”.`);
@@ -125,6 +141,7 @@ export class PageNotFoundError extends PageStoreError {
 }
 
 export class PageExistsError extends PageStoreError {
+  override readonly code = "exists";
   readonly page: string;
   constructor(page: string) {
     super("exists", `A page named “${page}” already exists.`);
@@ -133,6 +150,7 @@ export class PageExistsError extends PageStoreError {
 }
 
 export class InvalidPageNameError extends PageStoreError {
+  override readonly code = "invalid-name";
   readonly input: string;
   constructor(input: string, reason: string) {
     super("invalid-name", reason);
@@ -141,10 +159,12 @@ export class InvalidPageNameError extends PageStoreError {
 }
 
 export class PageConflictError extends PageStoreError {
+  override readonly code = "conflict";
   readonly page: string;
   readonly expected: Revision;
-  readonly actual: Revision;
-  constructor(page: string, expected: Revision, actual: Revision) {
+  /** The stored revision, or null when the stored content can't be read. */
+  readonly actual: Revision | null;
+  constructor(page: string, expected: Revision, actual: Revision | null) {
     super("conflict", `“${page}” was changed elsewhere.`);
     this.page = page;
     this.expected = expected;
@@ -153,6 +173,7 @@ export class PageConflictError extends PageStoreError {
 }
 
 export class StoreUnavailableError extends PageStoreError {
+  override readonly code = "unavailable";
   constructor(message: string) {
     super("unavailable", message);
   }
@@ -160,6 +181,7 @@ export class StoreUnavailableError extends PageStoreError {
 
 /** Text that isn't well-formed Unicode (a lone surrogate) can't be stored exactly. */
 export class InvalidTextError extends PageStoreError {
+  override readonly code = "invalid-text";
   readonly page: string;
   constructor(page: string) {
     super("invalid-text", `“${page}” contains text that can’t be saved exactly (an unpaired surrogate character).`);
@@ -176,6 +198,7 @@ export function assertStorableText(page: string, text: string): void {
 export type UnreadableReason = "too-large" | "not-utf8";
 
 export class FileUnreadableError extends PageStoreError {
+  override readonly code = "unreadable";
   readonly page: string;
   readonly reason: UnreadableReason;
   constructor(page: string, reason: UnreadableReason) {
@@ -185,9 +208,7 @@ export class FileUnreadableError extends PageStoreError {
   }
 }
 
-export function isStoreError<C extends PageStoreErrorCode>(
-  error: unknown,
-  code: C,
-): error is PageStoreError & { code: C } {
+/** True when `error` is the store error for `code`, narrowed to its class. */
+export function isStoreError<C extends PageStoreErrorCode>(error: unknown, code: C): error is StoreErrorMap[C] {
   return error instanceof PageStoreError && error.code === code;
 }

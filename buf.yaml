@@ -7,3 +7,12 @@ lint:
 breaking:
   use:
     - FILE
+  # The worker transport is internal to a worker and the page that starts it,
+  # which always ship together, so its frame can change freely.
+  ignore:
+    - proto/a4/v1/rpc.proto
+  # refactor-typed-contracts moved RpcFrame and RpcError from model.proto to
+  # rpc.proto. Remove this exception once that change has shipped.
+  ignore_only:
+    MESSAGE_NO_DELETE:
+      - proto/a4/v1/model.proto

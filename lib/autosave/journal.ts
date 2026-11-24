@@ -12,7 +12,8 @@
  */
 
 import type { KeyValue } from "../store/key-value.ts";
-import type { PageName, Revision } from "../store/types.ts";
+import { parseRevision } from "../store/revision.ts";
+import type { IdCodec, PageName, Revision } from "../store/types.ts";
 
 export interface Draft<Id extends string = PageName> {
   tabId: string;
@@ -22,19 +23,25 @@ export interface Draft<Id extends string = PageName> {
   at: number;
 }
 
-/** Generic over the page identifier: page names, or file paths for a folder. */
+/**
+ * Generic over the page identifier: page names, or file paths for a folder.
+ * `codec` reads identifiers back from keys; an entry whose key or base
+ * revision doesn't parse is skipped or treated as having no base.
+ */
 export class Journal<Id extends string = PageName> {
   readonly tabId: string;
   readonly #kv: KeyValue;
+  readonly #codec: IdCodec<Id>;
   readonly #now: () => number;
   readonly #text: string;
   readonly #base: string;
   readonly #at: string;
 
-  constructor(kv: KeyValue, tabId: string, options: { prefix?: string; now?: () => number } = {}) {
+  constructor(kv: KeyValue, tabId: string, codec: IdCodec<Id>, options: { prefix?: string; now?: () => number } = {}) {
     if (tabId.includes(":")) throw new Error("Tab ids cannot contain ':'");
     const prefix = options.prefix ?? "a4:";
     this.#kv = kv;
+    this.#codec = codec;
     this.tabId = tabId;
     this.#now = options.now ?? Date.now;
     this.#text = `${prefix}draft:`;
@@ -44,7 +51,7 @@ export class Journal<Id extends string = PageName> {
 
   /** Record a draft for this tab. Returns false if storage refused it. */
   set(name: Id, text: string, base: Revision | null): boolean {
-    const key = `${this.tabId}:${name}`;
+    const key = this.#key(this.tabId, name);
     try {
       this.#kv.set(this.#text + key, text);
       this.#kv.set(this.#base + key, base ?? "");
@@ -64,7 +71,7 @@ export class Journal<Id extends string = PageName> {
   }
 
   clearFor(tabId: string, name: Id): void {
-    const key = `${tabId}:${name}`;
+    const key = this.#key(tabId, name);
     try {
       this.#kv.remove(this.#text + key);
       this.#kv.remove(this.#base + key);
@@ -88,14 +95,19 @@ export class Journal<Id extends string = PageName> {
       const rest = key.slice(this.#text.length);
       const colon = rest.indexOf(":");
       if (colon <= 0) continue;
-      const draft = this.#read(rest.slice(0, colon), rest.slice(colon + 1) as Id);
+      const name = this.#codec.parse(rest.slice(colon + 1));
+      const draft = name === null ? null : this.#read(rest.slice(0, colon), name);
       if (draft) out.push(draft);
     }
     return out;
   }
 
+  #key(tabId: string, name: Id): string {
+    return `${tabId}:${this.#codec.format(name)}`;
+  }
+
   #read(tabId: string, name: Id): Draft<Id> | null {
-    const key = `${tabId}:${name}`;
+    const key = this.#key(tabId, name);
     try {
       const text = this.#kv.get(this.#text + key);
       if (text === null) return null;
@@ -104,7 +116,7 @@ export class Journal<Id extends string = PageName> {
         tabId,
         name,
         text,
-        base: base ? (base as Revision) : null,
+        base: base === null ? null : parseRevision(base),
         at: Number(this.#kv.get(this.#at + key) ?? 0),
       };
     } catch {

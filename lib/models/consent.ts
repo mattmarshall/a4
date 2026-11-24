@@ -8,10 +8,11 @@
 
 import { revisionOf } from "../store/revision.ts";
 import type { Revision } from "../store/types.ts";
-import { ModelError } from "./errors.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
+import type { PluginId } from "./plugin-id.ts";
 
 export interface ConsentToken {
-  readonly pluginId: string;
+  readonly pluginId: PluginId;
   readonly revision: Revision;
   readonly characters: number;
 }
@@ -21,7 +22,7 @@ export interface ConsentToken {
 const live = new WeakSet<ConsentToken>();
 
 /** Mint a single-use token for sending exactly `text` to `pluginId`. */
-export function grantConsent(pluginId: string, text: string): ConsentToken {
+export function grantConsent(pluginId: PluginId, text: string): ConsentToken {
   const token: ConsentToken = Object.freeze({ pluginId, revision: revisionOf(text), characters: text.length });
   live.add(token);
   return token;
@@ -31,13 +32,16 @@ export function grantConsent(pluginId: string, text: string): ConsentToken {
  * Use up a token for sending `text` to `pluginId`. Throws "consent-required"
  * when the token is missing, already used, forged, or for other text.
  */
-export function consumeConsent(token: ConsentToken | undefined, pluginId: string, text: string): void {
+export function consumeConsent(token: ConsentToken | undefined, pluginId: PluginId, text: string): void {
   if (!token || !live.has(token))
-    throw new ModelError("consent-required", "This model sends the page off the device; confirm the request first.");
+    throw new ModelError(
+      ErrorCode.CONSENT_REQUIRED,
+      "This model sends the page off the device; confirm the request first.",
+    );
   live.delete(token);
   if (token.pluginId !== pluginId)
-    throw new ModelError("consent-required", "The confirmation was for a different model.");
+    throw new ModelError(ErrorCode.CONSENT_REQUIRED, "The confirmation was for a different model.");
   if (token.characters !== text.length || token.revision !== revisionOf(text)) {
-    throw new ModelError("consent-required", "The page changed after you confirmed; confirm again.");
+    throw new ModelError(ErrorCode.CONSENT_REQUIRED, "The page changed after you confirmed; confirm again.");
   }
 }

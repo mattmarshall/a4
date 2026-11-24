@@ -18,7 +18,7 @@ const PROSE =
 
 test("empty page", () => {
   const a = analyze("", T);
-  assert.equal(a.verdict, "Empty");
+  assert.equal(a.verdict, "empty");
   assert.equal(a.ink, 0);
   assert.equal(a.rowsUsed, 0);
   assert.equal(a.findings[0].id, "empty");
@@ -36,12 +36,11 @@ test("overflow counts rows past the page and produces a critical finding", () =>
   const text = Array.from({ length: 67 }, (_, i) => `line ${i}`).join("\n");
   const a = analyze(text, T);
   assert.equal(a.overflow, 7);
-  assert.equal(a.verdict, "Overflowing");
+  assert.equal(a.verdict, "overflowing");
   const f = a.findings.find((x) => x.id === "overflow");
   assert.ok(f);
   assert.equal(f.severity, "critical");
-  assert.match(f.title, /7 rows over/);
-  assert.match(f.detail, /split/);
+  assert.equal(f.rows, 7);
 });
 
 test("coverage and crowding", () => {
@@ -49,7 +48,7 @@ test("coverage and crowding", () => {
   const a = analyze(text, T);
   assert.ok(Math.abs(a.coverage - 800 / 4800) < 1e-9);
   assert.equal(a.crowding, 1);
-  assert.equal(a.verdict, "Light");
+  assert.equal(a.verdict, "light");
   assert.ok(a.findings.some((f) => f.id === "crowding"));
 });
 
@@ -62,7 +61,7 @@ test("a 40-row wall of text is Busy", () => {
   ).join("\n");
   const a = analyze(text, T);
   assert.ok(a.crowding >= THRESHOLDS.busyCrowding, `crowding ${a.crowding}`);
-  assert.equal(a.verdict, "Busy");
+  assert.equal(a.verdict, "busy");
 });
 
 test("syntax overhead: JSON is heavy, prose is light", () => {
@@ -135,12 +134,12 @@ test("token estimate for prose lands between 0.18 and 0.32 tokens per character"
 
 test("verdict order: overflow wins over noise", () => {
   const text = Array.from({ length: 70 }, (_, i) => `{"k${i}": [1, 2], "v": {"x": "y"}},`).join("\n");
-  assert.equal(analyze(text, T).verdict, "Overflowing");
+  assert.equal(analyze(text, T).verdict, "overflowing");
 });
 
 test("verdict: noisy, light, balanced", () => {
   const json = Array.from({ length: 12 }, (_, i) => `  {"id": "r${i}", "status": "ok", "owner": "x"},`).join("\n");
-  assert.equal(analyze(json, T).verdict, "Noisy");
+  assert.equal(analyze(json, T).verdict, "noisy");
   const varied = [
     "The export now runs at two in the morning, after the warehouse load.",
     "Finance asked for invoices earlier because quarter close moved up.",
@@ -148,8 +147,8 @@ test("verdict: noisy, light, balanced", () => {
     "Watch the first three runs for timeouts before calling it done.",
     "Ask the data platform group if their schedule shifts again.",
   ].join("\n");
-  assert.equal(analyze(varied, T).verdict, "Light");
-  assert.equal(analyze(INCIDENT_NARRATIVE, T).verdict, "Balanced");
+  assert.equal(analyze(varied, T).verdict, "light");
+  assert.equal(analyze(INCIDENT_NARRATIVE, T).verdict, "balanced");
 });
 
 test("repeated-term finding names the top term and its count", () => {
@@ -159,9 +158,8 @@ test("repeated-term finding names the top term and its count", () => {
   const f = a.findings.find((x) => x.id === "repetition");
   assert.ok(f);
   assert.equal(f.severity, "warning");
-  assert.match(f.title, /status/);
-  assert.match(f.title, /28×/);
-  assert.match(f.detail, /once/);
+  assert.equal(f.term, "status");
+  assert.equal(f.count, 28);
 });
 
 test("compressibility: repetitive text compresses below 10%", async () => {

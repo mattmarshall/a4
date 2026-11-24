@@ -14,7 +14,7 @@
 import ortMjsUrl from "onnxruntime-web/ort-wasm-simd-threaded.mjs?url";
 import ortWasmUrl from "onnxruntime-web/ort-wasm-simd-threaded.wasm?url";
 import { implement } from "../client.ts";
-import { ModelError } from "../errors.ts";
+import { ErrorCode, ModelError } from "../errors.ts";
 import { servePort, type PortLike } from "../worker-transport.ts";
 import { semanticModelCached as modelCached } from "./cache.ts";
 import { DOWNLOAD_BYTES, EMBEDDING_MODEL, EMBEDDING_REVISION, SEMANTIC_REPETITION_CARD } from "./card.ts";
@@ -131,7 +131,7 @@ servePort(
       }
       if (failure)
         throw new ModelError(
-          "network",
+          ErrorCode.NETWORK,
           `Couldn’t download the model: ${failure instanceof Error ? failure.message : String(failure)}`,
         );
       yield { loadedBytes: BigInt(TOTAL), totalBytes: BigInt(TOTAL), ready: true };
@@ -139,9 +139,9 @@ servePort(
 
     score: async (request) => {
       const sheet = request.sheet;
-      if (!sheet?.spec) throw new ModelError("invalid-result", "Score needs a sheet with a page spec.");
+      if (!sheet?.spec) throw new ModelError(ErrorCode.INVALID_RESULT, "Score needs a sheet with a page spec.");
       if (!extractor) {
-        if (!(await modelCached())) throw new ModelError("not-ready", "Download the model first.");
+        if (!(await modelCached())) throw new ModelError(ErrorCode.NOT_READY, "Download the model first.");
         await load(); // from Cache Storage: no network for the model
       }
       const text = sheet.text;

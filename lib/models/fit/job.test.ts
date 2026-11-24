@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ModelError } from "../errors.ts";
+import { ErrorCode, ModelError } from "../errors.ts";
 import type { TransformResult } from "../host.ts";
 import { FitJob, type FitRunOptions } from "./job.ts";
 
@@ -66,7 +66,7 @@ test("cancel aborts the run and reports that no page was created", async () => {
   const { job } = setup(
     (_text, options) =>
       new Promise((_resolve, reject) =>
-        options.signal.addEventListener("abort", () => reject(new ModelError("cancelled", "Canceled."))),
+        options.signal.addEventListener("abort", () => reject(new ModelError(ErrorCode.CANCELED, "Canceled."))),
       ),
   );
   job.ask({ name: "Brief", ref: "r", text: "x" });
@@ -78,7 +78,7 @@ test("cancel aborts the run and reports that no page was created", async () => {
 
 test("a rejected key is reported and forgotten; send without confirm does nothing", async () => {
   const { job, authFailed, granted } = setup(async () => {
-    throw new ModelError("auth", "The key was not accepted.");
+    throw new ModelError(ErrorCode.AUTH, "The key was not accepted.");
   });
   await job.send();
   assert.equal(granted.length, 0);

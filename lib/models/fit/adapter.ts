@@ -12,7 +12,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { layoutRows } from "../../text.ts";
 import { implement, type SheetModelClient } from "../client.ts";
-import { ModelError } from "../errors.ts";
+import { ErrorCode, ModelError } from "../errors.ts";
 import { FIT_HOST, FIT_MODEL, FIT_TO_PAGE_CARD } from "./card.ts";
 import { currentApiKey } from "./key.ts";
 import { firstRequest, repairRequest, stripWrappingFence, systemPrompt } from "./prompt.ts";
@@ -58,33 +58,39 @@ function decodeHistory(bytes: Uint8Array): MessageParam[] {
   } catch {
     // fall through
   }
-  throw new ModelError("invalid-result", "Fit to page couldn't read its previous attempt.");
+  throw new ModelError(ErrorCode.INVALID_RESULT, "Fit to page couldn't read its previous attempt.");
 }
 
 /** Map SDK failures to the host's error codes, most specific first. */
 export function mapError(sdk: Sdk, error: unknown, signal?: AbortSignal): ModelError {
   if (error instanceof ModelError) return error;
   if (error instanceof sdk.APIUserAbortError || signal?.aborted)
-    return new ModelError("cancelled", "Canceled.", { cause: error });
+    return new ModelError(ErrorCode.CANCELED, "Canceled.", { cause: error });
   if (error instanceof sdk.AuthenticationError || error instanceof sdk.PermissionDeniedError) {
-    return new ModelError("auth", "Anthropic didn’t accept the API key.", { cause: error });
+    return new ModelError(ErrorCode.AUTH, "Anthropic didn’t accept the API key.", { cause: error });
   }
   if (error instanceof sdk.RateLimitError) {
-    return new ModelError("network", "Anthropic is rate limiting requests. Try again in a minute.", { cause: error });
-  }
-  if (error instanceof sdk.APIConnectionError)
-    return new ModelError("network", `Couldn’t reach ${FIT_HOST}.`, { cause: error });
-  if (error instanceof sdk.APIError) {
-    const status = typeof error.status === "number" ? error.status : 0;
-    if (status >= 500)
-      return new ModelError("network", "Anthropic’s API is unavailable right now. Try again shortly.", {
-        cause: error,
-      });
-    return new ModelError("plugin", `Anthropic returned an error${status ? ` (${status})` : ""}: ${error.message}`, {
+    return new ModelError(ErrorCode.NETWORK, "Anthropic is rate limiting requests. Try again in a minute.", {
       cause: error,
     });
   }
-  return new ModelError("plugin", error instanceof Error ? error.message : String(error), { cause: error });
+  if (error instanceof sdk.APIConnectionError)
+    return new ModelError(ErrorCode.NETWORK, `Couldn’t reach ${FIT_HOST}.`, { cause: error });
+  if (error instanceof sdk.APIError) {
+    const status = typeof error.status === "number" ? error.status : 0;
+    if (status >= 500)
+      return new ModelError(ErrorCode.NETWORK, "Anthropic’s API is unavailable right now. Try again shortly.", {
+        cause: error,
+      });
+    return new ModelError(
+      ErrorCode.PLUGIN,
+      `Anthropic returned an error${status ? ` (${status})` : ""}: ${error.message}`,
+      {
+        cause: error,
+      },
+    );
+  }
+  return new ModelError(ErrorCode.PLUGIN, error instanceof Error ? error.message : String(error), { cause: error });
 }
 
 export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
@@ -101,9 +107,9 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
 
     async *transform(request, signal) {
       const key = keyOf();
-      if (!key) throw new ModelError("auth", "Enter your Anthropic API key first.");
+      if (!key) throw new ModelError(ErrorCode.AUTH, "Enter your Anthropic API key first.");
       const sheet = request.sheet;
-      if (!sheet?.spec) throw new ModelError("invalid-result", "Fit to page needs a sheet with a page spec.");
+      if (!sheet?.spec) throw new ModelError(ErrorCode.INVALID_RESULT, "Fit to page needs a sheet with a page spec.");
       const shape = { cols: sheet.spec.cols, rows: sheet.spec.rows };
 
       const history: MessageParam[] = request.resume.length ? decodeHistory(request.resume) : [];
@@ -114,7 +120,7 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
         });
       } else {
         const feedback = request.feedback;
-        if (!feedback) throw new ModelError("invalid-result", "A repair attempt needs fit feedback.");
+        if (!feedback) throw new ModelError(ErrorCode.INVALID_RESULT, "A repair attempt needs fit feedback.");
         history.push({ role: "user", content: repairRequest(feedback.rowsUsed, feedback.rowsAllowed) });
       }
 
@@ -149,9 +155,10 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
         throw mapError(sdk, error, signal);
       }
 
-      if (message.stop_reason === "refusal") throw new ModelError("refused", "Claude declined to rewrite this page.");
+      if (message.stop_reason === "refusal")
+        throw new ModelError(ErrorCode.REFUSED, "Claude declined to rewrite this page.");
       if (message.stop_reason === "max_tokens")
-        throw new ModelError("plugin", "The rewrite was cut off before it finished.");
+        throw new ModelError(ErrorCode.PLUGIN, "The rewrite was cut off before it finished.");
       const reply = message.content
         .filter((block): block is Anthropic.Beta.BetaTextBlock => block.type === "text")
         .map((block) => block.text)

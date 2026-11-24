@@ -1,0 +1,50 @@
+// The worker transport: how the page calls a SheetModelService that runs in a
+// worker, over a MessagePort, with every message an RpcFrame in protobuf
+// bytes. It is internal to a worker and the page that starts it, which always
+// ship together, so buf breaking ignores this file (see buf.yaml).
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/model.proto";
+
+// One message on a worker transport, in either direction. A call starts with
+// a `call` frame. Its reply is zero or more `message` frames and an `end`, or
+// an `error`. A `cancel` asks the server to stop the call.
+message RpcFrame {
+  // The call this frame belongs to.
+  uint32 id = 1;
+  oneof kind {
+    RpcCall call = 2;
+    RpcCancel cancel = 3;
+    RpcMessage message = 4;
+    RpcEnd end = 5;
+    RpcError error = 6;
+  }
+}
+
+message RpcCall {
+  // A SheetModelService method name, such as "score".
+  string method = 1;
+  // The method's request message.
+  bytes payload = 2;
+}
+
+message RpcCancel {}
+
+// One item of a streaming reply.
+message RpcMessage {
+  bytes payload = 1;
+}
+
+// The end of a reply. A unary call's result is its payload: proto3 encodes an
+// all-default message as zero bytes, so an empty payload is still a result.
+message RpcEnd {
+  bytes payload = 1;
+}
+
+message RpcError {
+  ErrorCode code = 1;
+  string message = 2;
+}

@@ -9,7 +9,7 @@
  */
 
 import { MAX_NAME_LENGTH, parsePageName, sanitizePageName } from "./names.ts";
-import { InvalidPageNameError, isStoreError, type PageName } from "./types.ts";
+import { InvalidPageNameError, isStoreError, type IdCodec, type PageName } from "./types.ts";
 
 declare const filePathBrand: unique symbol;
 
@@ -49,6 +49,22 @@ export function parseFilePath(input: string): FilePath {
   return path as FilePath;
 }
 
+/** Like `parseFilePath`, but null instead of throwing. */
+export function tryParseFilePath(input: string): FilePath | null {
+  try {
+    return parseFilePath(input);
+  } catch (error) {
+    if (isStoreError(error, "invalid-name")) return null;
+    throw error;
+  }
+}
+
+/** File paths as stored keys: an invalid stored path is skipped. */
+export const filePathCodec: IdCodec<FilePath> = {
+  parse: tryParseFilePath,
+  format: (path) => path,
+};
+
 /** The last segment of a path ("AGENTS.md" for "docs/AGENTS.md"). */
 export function baseName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
@@ -85,6 +101,12 @@ export function decodeRef(value: string | null | undefined): PageRef | null {
     throw error;
   }
 }
+
+/** Remembered references, in the scalar form of `encodeRef`. */
+export const pageRefCodec: IdCodec<PageRef> = {
+  parse: decodeRef,
+  format: encodeRef,
+};
 
 export function sameRef(a: PageRef | null, b: PageRef | null): boolean {
   if (!a || !b) return a === b;

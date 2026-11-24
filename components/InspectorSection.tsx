@@ -2,11 +2,12 @@
 
 /**
  * A collapsible inspector section. The title is a button; the open state is
- * remembered per section as a scalar setting (`inspector:<id>`).
+ * remembered per section (`inspectorSection` in lib/settings.ts).
  */
 
-import { useEffect, useState, type ReactNode } from "react";
-import { readKey, writeKey } from "@/lib/storage";
+import { useEffect, useMemo, type ReactNode } from "react";
+import { inspectorSection } from "@/lib/settings";
+import { useSetting } from "./useSetting";
 
 export function InspectorSection({
   id,
@@ -30,26 +31,15 @@ export function InspectorSection({
   label?: string;
   children: ReactNode;
 }) {
-  const key = `inspector:${id}`;
-  const [open, setOpen] = useState(defaultOpen);
-
-  // Restore after mount (the page is prerendered with defaults).
-  useEffect(() => {
-    const stored = readKey(key);
-    if (stored !== null) setOpen(stored === "1");
-  }, [key]);
+  const setting = useMemo(() => inspectorSection(id, defaultOpen), [id, defaultOpen]);
+  const [open, setOpen] = useSetting(setting);
 
   useEffect(() => {
-    if (!openWhen) return;
-    setOpen(true);
-    writeKey(key, "1");
-  }, [openWhen, key]);
+    if (openWhen) setOpen(true);
+  }, [openWhen, setOpen]);
 
   function toggle() {
-    setOpen((was) => {
-      writeKey(key, was ? "0" : "1");
-      return !was;
-    });
+    setOpen(!open);
   }
 
   return (

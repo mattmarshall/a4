@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { A4_EVENTS, type A4Render } from "@/lib/element/contract";
 
 /** Plain HTML, no React props: proves <a4-sheet> works from markup alone. */
 const MARKUP = `
@@ -25,19 +26,23 @@ export function ElementDemo() {
     void import("@/lib/element/a4-sheet").then(({ defineA4Sheet }) => {
       defineA4Sheet();
       const log = document.getElementById("demo-log");
-      const onInput = (e: Event) => {
-        const el = e.target as HTMLElement & { value: string };
-        if (log) log.textContent = `input from #${el.id}: ${el.value.length} characters`;
-      };
-      const onRender = (e: Event) => {
-        const el = e.target as HTMLElement;
-        el.dataset.render = (e as CustomEvent<string>).detail;
-      };
-      document.addEventListener("input", onInput);
-      document.addEventListener("a4-render", onRender);
+      const sheets = [...document.querySelectorAll("a4-sheet")];
+      const offs = sheets.flatMap((sheet) => {
+        const onInput = () => {
+          if (log) log.textContent = `input from #${sheet.id}: ${sheet.value.length} characters`;
+        };
+        const onRender = (e: CustomEvent<A4Render>) => {
+          sheet.dataset.render = e.detail;
+        };
+        sheet.addEventListener("input", onInput);
+        sheet.addEventListener(A4_EVENTS.render, onRender);
+        return [
+          () => sheet.removeEventListener("input", onInput),
+          () => sheet.removeEventListener(A4_EVENTS.render, onRender),
+        ];
+      });
       cleanup = () => {
-        document.removeEventListener("input", onInput);
-        document.removeEventListener("a4-render", onRender);
+        for (const off of offs) off();
       };
     });
     return () => cleanup();

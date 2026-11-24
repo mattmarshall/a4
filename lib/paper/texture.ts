@@ -5,8 +5,8 @@
  * placed per cell, so grid positions are exact.
  */
 
-import type { Analysis } from "../analyze.ts";
-import { segmentsFor, type LensId } from "../lenses.ts";
+import type { Analysis, LineKind } from "../analyze.ts";
+import { segmentsFor, type LensId, type SegmentStyle } from "../lenses.ts";
 import { fontSizeMm, type PageSpec } from "../page-spec.ts";
 import type { VisualRow } from "../text.ts";
 import { PAPER_H, PAPER_W } from "./deform.ts";
@@ -18,22 +18,23 @@ interface CellStyle {
   weight?: number;
 }
 
-/** Mirrors the lens colors of the original DOM sheet. */
-const CLASS_STYLE: Record<string, CellStyle> = {
-  "lens-dim": { color: "#8f8a80" },
-  "lens-syn": { color: "#c2410c", background: "rgba(194, 65, 12, 0.08)", weight: 600 },
-  "lens-heat-1": { background: "rgba(253, 230, 138, 0.7)" },
-  "lens-heat-2": { background: "rgba(253, 186, 116, 0.75)" },
-  "lens-heat-3": { background: "rgba(251, 146, 60, 0.75)" },
-  "lens-heat-4": { background: "rgba(239, 68, 68, 0.6)", color: "#3b0a07" },
-  "lens-tok-a": { background: "rgba(191, 219, 254, 0.8)" },
-  "lens-tok-b": { background: "rgba(253, 230, 138, 0.8)" },
-  "lens-kind-prose": { color: "#1f5a39" },
-  "lens-kind-structured": { color: "#8a3d06" },
-  "lens-kind-heading": { color: "#2d4a75", weight: 600 },
+/** Every segment style's paint. Mirrors the lens colors of the original DOM sheet. */
+const SEGMENT_STYLE: Readonly<Record<SegmentStyle, CellStyle>> = {
+  dim: { color: "#8f8a80" },
+  syntax: { color: "#c2410c", background: "rgba(194, 65, 12, 0.08)", weight: 600 },
+  "heat-1": { background: "rgba(253, 230, 138, 0.7)" },
+  "heat-2": { background: "rgba(253, 186, 116, 0.75)" },
+  "heat-3": { background: "rgba(251, 146, 60, 0.75)" },
+  "heat-4": { background: "rgba(239, 68, 68, 0.6)", color: "#3b0a07" },
+  "token-a": { background: "rgba(191, 219, 254, 0.8)" },
+  "token-b": { background: "rgba(253, 230, 138, 0.8)" },
+  prose: { color: "#1f5a39" },
+  structured: { color: "#8a3d06" },
+  heading: { color: "#2d4a75", weight: 600 },
 };
 
-const BAND: Record<string, string> = {
+/** The Structure lens's band behind each kind of line. */
+const BAND: Readonly<Record<Exclude<LineKind, "blank">, string>> = {
   prose: "rgba(47, 122, 79, 0.09)",
   structured: "rgba(180, 83, 9, 0.13)",
   heading: "rgba(59, 91, 140, 0.12)",
@@ -152,15 +153,16 @@ export function paintPage(canvas: HTMLCanvasElement | OffscreenCanvas, o: PaintO
   const styleAt: (CellStyle | undefined)[] = new Array(text.length);
   let offset = 0;
   for (const seg of segmentsFor(o.lens, text, analysis)) {
-    const style = seg.cls ? CLASS_STYLE[seg.cls] : undefined;
+    const style = seg.style ? SEGMENT_STYLE[seg.style] : undefined;
     for (let i = 0; i < seg.text.length; i++) styleAt[offset + i] = style;
     offset += seg.text.length;
   }
 
   if (o.lens === "structure") {
     for (let i = 0; i < rowsShown; i++) {
-      const band = BAND[analysis.lineKinds[analysis.rows[i].line] ?? ""];
-      if (!band) continue;
+      const kind = analysis.lineKinds[analysis.rows[i].line];
+      if (kind === undefined || kind === "blank") continue;
+      const band = BAND[kind];
       ctx.fillStyle = band;
       ctx.fillRect(left, top + i * ch, spec.cols * cw, ch);
     }

@@ -27,6 +27,40 @@ enum View {
   VIEW_PIXELS = 3;
 }
 
+// Why a model call failed.
+enum ErrorCode {
+  ERROR_CODE_UNSPECIFIED = 0;
+  // The plugin's card doesn't declare the operation.
+  ERROR_CODE_UNSUPPORTED_OPERATION = 1;
+  // The plugin doesn't implement a method it was asked for.
+  ERROR_CODE_UNIMPLEMENTED = 2;
+  // A result broke the contract (wrong plane shape, no candidate, ...).
+  ERROR_CODE_INVALID_RESULT = 3;
+  // A plugin that sends text off the device was called without fresh consent.
+  ERROR_CODE_CONSENT_REQUIRED = 4;
+  // The author canceled.
+  ERROR_CODE_CANCELED = 5;
+  // The remote service rejected the credentials.
+  ERROR_CODE_AUTH = 6;
+  // The network or remote service failed.
+  ERROR_CODE_NETWORK = 7;
+  // The model declined the request.
+  ERROR_CODE_REFUSED = 8;
+  // The model files aren't downloaded yet.
+  ERROR_CODE_NOT_READY = 9;
+  // The plugin's worker failed to load, crashed, or sent unreadable data.
+  ERROR_CODE_UNAVAILABLE = 10;
+  // Anything else the plugin reports.
+  ERROR_CODE_PLUGIN = 11;
+  // No plugin is registered with that id.
+  ERROR_CODE_NOT_FOUND = 12;
+  // A card can't be registered: no id, a remote plugin with no destination,
+  // an id that's taken, or a plugin that describes itself as another.
+  ERROR_CODE_INVALID_CARD = 13;
+  // A transport frame couldn't be decoded.
+  ERROR_CODE_UNREADABLE = 14;
+}
+
 enum Placement {
   PLACEMENT_UNSPECIFIED = 0;
   PLACEMENT_BROWSER = 1;
@@ -173,20 +207,4 @@ service SheetModelService {
   rpc Score(ScoreRequest) returns (ScoreResponse);
   rpc Transform(TransformRequest) returns (stream TransformResponse);
   rpc Generate(GenerateRequest) returns (stream GenerateResponse);
-}
-
-// One message on a worker transport. A call is a request frame with an id and
-// method; its reply is one or more frames with the same id, the last with
-// `end` set. An error ends the call.
-message RpcFrame {
-  uint32 id = 1;
-  string method = 2;
-  bytes payload = 3;
-  bool end = 4;
-  RpcError error = 5;
-}
-
-message RpcError {
-  string code = 1;
-  string message = 2;
 }

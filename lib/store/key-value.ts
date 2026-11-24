@@ -7,8 +7,9 @@
  *   <prefix>trash:<id>           trashed page text (id = "<name>.<trashedAt>")
  */
 
-import { nextAvailableName, parsePageName, sameName, storedPageName } from "./names.ts";
+import { nextAvailableName, pageNameCodec, parsePageName, sameName } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
+import { makeTrashId, parseTrashId } from "./trash-ids.ts";
 import {
   assertStorableText,
   PageConflictError,
@@ -74,19 +75,6 @@ export class StorageKeyValue implements KeyValue {
   }
 }
 
-/** Original page name from a trash id ("<name>.<trashedAt>"). */
-export function parseTrashId(id: string): { name: PageName; trashedAt: number } {
-  const m = /^(.*)\.(\d+)$/.exec(id);
-  if (!m) return { name: parsePageName(id), trashedAt: 0 };
-  return { name: parsePageName(m[1]), trashedAt: Number(m[2]) };
-}
-
-export function makeTrashId(name: PageName, at: number, taken: (id: string) => boolean): TrashId {
-  let t = at;
-  while (taken(`${name}.${t}`)) t++;
-  return `${name}.${t}` as TrashId;
-}
-
 export interface KeyValuePageStoreOptions {
   kind?: StoreKind;
   durable?: boolean;
@@ -118,7 +106,7 @@ export class KeyValuePageStore implements PageStore {
     return this.#kv
       .keys()
       .filter((k) => k.startsWith(this.#page))
-      .map((k) => storedPageName(k.slice(this.#page.length)))
+      .map((k) => pageNameCodec.parse(k.slice(this.#page.length)))
       .filter((n): n is PageName => n !== null);
   }
 
@@ -166,7 +154,7 @@ export class KeyValuePageStore implements PageStore {
     assertStorableText(name, text);
     const current = this.#kv.get(this.#page + name);
     if (current === null) throw new PageNotFoundError(name);
-    if (expected) {
+    if (expected != null) {
       const actual = revisionOf(current);
       if (actual !== expected) throw new PageConflictError(name, expected, actual);
     }
@@ -189,30 +177,32 @@ export class KeyValuePageStore implements PageStore {
   async trash(name: PageName): Promise<TrashEntry> {
     const text = this.#kv.get(this.#page + name);
     if (text === null) throw new PageNotFoundError(name);
-    const id = makeTrashId(name, this.#now(), (candidate) => this.#kv.get(this.#trash + candidate) !== null);
+    const { id, trashedAt } = makeTrashId(
+      name,
+      this.#now(),
+      (candidate) => this.#kv.get(this.#trash + candidate) !== null,
+    );
     this.#kv.set(this.#trash + id, text);
     this.#kv.remove(this.#page + name);
     this.#kv.remove(this.#mtime + name);
-    const { trashedAt } = parseTrashId(id);
     return { id, name, size: byteLength(text), trashedAt };
   }
 
   async listTrash(): Promise<TrashEntry[]> {
-    return this.#kv
-      .keys()
-      .filter((k) => k.startsWith(this.#trash))
-      .map((k) => {
-        const id = k.slice(this.#trash.length) as TrashId;
-        const { name, trashedAt } = parseTrashId(id);
-        return { id, name, trashedAt, size: byteLength(this.#kv.get(k) ?? "") };
-      });
+    const out: TrashEntry[] = [];
+    for (const k of this.#kv.keys()) {
+      if (!k.startsWith(this.#trash)) continue;
+      const parts = parseTrashId(k.slice(this.#trash.length));
+      if (parts) out.push({ ...parts, size: byteLength(this.#kv.get(k) ?? "") });
+    }
+    return out;
   }
 
   async restore(id: TrashId): Promise<WriteResult> {
     const text = this.#kv.get(this.#trash + id);
-    if (text === null) throw new PageNotFoundError(id);
-    const { name } = parseTrashId(id);
-    const target = nextAvailableName(name, this.#names());
+    const parts = parseTrashId(id);
+    if (text === null || !parts) throw new PageNotFoundError(id);
+    const target = nextAvailableName(parts.name, this.#names());
     const result = this.#put(target, text);
     this.#kv.remove(this.#trash + id);
     return result;

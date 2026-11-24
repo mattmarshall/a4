@@ -13,10 +13,11 @@ import {
 import { analyze, compressibility } from "@/lib/analyze";
 import { realScheduler, type SaveStatus } from "@/lib/autosave";
 import { describeImport } from "@/lib/import";
-import { isLensId, LENSES, type LensId } from "@/lib/lenses";
-import { DEFAULT_PRESET, isPresetId, PRESET_ORDER, PRESETS, PX_PER_MM_ACTUAL, type PresetId } from "@/lib/page-spec";
+import { modelLens as modelLensAttr, type LensAttr } from "@/lib/element/contract";
+import { LENSES, type LensId } from "@/lib/lenses";
+import { DEFAULT_PRESET, PRESET_ORDER, PRESETS, PX_PER_MM_ACTUAL, type PresetId } from "@/lib/page-spec";
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
-import { KEYS, readKey, writeKey } from "@/lib/storage";
+import { readSetting, SETTINGS, writeSetting } from "@/lib/settings";
 import {
   baseName,
   copyNameFor,
@@ -31,6 +32,7 @@ import { FLAT, type Pose } from "@/lib/paper/deform";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
+import { VERDICT_LABEL } from "./analysis-copy";
 import { LensLegend, MetricsPanel, VerdictChip } from "./MetricsPanel";
 import { Menu, MenuItem } from "./Menu";
 import { FitJobChip, FitToPage } from "./FitToPage";
@@ -42,6 +44,7 @@ import type { FindingResult, ScoreResult, TransformResult } from "@/lib/models/h
 import { SEMANTIC_REPETITION_CARD, SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
 import { ScoreSchedule } from "@/lib/models/semantic/schedule";
 import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
+import type { PluginId } from "@/lib/models/plugin-id";
 import { FitJob } from "@/lib/models/fit/job";
 import { runReported } from "@/lib/workspace/errors";
 import { forgetApiKey } from "@/lib/models/fit/key";
@@ -180,36 +183,35 @@ export function Workbench() {
 
   // Restore view settings after mount (the page is prerendered with defaults).
   useEffect(() => {
-    const p = readKey(KEYS.preset);
-    const l = readKey(KEYS.lens);
-    const g = readKey(KEYS.grid);
-    const m = readKey(KEYS.mode);
-    const lb = readKey(KEYS.library);
-    if (isPresetId(p)) setPresetId(p);
-    if (isLensId(l)) setLens(l);
-    if (g !== null) setShowGrid(g === "1");
-    // "paper" was the old separate 3D mode; 3D is now how every sheet renders.
-    if (m === "single" || m === "compare") setMode(m);
-    else if (m === "paper") setMode("single");
-    const r = readKey(KEYS.render);
-    if (r === "3d" || r === "flat") setRender(r);
-    if (lb !== null) setShowLibrary(lb === "1");
+    const p = readSetting(SETTINGS.preset);
+    const l = readSetting(SETTINGS.lens);
+    const g = readSetting(SETTINGS.grid);
+    const m = readSetting(SETTINGS.mode);
+    const r = readSetting(SETTINGS.render);
+    const lb = readSetting(SETTINGS.library);
+    const ins = readSetting(SETTINGS.inspector);
+    if (p !== null) setPresetId(p);
+    if (l !== null) setLens(l);
+    if (g !== null) setShowGrid(g);
+    if (m !== null) setMode(m);
+    if (r !== null) setRender(r);
+    // Unset panels follow the window width.
+    if (lb !== null) setShowLibrary(lb);
     else if (window.innerWidth < 1100) setShowLibrary(false);
-    const ins = readKey(KEYS.inspector);
-    if (ins !== null) setShowInspector(ins === "1");
+    if (ins !== null) setShowInspector(ins);
     else if (window.innerWidth < 1100) setShowInspector(false);
     setSettingsReady(true);
   }, []);
 
   useEffect(() => {
     if (!settingsReady) return;
-    writeKey(KEYS.preset, presetId);
-    writeKey(KEYS.lens, lens);
-    writeKey(KEYS.grid, showGrid ? "1" : "0");
-    writeKey(KEYS.mode, mode);
-    writeKey(KEYS.render, render);
-    writeKey(KEYS.library, showLibrary ? "1" : "0");
-    writeKey(KEYS.inspector, showInspector ? "1" : "0");
+    writeSetting(SETTINGS.preset, presetId);
+    writeSetting(SETTINGS.lens, lens);
+    writeSetting(SETTINGS.grid, showGrid);
+    writeSetting(SETTINGS.mode, mode);
+    writeSetting(SETTINGS.render, render);
+    writeSetting(SETTINGS.library, showLibrary);
+    writeSetting(SETTINGS.inspector, showInspector);
   }, [settingsReady, presetId, lens, showGrid, mode, render, showLibrary, showInspector]);
 
   // Keep slot B open exactly while comparing.
@@ -320,7 +322,7 @@ export function Workbench() {
   // A model lens replaces the built-in lens while it's on; only built-in
   // lenses are saved in settings, since planes don't survive a reload.
   const models = useModels();
-  const [modelLens, setModelLens] = useState<string | null>(null);
+  const [modelLens, setModelLens] = useState<PluginId | null>(null);
   const [scored, setScored] = useState<Record<Slot, (ScoreResult & { preset: PresetId }) | null>>({ a: null, b: null });
   const slotsShown: Slot[] = mode === "compare" ? ["a", "b"] : ["a"];
 
@@ -367,7 +369,7 @@ export function Workbench() {
   }, [schedule, modelLens, semanticReady, textA, textB, spec.id, mode]);
 
   /** Planes are keyed by plugin and plane name, so one plugin's planes never replace each other. */
-  const planeKey = (pluginId: string, name: string) => `${pluginId}/${name}`;
+  const planeKey = (pluginId: PluginId, name: string) => `${pluginId}/${name}`;
   function planesFor(slot: Slot): Record<string, A4Plane> | undefined {
     const result = scored[slot];
     if (!result || result.preset !== spec.id) return undefined;
@@ -376,13 +378,13 @@ export function Workbench() {
     );
   }
   /** The plane a model lens shows: the plugin's first plane in either slot's latest result. */
-  const lensPlane = (pluginId: string) =>
+  const lensPlane = (pluginId: PluginId) =>
     [scored.a, scored.b].flatMap((r) => r?.planes ?? []).find((p) => p.pluginId === pluginId)?.name ?? "";
   // biome-ignore lint/correctness/useExhaustiveDependencies: planesFor reads only the slot's score and the preset.
   const planesA = useMemo(() => planesFor("a"), [scored.a, spec.id]);
   // biome-ignore lint/correctness/useExhaustiveDependencies: planesFor reads only the slot's score and the preset.
   const planesB = useMemo(() => planesFor("b"), [scored.b, spec.id]);
-  const sheetLens = modelLens ? (`model:${planeKey(modelLens, lensPlane(modelLens))}` as const) : lens;
+  const sheetLens: LensAttr = modelLens ? modelLensAttr(planeKey(modelLens, lensPlane(modelLens))) : lens;
   const modelLegend =
     modelLens === SEMANTIC_REPETITION_ID
       ? {
@@ -945,7 +947,7 @@ export function Workbench() {
                           {slotPicker(slot)}
                           <SaveStatusPill status={state.status} />
                           <span>
-                            {analysis.verdict} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
+                            {VERDICT_LABEL[analysis.verdict]} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
                           </span>
                         </div>
                       ) : null}

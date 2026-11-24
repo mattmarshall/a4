@@ -1,6 +1,7 @@
 "use client";
 
-import { VERDICT_SUMMARY, type Analysis } from "@/lib/analyze";
+import type { Analysis } from "@/lib/analyze";
+import { describeFinding, VERDICT_SUMMARY } from "./analysis-copy";
 import { InspectorSection } from "./InspectorSection";
 import { findingCount, num, pct, VerdictChip } from "./MetricsPanel";
 
@@ -147,12 +148,15 @@ export function ComparePanel({
 
       <InspectorSection id="compare-findings" title="Findings for B" defaultOpen badge={findingCount(b)}>
         <ul className="findings">
-          {b.findings.map((f) => (
-            <li key={f.id} className="finding" data-s={f.severity}>
-              <strong>{f.title}</strong>
-              <span>{f.detail}</span>
-            </li>
-          ))}
+          {b.findings.map((f) => {
+            const { title, detail } = describeFinding(f);
+            return (
+              <li key={f.id} className="finding" data-s={f.severity}>
+                <strong>{title}</strong>
+                <span>{detail}</span>
+              </li>
+            );
+          })}
         </ul>
       </InspectorSection>
     </>

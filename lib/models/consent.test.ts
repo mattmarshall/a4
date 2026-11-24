@@ -5,8 +5,12 @@ import { ModelCardSchema, Operation, Placement, View } from "../gen/a4/v1/model_
 import { PRESETS } from "../page-spec.ts";
 import { implement } from "./client.ts";
 import { grantConsent, type ConsentToken } from "./consent.ts";
-import { ModelError } from "./errors.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
 import { ModelHost } from "./host.ts";
+import { pluginIdOf } from "./plugin-id.ts";
+
+/** A plugin id, minted from a card as the host mints them. */
+const pid = (id: string) => pluginIdOf(create(ModelCardSchema, { id }));
 
 const T = PRESETS.terminal;
 
@@ -36,38 +40,41 @@ function remote() {
   return { host, calls };
 }
 
-const refused = (e: unknown) => e instanceof ModelError && e.code === "consent-required";
+const refused = (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CONSENT_REQUIRED;
 
 test("consent: a remote plugin without a token is never contacted", async () => {
   const { host, calls } = remote();
-  await assert.rejects(host.transform("remote", "page", T, { instruction: "fit" }), refused);
+  await assert.rejects(host.transform(pid("remote"), "page", T, { instruction: "fit" }), refused);
   assert.deepEqual(calls, []);
 });
 
 test("consent: a token works once; reusing it is refused before the plugin runs", async () => {
   const { host, calls } = remote();
-  const token = grantConsent("remote", "page");
-  const result = await host.transform("remote", "page", T, { instruction: "fit", consent: token });
+  const token = grantConsent(pid("remote"), "page");
+  const result = await host.transform(pid("remote"), "page", T, { instruction: "fit", consent: token });
   assert.equal(result.text, "short");
-  await assert.rejects(host.transform("remote", "page", T, { instruction: "fit", consent: token }), refused);
+  await assert.rejects(host.transform(pid("remote"), "page", T, { instruction: "fit", consent: token }), refused);
   assert.deepEqual(calls, ["page"], "the plugin ran exactly once");
 });
 
 test("consent: a token for different text is refused before the plugin runs", async () => {
   const { host, calls } = remote();
-  const token = grantConsent("remote", "page as confirmed");
-  await assert.rejects(host.transform("remote", "page as edited", T, { instruction: "fit", consent: token }), refused);
+  const token = grantConsent(pid("remote"), "page as confirmed");
+  await assert.rejects(
+    host.transform(pid("remote"), "page as edited", T, { instruction: "fit", consent: token }),
+    refused,
+  );
   assert.deepEqual(calls, []);
 });
 
 test("consent: a token for another plugin, or a forged one, is refused", async () => {
   const { host, calls } = remote();
   await assert.rejects(
-    host.transform("remote", "page", T, { instruction: "fit", consent: grantConsent("other", "page") }),
+    host.transform(pid("remote"), "page", T, { instruction: "fit", consent: grantConsent(pid("other"), "page") }),
     refused,
   );
   const forged = { pluginId: "remote", revision: "x", characters: 4 } as unknown as ConsentToken;
-  await assert.rejects(host.transform("remote", "page", T, { instruction: "fit", consent: forged }), refused);
+  await assert.rejects(host.transform(pid("remote"), "page", T, { instruction: "fit", consent: forged }), refused);
   assert.deepEqual(calls, []);
 });
 
@@ -90,5 +97,5 @@ test("consent: in-browser plugins need no token", async () => {
         },
       }),
   });
-  assert.equal((await host.transform("local", "page", T, { instruction: "fit" })).text, "ok");
+  assert.equal((await host.transform(pid("local"), "page", T, { instruction: "fit" })).text, "ok");
 });

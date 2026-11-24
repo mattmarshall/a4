@@ -8,6 +8,7 @@
 
 import type { ConsentToken } from "../consent.ts";
 import type { TransformResult } from "../host.ts";
+import { ErrorCode, isModelError } from "../errors.ts";
 
 export type FitJobState<R> =
   | { readonly kind: "idle" }
@@ -39,10 +40,6 @@ export interface FitJobDeps<R> {
   /** The key was rejected. */
   onAuthFailed?: () => void;
   maxAttempts: number;
-}
-
-function errorCode(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null ? (error as { code?: string }).code : undefined;
 }
 
 export class FitJob<R> {
@@ -112,10 +109,9 @@ export class FitJob<R> {
       await this.#deps.onResult(name, result, ref);
       this.#set({ kind: "idle" });
     } catch (error) {
-      const code = errorCode(error);
-      if (code === "auth") this.#deps.onAuthFailed?.();
+      if (isModelError(error, ErrorCode.AUTH)) this.#deps.onAuthFailed?.();
       const message =
-        code === "cancelled" || controller.signal.aborted
+        isModelError(error, ErrorCode.CANCELED) || controller.signal.aborted
           ? "Canceled. No page was created."
           : `${error instanceof Error ? error.message : String(error)} No page was created.`;
       this.#set({ kind: "failed", message });

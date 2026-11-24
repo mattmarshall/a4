@@ -1191,24 +1191,22 @@ select {
   background: currentColor;
 }
 
-.verdict-chip[data-v="Balanced"],
-.verdict-chip[data-v="Light"] {
+.verdict-chip[data-tone="ok"] {
   background: var(--ok-soft);
   color: var(--ok);
 }
 
-.verdict-chip[data-v="Busy"],
-.verdict-chip[data-v="Noisy"] {
+.verdict-chip[data-tone="warn"] {
   background: var(--warn-soft);
   color: var(--warn);
 }
 
-.verdict-chip[data-v="Overflowing"] {
+.verdict-chip[data-tone="crit"] {
   background: var(--crit-soft);
   color: var(--crit);
 }
 
-.verdict-chip[data-v="Empty"] {
+.verdict-chip[data-tone="muted"] {
   background: var(--panel-2);
   color: var(--muted);
 }

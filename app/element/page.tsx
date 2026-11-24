@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ElementDemo } from "@/components/ElementDemo";
+import { A4_EVENTS, ATTRIBUTES } from "@/lib/element/contract";
 
 export const metadata: Metadata = {
   title: "<a4-sheet>: the A4 page as a web component",
@@ -41,57 +42,23 @@ export default function ElementPage() {
           </tr>
         </thead>
         <tbody>
-          <tr>
-            <td>
-              <code>value</code>
-            </td>
-            <td>
-              Initial text (then use the <code>value</code> property)
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>render</code>
-            </td>
-            <td>
-              <code>auto</code> (3D if WebGPU is available), <code>3d</code>, <code>flat</code>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>preset</code> · <code>lens</code>
-            </td>
-            <td>
-              terminal, pica, elite, dense · ink, syntax, repetition, structure, tokens, or{" "}
-              <code>model:&lt;name&gt;</code> for a plane
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <code>fold-bottom</code> · <code>fold-top</code> · <code>curl</code>
-            </td>
-            <td>0 to 1</td>
-          </tr>
-          <tr>
-            <td>
-              <code>tilt</code> · <code>turn</code> · <code>light</code>
-            </td>
-            <td>0–65° · −180–180° · azimuth in degrees</td>
-          </tr>
-          <tr>
-            <td>
-              <code>zoom</code> · <code>grid</code> · <code>label</code>
-            </td>
-            <td>CSS px per mm or fit · boolean · accessible name</td>
-          </tr>
+          {Object.values(ATTRIBUTES).map((attribute) => (
+            <tr key={attribute.name}>
+              <td>
+                <code>{attribute.name}</code>
+              </td>
+              <td>{attribute.doc}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
       <p>
-        Events: <code>input</code> (composed), <code>a4-focus</code>, <code>a4-render</code> (&quot;3d&quot; or
-        &quot;flat&quot;), <code>a4-viewchange</code>, <code>a4-posechange</code>. Methods: <code>focus()</code>,{" "}
-        <code>fold()</code>, <code>setSelectionRange()</code>, <code>setPlane(name, {"{ text, values }"})</code>,{" "}
-        <code>removePlane(name)</code>. Styling hooks: <code>--a4-font</code>, <code>--a4-desk</code>,{" "}
-        <code>--a4-3d-height</code>, <code>--a4-radius</code>, <code>--a4-shadow</code>.
+        Events: <code>input</code> (composed), <code>{A4_EVENTS.focus}</code>, <code>{A4_EVENTS.render}</code>{" "}
+        (&quot;3d&quot; or &quot;flat&quot;), <code>{A4_EVENTS.viewChange}</code>, <code>{A4_EVENTS.poseChange}</code>.
+        Methods: <code>focus()</code>, <code>fold()</code>, <code>setSelectionRange()</code>,{" "}
+        <code>setPlane(name, {"{ text, values }"})</code>, <code>removePlane(name)</code>. Styling hooks:{" "}
+        <code>--a4-font</code>, <code>--a4-desk</code>, <code>--a4-3d-height</code>, <code>--a4-radius</code>,{" "}
+        <code>--a4-shadow</code>.
       </p>
     </main>
   );

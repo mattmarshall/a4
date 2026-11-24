@@ -27,16 +27,37 @@ export const THRESHOLDS = {
 
 export type LineKind = "prose" | "structured" | "heading" | "blank";
 
-export type Verdict = "Empty" | "Overflowing" | "Noisy" | "Busy" | "Light" | "Balanced";
+/** The page's overall reading. Labels and summaries live in the UI's copy. */
+export type VerdictId = "empty" | "overflowing" | "noisy" | "busy" | "light" | "balanced";
 
 export type Severity = "critical" | "warning" | "info";
 
-export interface Finding {
-  id: string;
-  severity: Severity;
-  title: string;
-  detail: string;
-}
+/**
+ * What the analysis found, as data: each finding's id, severity, and the
+ * numbers its copy quotes. Shares are fractions (0.25 is 25%). The UI writes
+ * the English (components/analysis-copy.ts).
+ */
+export type Finding =
+  | { readonly id: "empty"; readonly severity: "info" }
+  | { readonly id: "overflow"; readonly severity: "critical"; readonly rows: number }
+  /** A warning when syntax is noisy; an info note when it is merely high. */
+  | { readonly id: "syntax"; readonly severity: "warning" | "info"; readonly share: number }
+  | {
+      readonly id: "repetition";
+      readonly severity: "warning";
+      readonly term: string;
+      readonly count: number;
+      readonly share: number;
+    }
+  | { readonly id: "duplicates"; readonly severity: "warning"; readonly lines: number }
+  | { readonly id: "crowding"; readonly severity: "warning"; readonly share: number }
+  | { readonly id: "indentation"; readonly severity: "warning"; readonly share: number; readonly maxIndent: number }
+  | { readonly id: "narrative"; readonly severity: "warning"; readonly share: number }
+  | { readonly id: "wrapped"; readonly severity: "info"; readonly lines: number; readonly cols: number }
+  | { readonly id: "room"; readonly severity: "info"; readonly tokens: number }
+  | { readonly id: "clean"; readonly severity: "info" };
+
+export type FindingId = Finding["id"];
 
 export interface RepeatedTerm {
   term: string;
@@ -77,7 +98,7 @@ export interface Analysis {
   charsPerToken: number | null;
   /** How each judged metric reads; the verdict, findings, and bars all use it. */
   signals: Signals;
-  verdict: Verdict;
+  verdict: VerdictId;
   findings: Finding[];
 }
 
@@ -206,10 +227,6 @@ export function classifyLines(lines: string[]): LineKind[] {
 // ---------------------------------------------------------------------------
 // Analysis
 
-function pct(x: number): string {
-  return `${Math.round(x * 100)}%`;
-}
-
 export function analyze(text: string, spec: PageSpec): Analysis {
   const cols = spec.cols;
   const pageRows = spec.rows;
@@ -330,142 +347,56 @@ export function signals(m: Metrics): Signals {
   };
 }
 
-export function verdictFor(m: Metrics, s: Signals = signals(m)): Verdict {
+export function verdictFor(m: Metrics, s: Signals = signals(m)): VerdictId {
   const t = THRESHOLDS;
-  if (m.ink === 0) return "Empty";
-  if (m.overflow > 0) return "Overflowing";
-  if (s.syntax === "bad" || s.repetition === "bad" || s.duplicates === "bad") return "Noisy";
+  if (m.ink === 0) return "empty";
+  if (m.overflow > 0) return "overflowing";
+  if (s.syntax === "bad" || s.repetition === "bad" || s.duplicates === "bad") return "noisy";
   // A short page is Light even when its few rows are dense; crowding only
   // makes a page Busy once there is enough of it to be hard to scan.
-  if (m.fill < t.lightFill) return "Light";
-  if (s.crowding === "bad" || s.indentation === "bad") return "Busy";
-  return "Balanced";
+  if (m.fill < t.lightFill) return "light";
+  if (s.crowding === "bad" || s.indentation === "bad") return "busy";
+  return "balanced";
 }
 
-export const VERDICT_SUMMARY: Record<Verdict, string> = {
-  Empty: "Nothing on the page yet.",
-  Overflowing: "Doesn’t fit. This is more than one page of context.",
-  Noisy: "Too much scaffolding or repetition for the meaning it carries.",
-  Busy: "Fits, but crowded. Hard to scan at a glance.",
-  Light: "A short page with plenty of room.",
-  Balanced: "Fits the page and reads clean.",
-};
-
-export function findingsFor(m: Metrics, verdict: Verdict, s: Signals = signals(m)): Finding[] {
+export function findingsFor(m: Metrics, verdict: VerdictId, s: Signals = signals(m)): Finding[] {
   const t = THRESHOLDS;
   const out: Finding[] = [];
 
-  if (verdict === "Empty") {
-    return [
-      {
-        id: "empty",
-        severity: "info",
-        title: "Blank page",
-        detail: "Start with one line that says what this page is for and who will read it.",
-      },
-    ];
-  }
+  if (verdict === "empty") return [{ id: "empty", severity: "info" }];
 
-  if (m.overflow > 0) {
-    out.push({
-      id: "overflow",
-      severity: "critical",
-      title: `${m.overflow} ${m.overflow === 1 ? "row" : "rows"} over the page`,
-      detail: "Cut what the agent does not need, or split this into two pages that each serve one purpose.",
-    });
-  }
+  if (m.overflow > 0) out.push({ id: "overflow", severity: "critical", rows: m.overflow });
 
-  if (s.syntax === "bad") {
-    out.push({
-      id: "syntax",
-      severity: "warning",
-      title: `${pct(m.syntax)} of the ink is syntax`,
-      detail:
-        "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data.",
-    });
-  } else if (s.syntax === "warn") {
-    out.push({
-      id: "syntax",
-      severity: "info",
-      title: `${pct(m.syntax)} of the ink is syntax`,
-      detail: "Acceptable, but check that every bit of formatting carries meaning.",
-    });
-  }
+  if (s.syntax === "bad") out.push({ id: "syntax", severity: "warning", share: m.syntax });
+  else if (s.syntax === "warn") out.push({ id: "syntax", severity: "info", share: m.syntax });
 
   const top = m.repeatedTerms[0];
   if (s.repetition === "bad" && top) {
-    out.push({
-      id: "repetition",
-      severity: "warning",
-      title: `“${top.term}” appears ${top.count}×`,
-      detail: `${pct(m.repetition)} of word ink is repeats. State shared values once, then list only the exceptions.`,
-    });
+    out.push({ id: "repetition", severity: "warning", term: top.term, count: top.count, share: m.repetition });
   }
 
-  if (s.duplicates === "bad") {
-    out.push({
-      id: "duplicates",
-      severity: "warning",
-      title: `${m.duplicateLines} duplicated lines`,
-      detail: "Collapse identical lines into one statement with a count or a range.",
-    });
-  }
+  if (s.duplicates === "bad") out.push({ id: "duplicates", severity: "warning", lines: m.duplicateLines });
 
-  if (s.crowding === "bad") {
-    out.push({
-      id: "crowding",
-      severity: "warning",
-      title: `Rows are ${pct(m.crowding)} inked`,
-      detail: "Break the text into short paragraphs separated by blank lines so it can be scanned.",
-    });
-  }
+  if (s.crowding === "bad") out.push({ id: "crowding", severity: "warning", share: m.crowding });
 
   if (s.indentation === "bad") {
-    out.push({
-      id: "indentation",
-      severity: "warning",
-      title: `Indentation uses ${pct(m.indentation)} of the used area`,
-      detail: `Deepest indent is ${m.maxIndent} columns. Flatten the nesting and state relationships in words instead of whitespace.`,
-    });
+    out.push({ id: "indentation", severity: "warning", share: m.indentation, maxIndent: m.maxIndent });
   }
 
   if (s.narrative === "bad" && m.narrative !== null) {
-    out.push({
-      id: "narrative",
-      severity: "warning",
-      title: `Only ${pct(m.narrative)} of lines read as sentences`,
-      detail: "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”.",
-    });
+    out.push({ id: "narrative", severity: "warning", share: m.narrative });
   }
 
-  if (m.wrappedLines > 0) {
-    out.push({
-      id: "wrapped",
-      severity: "info",
-      title: `${m.wrappedLines} ${m.wrappedLines === 1 ? "line wraps" : "lines wrap"} past column ${m.cols}`,
-      detail: "Break long lines where the thought breaks; wrapped rows are harder to scan.",
-    });
-  }
+  if (m.wrappedLines > 0) out.push({ id: "wrapped", severity: "info", lines: m.wrappedLines, cols: m.cols });
 
   if (m.overflow === 0 && m.fill < t.lightFill) {
-    const room = Math.max(0, m.tokenCeiling - m.tokens);
-    out.push({
-      id: "room",
-      severity: "info",
-      title: `Room for ≈${room.toLocaleString("en-US")} more tokens`,
-      detail: "A light page is fine. Don’t pad it; add only what changes what the agent will do.",
-    });
+    out.push({ id: "room", severity: "info", tokens: Math.max(0, m.tokenCeiling - m.tokens) });
   }
 
   // "Reads clean" only when no signal needs attention (a syntax note does).
   const quiet = Object.values(s).every((tone) => tone === "ok" || tone === "na");
-  if (quiet && out.every((f) => f.severity === "info") && (verdict === "Balanced" || verdict === "Light")) {
-    out.unshift({
-      id: "clean",
-      severity: "info",
-      title: "Reads clean",
-      detail: "Fits the page, with little scaffolding and little repetition.",
-    });
+  if (quiet && out.every((f) => f.severity === "info") && (verdict === "balanced" || verdict === "light")) {
+    out.unshift({ id: "clean", severity: "info" });
   }
 
   return out;

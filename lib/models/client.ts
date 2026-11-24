@@ -8,7 +8,7 @@
 import { create, type DescMessage, type MessageInitShape, type MessageShape } from "@bufbuild/protobuf";
 import type { GenService } from "@bufbuild/protobuf/codegenv2";
 import { SheetModelService } from "../gen/a4/v1/model_pb.js";
-import { ModelError } from "./errors.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
 
 type Methods = typeof SheetModelService extends GenService<infer T> ? T : never;
 export type MethodName = keyof Methods & string;
@@ -32,12 +32,12 @@ export type SheetModelHandlers = {
 
 export const METHOD_NAMES = Object.keys(SheetModelService.method) as MethodName[];
 
-export function methodDesc(name: MethodName) {
-  return SheetModelService.method[name] as unknown as {
-    methodKind: "unary" | "server_streaming";
-    input: DescMessage;
-    output: DescMessage;
-  };
+export function methodDesc(name: MethodName): {
+  methodKind: "unary" | "server_streaming";
+  input: DescMessage;
+  output: DescMessage;
+} {
+  return SheetModelService.method[name];
 }
 
 /**
@@ -51,12 +51,12 @@ export function implement(handlers: Partial<SheetModelHandlers>): SheetModelClie
     const handler = handlers[name] as ((req: unknown, signal?: AbortSignal) => unknown) | undefined;
     if (desc.methodKind === "unary") {
       client[name] = async (req: unknown, signal?: AbortSignal) => {
-        if (!handler) throw new ModelError("unimplemented", `${name} is not implemented`);
+        if (!handler) throw new ModelError(ErrorCode.UNIMPLEMENTED, `${name} is not implemented`);
         return create(desc.output, (await handler(req, signal)) as never);
       };
     } else {
       client[name] = async function* (req: unknown, signal?: AbortSignal) {
-        if (!handler) throw new ModelError("unimplemented", `${name} is not implemented`);
+        if (!handler) throw new ModelError(ErrorCode.UNIMPLEMENTED, `${name} is not implemented`);
         for await (const item of handler(req, signal) as AsyncIterable<unknown>)
           yield create(desc.output, item as never);
       };

@@ -9,6 +9,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ModelHost, ScoreResult } from "@/lib/models/host";
 import { BUNDLED_CARDS, MODEL_DOWNLOADED } from "@/lib/models/cards";
+import { pluginIdOf, type PluginId } from "@/lib/models/plugin-id";
 import type { PageSpec } from "@/lib/page-spec";
 
 export type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
@@ -18,8 +19,8 @@ export interface ModelsState {
   progress: Record<string, { loaded: number; total: number }>;
   errors: Record<string, string>;
   /** Download and load a plugin's model files. Only call after the author asks. */
-  prepare: (id: string) => Promise<void>;
-  score: (id: string, text: string, spec: PageSpec) => Promise<ScoreResult>;
+  prepare: (id: PluginId) => Promise<void>;
+  score: (id: PluginId, text: string, spec: PageSpec) => Promise<ScoreResult>;
   host: () => Promise<ModelHost>;
 }
 
@@ -47,7 +48,7 @@ export function useModels(): ModelsState {
           // Start the plugin only if its model is already downloaded; then its
           // worker can also fetch its code while the page is online.
           const downloaded = (await MODEL_DOWNLOADED[card.id]?.()) ?? true;
-          const ready = downloaded && (await (await host()).status(card.id));
+          const ready = downloaded && (await (await host()).status(pluginIdOf(card)));
           if (!cancelled) setStatus((s) => ({ ...s, [card.id]: ready ? "ready" : "not-downloaded" }));
         } catch (error) {
           if (cancelled) return;
@@ -62,7 +63,7 @@ export function useModels(): ModelsState {
   }, [host]);
 
   const prepare = useCallback(
-    async (id: string) => {
+    async (id: PluginId) => {
       setStatus((s) => ({ ...s, [id]: "downloading" }));
       setErrors((e) => {
         const { [id]: _, ...rest } = e;
@@ -80,7 +81,7 @@ export function useModels(): ModelsState {
   );
 
   const score = useCallback(
-    async (id: string, text: string, spec: PageSpec) => (await host()).score(id, text, spec),
+    async (id: PluginId, text: string, spec: PageSpec) => (await host()).score(id, text, spec),
     [host],
   );
 

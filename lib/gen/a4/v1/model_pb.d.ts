@@ -545,67 +545,6 @@ export declare type GenerateResponse = Message<"a4.v1.GenerateResponse"> & {
 export declare const GenerateResponseSchema: GenMessage<GenerateResponse>;
 
 /**
- * One message on a worker transport. A call is a request frame with an id and
- * method; its reply is one or more frames with the same id, the last with
- * `end` set. An error ends the call.
- *
- * @generated from message a4.v1.RpcFrame
- */
-export declare type RpcFrame = Message<"a4.v1.RpcFrame"> & {
-  /**
-   * @generated from field: uint32 id = 1;
-   */
-  id: number;
-
-  /**
-   * @generated from field: string method = 2;
-   */
-  method: string;
-
-  /**
-   * @generated from field: bytes payload = 3;
-   */
-  payload: Uint8Array;
-
-  /**
-   * @generated from field: bool end = 4;
-   */
-  end: boolean;
-
-  /**
-   * @generated from field: a4.v1.RpcError error = 5;
-   */
-  error?: RpcError | undefined;
-};
-
-/**
- * Describes the message a4.v1.RpcFrame.
- * Use `create(RpcFrameSchema)` to create a new message.
- */
-export declare const RpcFrameSchema: GenMessage<RpcFrame>;
-
-/**
- * @generated from message a4.v1.RpcError
- */
-export declare type RpcError = Message<"a4.v1.RpcError"> & {
-  /**
-   * @generated from field: string code = 1;
-   */
-  code: string;
-
-  /**
-   * @generated from field: string message = 2;
-   */
-  message: string;
-};
-
-/**
- * Describes the message a4.v1.RpcError.
- * Use `create(RpcErrorSchema)` to create a new message.
- */
-export declare const RpcErrorSchema: GenMessage<RpcError>;
-
-/**
  * @generated from enum a4.v1.Operation
  */
 export enum Operation {
@@ -677,6 +616,122 @@ export enum View {
  * Describes the enum a4.v1.View.
  */
 export declare const ViewSchema: GenEnum<View>;
+
+/**
+ * Why a model call failed.
+ *
+ * @generated from enum a4.v1.ErrorCode
+ */
+export enum ErrorCode {
+  /**
+   * @generated from enum value: ERROR_CODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The plugin's card doesn't declare the operation.
+   *
+   * @generated from enum value: ERROR_CODE_UNSUPPORTED_OPERATION = 1;
+   */
+  UNSUPPORTED_OPERATION = 1,
+
+  /**
+   * The plugin doesn't implement a method it was asked for.
+   *
+   * @generated from enum value: ERROR_CODE_UNIMPLEMENTED = 2;
+   */
+  UNIMPLEMENTED = 2,
+
+  /**
+   * A result broke the contract (wrong plane shape, no candidate, ...).
+   *
+   * @generated from enum value: ERROR_CODE_INVALID_RESULT = 3;
+   */
+  INVALID_RESULT = 3,
+
+  /**
+   * A plugin that sends text off the device was called without fresh consent.
+   *
+   * @generated from enum value: ERROR_CODE_CONSENT_REQUIRED = 4;
+   */
+  CONSENT_REQUIRED = 4,
+
+  /**
+   * The author canceled.
+   *
+   * @generated from enum value: ERROR_CODE_CANCELED = 5;
+   */
+  CANCELED = 5,
+
+  /**
+   * The remote service rejected the credentials.
+   *
+   * @generated from enum value: ERROR_CODE_AUTH = 6;
+   */
+  AUTH = 6,
+
+  /**
+   * The network or remote service failed.
+   *
+   * @generated from enum value: ERROR_CODE_NETWORK = 7;
+   */
+  NETWORK = 7,
+
+  /**
+   * The model declined the request.
+   *
+   * @generated from enum value: ERROR_CODE_REFUSED = 8;
+   */
+  REFUSED = 8,
+
+  /**
+   * The model files aren't downloaded yet.
+   *
+   * @generated from enum value: ERROR_CODE_NOT_READY = 9;
+   */
+  NOT_READY = 9,
+
+  /**
+   * The plugin's worker failed to load, crashed, or sent unreadable data.
+   *
+   * @generated from enum value: ERROR_CODE_UNAVAILABLE = 10;
+   */
+  UNAVAILABLE = 10,
+
+  /**
+   * Anything else the plugin reports.
+   *
+   * @generated from enum value: ERROR_CODE_PLUGIN = 11;
+   */
+  PLUGIN = 11,
+
+  /**
+   * No plugin is registered with that id.
+   *
+   * @generated from enum value: ERROR_CODE_NOT_FOUND = 12;
+   */
+  NOT_FOUND = 12,
+
+  /**
+   * A card can't be registered: no id, a remote plugin with no destination,
+   * an id that's taken, or a plugin that describes itself as another.
+   *
+   * @generated from enum value: ERROR_CODE_INVALID_CARD = 13;
+   */
+  INVALID_CARD = 13,
+
+  /**
+   * A transport frame couldn't be decoded.
+   *
+   * @generated from enum value: ERROR_CODE_UNREADABLE = 14;
+   */
+  UNREADABLE = 14,
+}
+
+/**
+ * Describes the enum a4.v1.ErrorCode.
+ */
+export declare const ErrorCodeSchema: GenEnum<ErrorCode>;
 
 /**
  * @generated from enum a4.v1.Placement

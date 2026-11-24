@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ModelError } from "../models/errors.ts";
+import { ErrorCode, ModelError } from "../models/errors.ts";
 import { PageNotFoundError } from "../store/types.ts";
 import { describeError, runReported } from "./errors.ts";
 
@@ -12,7 +12,7 @@ function domError(name: string, message = "") {
 
 test("store, model, and browser errors become plain sentences", () => {
   assert.equal(describeError(new PageNotFoundError("Brief")), "No page named “Brief”.");
-  assert.equal(describeError(new ModelError("network", "The network failed.")), "The network failed.");
+  assert.equal(describeError(new ModelError(ErrorCode.NETWORK, "The network failed.")), "The network failed.");
   assert.equal(describeError(domError("QuotaExceededError")), "The browser is out of storage space for this site.");
   assert.equal(describeError(domError("NotAllowedError")), "The browser didn’t allow access.");
   assert.equal(describeError(new Error("Something specific")), "Something specific");

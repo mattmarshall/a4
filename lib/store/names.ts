@@ -6,7 +6,7 @@
  * case. Names are file stems, so these rules keep them portable.
  */
 
-import { InvalidPageNameError, type PageName, type PageStore } from "./types.ts";
+import { InvalidPageNameError, type IdCodec, type PageName, type PageSummary } from "./types.ts";
 
 export const MAX_NAME_LENGTH = 80;
 export const DEFAULT_PAGE_NAME = "Untitled";
@@ -53,6 +53,12 @@ export function storedPageName(stem: string): PageName | null {
   return stem.length > 0 ? (stem as PageName) : null;
 }
 
+/** Page names as stored keys and file stems, read back like `storedPageName`. */
+export const pageNameCodec: IdCodec<PageName> = {
+  parse: storedPageName,
+  format: (name) => name,
+};
+
 export function isValidPageName(input: string): boolean {
   try {
     parsePageName(input);
@@ -97,7 +103,10 @@ export function nextAvailableName(desired: string, taken: Iterable<string>): Pag
   }
 }
 
-export async function availableName(store: PageStore, desired: string): Promise<PageName> {
+export async function availableName(
+  store: { list(): Promise<readonly PageSummary<string>[]> },
+  desired: string,
+): Promise<PageName> {
   const pages = await store.list();
   return nextAvailableName(
     desired,

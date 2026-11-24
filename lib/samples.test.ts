@@ -10,7 +10,7 @@ test("welcome page fits the Terminal page without wrapping", () => {
   const a = analyze(WELCOME, T);
   assert.equal(a.overflow, 0);
   assert.equal(a.wrappedLines, 0);
-  assert.notEqual(a.verdict, "Overflowing");
+  assert.notEqual(a.verdict, "overflowing");
 });
 
 test("every template fits, states its purpose up front, and is not noisy", () => {
@@ -19,7 +19,7 @@ test("every template fits, states its purpose up front, and is not noisy", () =>
     const a = analyze(t.text, T);
     assert.equal(a.overflow, 0, `${t.id} overflow`);
     assert.equal(a.wrappedLines, 0, `${t.id} wraps`);
-    assert.ok(!["Noisy", "Busy", "Overflowing"].includes(a.verdict), `${t.id}: ${a.verdict}`);
+    assert.ok(!["noisy", "busy", "overflowing"].includes(a.verdict), `${t.id}: ${a.verdict}`);
     const head = t.text.split("\n").slice(0, 4).join("\n");
     assert.match(head, /Purpose:/, `${t.id} purpose line`);
   }
@@ -28,8 +28,8 @@ test("every template fits, states its purpose up front, and is not noisy", () =>
 test("incident JSON is noisy or overflowing; the narrative is neither", () => {
   const json = analyze(INCIDENT_JSON, T);
   const narrative = analyze(INCIDENT_NARRATIVE, T);
-  assert.ok(["Noisy", "Overflowing"].includes(json.verdict), json.verdict);
-  assert.ok(!["Noisy", "Overflowing"].includes(narrative.verdict), narrative.verdict);
+  assert.ok(["noisy", "overflowing"].includes(json.verdict), json.verdict);
+  assert.ok(!["noisy", "overflowing"].includes(narrative.verdict), narrative.verdict);
   assert.ok(narrative.syntax < json.syntax);
   assert.ok(narrative.tokens < json.tokens);
   assert.doesNotThrow(() => JSON.parse(INCIDENT_JSON));

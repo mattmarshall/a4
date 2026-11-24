@@ -1,5 +1,6 @@
 "use client";
 
+import { ATTRIBUTES, type NumberAttribute } from "@/lib/element/contract";
 import { withPose, type Pose } from "@/lib/paper/deform";
 import type { Slot } from "./useLibrary";
 
@@ -9,7 +10,16 @@ export interface SheetView {
   light: number;
 }
 
-export const DEFAULT_VIEW: SheetView = { tilt: 32, turn: 0, light: 215 };
+export const DEFAULT_VIEW: SheetView = {
+  tilt: ATTRIBUTES.tilt.default,
+  turn: ATTRIBUTES.turn.default,
+  light: ATTRIBUTES.light.default,
+};
+
+/** A slider's range and step, from the element's attribute table. */
+function range({ min, max, step }: NumberAttribute) {
+  return { min, max, step };
+}
 
 function Slider({
   label,
@@ -77,25 +87,19 @@ export function SheetControls({
         <Slider
           label="Bottom fold"
           value={pose.foldBottom}
-          min={0}
-          max={1}
-          step={0.01}
+          {...range(ATTRIBUTES.foldBottom)}
           onChange={(v) => onPose(withPose(pose, { foldBottom: v }))}
         />
         <Slider
           label="Top fold"
           value={pose.foldTop}
-          min={0}
-          max={1}
-          step={0.01}
+          {...range(ATTRIBUTES.foldTop)}
           onChange={(v) => onPose(withPose(pose, { foldTop: v }))}
         />
         <Slider
           label="Corner curl"
           value={pose.curl}
-          min={0}
-          max={1}
-          step={0.01}
+          {...range(ATTRIBUTES.curl)}
           onChange={(v) => onPose(withPose(pose, { curl: v }))}
         />
       </div>
@@ -104,27 +108,21 @@ export function SheetControls({
         <Slider
           label="Tilt"
           value={view.tilt}
-          min={0}
-          max={65}
-          step={1}
+          {...range(ATTRIBUTES.tilt)}
           format={deg}
           onChange={(v) => onView({ ...view, tilt: v })}
         />
         <Slider
           label="Turn"
           value={view.turn}
-          min={-180}
-          max={180}
-          step={1}
+          {...range(ATTRIBUTES.turn)}
           format={deg}
           onChange={(v) => onView({ ...view, turn: v })}
         />
         <Slider
           label="Light"
           value={view.light}
-          min={0}
-          max={360}
-          step={1}
+          {...range(ATTRIBUTES.light)}
           format={deg}
           onChange={(v) => onView({ ...view, light: v })}
         />

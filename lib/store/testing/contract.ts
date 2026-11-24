@@ -13,7 +13,8 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { parsePageName } from "../names.ts";
 import { revisionOf } from "../revision.ts";
-import { isStoreError, type PageFiles, type PageName, type PageStore, type Revision } from "../types.ts";
+import { isStoreError, type PageFiles, type PageStore } from "../types.ts";
+import { forgePageName } from "./forge.ts";
 
 const n = (s: string) => parsePageName(s);
 
@@ -103,7 +104,7 @@ export function pageFilesContract<Id extends string>(
       const store = await makeStore();
       await store.create(id("Brief"), "v1");
       await store.write(id("Brief"), "same");
-      const ok = await store.write(id("Brief"), "next", revisionOf("same") as Revision);
+      const ok = await store.write(id("Brief"), "next", revisionOf("same"));
       assert.equal(ok.revision, revisionOf("next"));
     });
 
@@ -133,8 +134,8 @@ export function pageStoreContract(label: string, makeStore: () => Promise<PageSt
 
     test("invalid names are rejected", async () => {
       const store = await makeStore();
-      await rejectsWith(store.create("a/b" as PageName, "x"), "invalid-name");
-      await rejectsWith(store.create(".hidden" as PageName, "x"), "invalid-name");
+      await rejectsWith(store.create(forgePageName("a/b"), "x"), "invalid-name");
+      await rejectsWith(store.create(forgePageName(".hidden"), "x"), "invalid-name");
     });
 
     test("rename moves the text; clashes and missing pages are rejected", async () => {

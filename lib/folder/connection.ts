@@ -18,7 +18,7 @@ import { FolderPageFiles } from "../store/folder.ts";
 import type { KeyValue } from "../store/key-value.ts";
 import { availableName, stamp } from "../store/names.ts";
 import type { LockLike } from "../store/opfs.ts";
-import { fileCopyName, type FilePath } from "../store/refs.ts";
+import { fileCopyName, filePathCodec, type FilePath } from "../store/refs.ts";
 import type { PageFiles, PageName, PageStore } from "../store/types.ts";
 import { sheetFiles } from "./faithful.ts";
 
@@ -290,14 +290,23 @@ export class FolderConnection {
   }
 
   journalFor(id: string): Journal<FilePath> {
-    return new Journal<FilePath>(this.#kv, this.#tabId, { prefix: `a4:folder:${id}:` });
+    return new Journal(this.#kv, this.#tabId, filePathCodec, { prefix: `a4:folder:${id}:` });
   }
 
   /** Recover drafts of this folder's files left by tabs that are gone. */
-  async recover(library: PageStore, liveTabs: ReadonlySet<string> | null): Promise<Recovery<FilePath>[]> {
+  async recover(
+    library: PageStore,
+    libraryJournal: Journal<PageName>,
+    liveTabs: ReadonlySet<string> | null,
+  ): Promise<Recovery<FilePath>[]> {
     if (this.#state.status !== "connected") return [];
     const { sheet, journal } = this.#state.folder;
-    return recoverDrafts(sheet, journal, liveTabs, Date.now(), { copies: library, copyName: fileCopyName });
+    return recoverDrafts(
+      sheet,
+      journal,
+      { kind: "copy-out", library, libraryJournal, copyName: fileCopyName },
+      liveTabs,
+    );
   }
 
   /**

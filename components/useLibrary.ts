@@ -14,17 +14,29 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  createFileSession,
+  createLibrarySession,
   ensureFirstPage,
   Journal,
   migrateLegacySlots,
-  PageSession,
   recoverDrafts,
+  type LibrarySession,
+  type PageSession,
   realScheduler,
   type Recovery,
   type SaveStatus,
   type SessionEvent,
 } from "@/lib/autosave";
+import { assertNever } from "@/lib/assert-never";
 import { buildLibraryArchive, type LibraryArchive } from "@/lib/export";
+import {
+  decodeLibraryEvent,
+  encodeLibraryEvent,
+  LIBRARY_CHANNEL,
+  pageSaved,
+  pagesChanged,
+  type LibraryEvent,
+} from "@/lib/library-events";
 import { FolderConnection, IdbHandleStore, type ConnectedFolder, type FolderState } from "@/lib/folder/connection";
 import { scanFolder, type FolderFile } from "@/lib/folder/scan";
 import { FileWatcher } from "@/lib/folder/watch";
@@ -32,12 +44,11 @@ import { shouldReopen, type PendingFile } from "@/lib/workspace/pending";
 import { SlotRequests, type Ticket } from "@/lib/workspace/slot-requests";
 import { importZip, type ImportReport } from "@/lib/import";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
-import { browserKeyValue, KEYS, readKey, writeKey } from "@/lib/storage";
+import { readSetting, SETTINGS, writeSetting } from "@/lib/settings";
+import { browserKeyValue } from "@/lib/storage";
 import {
   availableName,
   copyNameFor,
-  decodeRef,
-  encodeRef,
   fileCopyName,
   FileUnreadableError,
   fileRef,
@@ -45,6 +56,7 @@ import {
   isStoreError,
   libraryRef,
   openPageStore,
+  pageNameCodec,
   parseFilePath,
   parsePageName,
   refLabel,
@@ -92,15 +104,13 @@ export interface FolderView {
 export type Notify = (message: string, tone?: "info" | "warn") => void;
 
 const EMPTY_SLOT: SlotState = { ref: null, name: null, label: null, text: "", status: "saved" };
-const CHANNEL = "a4-pages";
 const SKIP_MIGRATION = [WELCOME, INCIDENT_JSON, INCIDENT_NARRATIVE, ...TEMPLATES.map((t) => t.text)];
 const SLOTS = ["a", "b"] as const;
 
-type AnySession = PageSession<PageName> | PageSession<FilePath>;
-interface OpenPage {
-  ref: PageRef;
-  session: AnySession;
-}
+/** What a slot holds: a library page's session, or a folder file's. */
+type OpenPage =
+  | { readonly kind: "library"; ref: PageRef; readonly session: LibrarySession }
+  | { readonly kind: "file"; ref: PageRef; readonly session: PageSession<FilePath> };
 
 interface Boot {
   store: PageStore;
@@ -147,9 +157,11 @@ function boot(): Promise<Boot> {
     const kv = browserKeyValue();
     const tabId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `t${Date.now()}`;
     const live = await holdTabLock(tabId);
-    const journal = new Journal(kv, tabId);
-    const recoveries = await recoverDrafts(store, journal, live).catch(() => [] as Recovery[]);
-    const migrated = await migrateLegacySlots(store, kv, SKIP_MIGRATION).catch(() => [] as PageName[]);
+    const journal = new Journal(kv, tabId, pageNameCodec);
+    const recoveries = await recoverDrafts(store, journal, { kind: "same-store", store }, live).catch(
+      (): Recovery[] => [],
+    );
+    const migrated = await migrateLegacySlots(store, kv, SKIP_MIGRATION).catch((): PageName[] => []);
     try {
       await ensureFirstPage(store, WELCOME);
     } catch (error) {
@@ -218,9 +230,9 @@ export function useLibrary(notify: Notify) {
     return state?.status === "connected" ? state.folder : null;
   }, []);
 
-  const broadcast = useCallback((name: string) => {
+  const broadcast = useCallback((event: LibraryEvent) => {
     try {
-      channel.current?.postMessage(name);
+      channel.current?.postMessage(encodeLibraryEvent(event));
     } catch {
       // Channel closed; other tabs will refresh on their next action.
     }
@@ -268,7 +280,7 @@ export function useLibrary(notify: Notify) {
   }, [connected]);
 
   const remember = useCallback((slot: Slot, ref: PageRef | null) => {
-    writeKey(slot === "a" ? KEYS.openA : KEYS.openB, encodeRef(ref));
+    writeSetting(slot === "a" ? SETTINGS.openA : SETTINGS.openB, ref);
   }, []);
 
   /** Re-point the file watcher at whatever files the slots hold now. */
@@ -277,7 +289,7 @@ export function useLibrary(notify: Notify) {
     if (!watcher) return;
     for (const slot of SLOTS) {
       const open = sessions.current[slot];
-      if (open?.ref.kind === "file") watcher.watch(slot, open.ref.path, open.session as PageSession<FilePath>);
+      if (open?.kind === "file" && open.ref.kind === "file") watcher.watch(slot, open.ref.path, open.session);
       else watcher.unwatch(slot);
     }
   }, []);
@@ -293,8 +305,8 @@ export function useLibrary(notify: Notify) {
       const typed = latestText.current[slot];
       await openRef.current(slot, libraryRef(copy));
       const open = sessions.current[slot];
-      if (open && open.session.text !== typed) {
-        (open.session as PageSession<PageName>).update(typed);
+      if (open?.kind === "library" && open.session.text !== typed) {
+        open.session.update(typed);
         setSlot(slot, { text: typed, status: open.session.status });
       }
     },
@@ -318,7 +330,7 @@ export function useLibrary(notify: Notify) {
                 ),
               ),
             );
-            broadcast(event.result.name);
+            broadcast(pageSaved(event.result.name));
           } else {
             const text = sessions.current[slot]?.session.text ?? "";
             const rows = rowsUsed(layoutRows(text, TERMINAL_COLS));
@@ -354,7 +366,7 @@ export function useLibrary(notify: Notify) {
             );
             void refresh();
           }
-          broadcast("");
+          broadcast(pagesChanged());
           break;
         case "recreated":
           if (event.moved) {
@@ -374,10 +386,12 @@ export function useLibrary(notify: Notify) {
             );
             void refresh();
           }
-          broadcast("");
+          broadcast(pagesChanged());
           break;
         case "error":
           break;
+        default:
+          assertNever(event);
       }
     },
     [broadcast, followCopy, refresh, remember, setSlot],
@@ -418,21 +432,18 @@ export function useLibrary(notify: Notify) {
       }
 
       // Read first, so a file that can't be opened leaves the slot as it was.
-      let session: AnySession | null = null;
+      let opened: OpenPage | null = null;
       let text = "";
       if (ref?.kind === "library") {
         const page = await b.store.read(ref.name);
         text = page.text;
-        const s: PageSession<PageName> = new PageSession<PageName>({
-          store: b.store,
-          journal: b.journal,
-          page,
+        const s: LibrarySession = createLibrarySession(b.store, b.journal, page, {
           onEvent: (e) => {
             const at = SLOTS.find((x) => sessions.current[x]?.session === s);
             if (at) onSessionEvent(at, sessions.current[at]!.ref, e);
           },
         });
-        session = s;
+        opened = { kind: "library", ref, session: s };
       } else if (ref?.kind === "file") {
         const folder = connected();
         if (!folder) throw new Error("Connect the folder to open its files.");
@@ -454,46 +465,49 @@ export function useLibrary(notify: Notify) {
           throw error;
         }
         text = page.text;
-        const s: PageSession<FilePath> = new PageSession<FilePath>({
-          store: folder.sheet,
-          journal: folder.journal,
+        const s: PageSession<FilePath> = createFileSession(
+          folder.sheet,
+          folder.journal,
           page,
-          copies: b.store,
-          copiesJournal: b.journal,
-          copyName: fileCopyName,
-          onEvent: (e) => {
-            const at = SLOTS.find((x) => sessions.current[x]?.session === s);
-            if (at) onSessionEvent(at, sessions.current[at]!.ref, e);
+          { library: b.store, libraryJournal: b.journal, copyName: fileCopyName },
+          {
+            onEvent: (e) => {
+              const at = SLOTS.find((x) => sessions.current[x]?.session === s);
+              if (at) onSessionEvent(at, sessions.current[at]!.ref, e);
+            },
           },
-        });
-        session = s;
+        );
+        opened = { kind: "file", ref, session: s };
       }
 
       // A newer request for this slot began while we read: drop what we built.
       if (!ticket.current()) {
-        await session?.dispose();
+        await opened?.session.dispose();
         return;
       }
       // Save and close whatever the slot holds now (it may have changed while we read).
       const previous = sessions.current[slot];
       if (previous) await previous.session.dispose();
       if (!ticket.current()) {
-        await session?.dispose();
+        await opened?.session.dispose();
         return;
       }
       watcherRef.current?.unwatch(slot);
-      sessions.current[slot] = ref && session ? { ref, session } : null;
+      sessions.current[slot] = opened;
       latestText.current[slot] = text;
-      if (!ref || !session) {
+      if (!opened) {
         setSlot(slot, EMPTY_SLOT);
         if (keep) remember(slot, null);
         return;
       }
-      if (ref.kind === "file") watcherRef.current?.watch(slot, ref.path, session as PageSession<FilePath>);
+      const { session } = opened;
+      if (opened.kind === "file" && opened.ref.kind === "file") {
+        watcherRef.current?.watch(slot, opened.ref.path, opened.session);
+      }
       // The session may have resumed a draft this tab left (its last save failed).
       latestText.current[slot] = session.text;
-      setSlot(slot, { ...refPatch(ref), text: session.text, status: session.status });
-      if (keep) remember(slot, ref);
+      setSlot(slot, { ...refPatch(opened.ref), text: session.text, status: session.status });
+      if (keep) remember(slot, opened.ref);
     },
     [connected, onSessionEvent, remember, rewatch, setSlot],
   );
@@ -517,14 +531,16 @@ export function useLibrary(notify: Notify) {
         },
       });
       try {
-        const recovered = (await connectionRef.current?.recover(b.store, await liveTabs())) ?? [];
+        const recovered = (await connectionRef.current?.recover(b.store, b.journal, await liveTabs())) ?? [];
         const shown = recovered.filter((r) => r.kind !== "discarded");
         if (shown.length) {
           await refresh();
           notifyRef.current(
             `Recovered unsaved edits to ${shown
               .map((r) =>
-                r.kind === "applied" ? `“${r.page}”` : `“${r.page}” (saved in the library as “${r.savedAs}”)`,
+                r.kind === "copied" || r.kind === "recreated"
+                  ? `“${r.page}” (saved in the library as “${r.savedAs}”)`
+                  : `“${r.page}”`,
               )
               .join(", ")}.`,
             "warn",
@@ -568,8 +584,8 @@ export function useLibrary(notify: Notify) {
         const list = await refresh();
         const names = new Set(list.map((p) => p.name as string));
         const fallback = list.find((p) => p.name === "Welcome")?.name ?? list[0]?.name ?? null;
-        const savedA = decodeRef(readKey(KEYS.openA));
-        const savedB = decodeRef(readKey(KEYS.openB));
+        const savedA = readSetting(SETTINGS.openA);
+        const savedB = readSetting(SETTINGS.openB);
         if (savedA?.kind === "file") {
           pendingFiles.current.a = { ref: savedA, fallback: fallback ? libraryRef(fallback) : null };
           await openInSlot("a", fallback, { remember: false });
@@ -581,7 +597,7 @@ export function useLibrary(notify: Notify) {
         const recovered = b.recoveries.filter((r) => r.kind !== "discarded");
         if (recovered.length) {
           const parts = recovered.map((r) =>
-            r.kind === "applied" ? `“${r.page}”` : `“${r.page}” (saved as “${r.savedAs}”)`,
+            r.kind === "copied" || r.kind === "recreated" ? `“${r.page}” (saved as “${r.savedAs}”)` : `“${r.page}”`,
           );
           notifyRef.current(`Recovered unsaved edits from a closed tab: ${parts.join(", ")}.`, "warn");
         }
@@ -612,20 +628,21 @@ export function useLibrary(notify: Notify) {
   // Cross-tab refresh.
   useEffect(() => {
     if (typeof BroadcastChannel === "undefined") return;
-    const ch = new BroadcastChannel(CHANNEL);
+    const ch = new BroadcastChannel(LIBRARY_CHANNEL);
     channel.current = ch;
-    ch.onmessage = async (event: MessageEvent) => {
+    ch.onmessage = async (message: MessageEvent) => {
       const b = bootRef.current;
       if (!b) return;
-      const name = typeof event.data === "string" ? event.data : "";
+      const event = decodeLibraryEvent(message.data);
       await refresh();
-      if (!name) return;
+      if (event?.event.case !== "pageSaved") return;
+      const { name } = event.event.value;
       for (const slot of SLOTS) {
         const open = sessions.current[slot];
         if (!open || open.ref.kind !== "library" || open.ref.name !== name) continue;
         try {
           const page = await b.store.read(open.ref.name);
-          if ((open.session as PageSession<PageName>).adoptRemote(page)) {
+          if (open.kind === "library" && open.session.adoptRemote(page)) {
             latestText.current[slot] = page.text;
             setSlot(slot, { text: page.text });
           }
@@ -696,7 +713,7 @@ export function useLibrary(notify: Notify) {
       const name = await availableName(b.store, desired);
       await b.store.create(name, text);
       await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
       await openInSlot(slot, name);
       return name;
     },
@@ -718,8 +735,9 @@ export function useLibrary(notify: Notify) {
         if (to === from) return null;
         const slot = slotOf(libraryRef(from));
         if (slot) {
-          const open = sessions.current[slot]!;
-          const result = await (open.session as PageSession<PageName>).rename(to);
+          const open = sessions.current[slot];
+          if (open?.kind !== "library") throw new Error("This page can’t be renamed.");
+          const result = await open.session.rename(to);
           open.ref = libraryRef(result.name);
           setSlot(slot, refPatch(open.ref));
           remember(slot, open.ref);
@@ -727,7 +745,7 @@ export function useLibrary(notify: Notify) {
           await b.store.rename(from, to);
         }
         await refresh();
-        broadcast("");
+        broadcast(pagesChanged());
         return null;
       } catch (error) {
         return errorMessage(error);
@@ -755,7 +773,7 @@ export function useLibrary(notify: Notify) {
       const copy = await availableName(b.store, copyNameFor(ref, " copy"));
       await b.store.create(copy, text);
       await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
       if (slot) await openInSlot(slot, copy);
       return copy;
     },
@@ -774,7 +792,7 @@ export function useLibrary(notify: Notify) {
       }
       await b.store.trash(name);
       const list = await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
       notifyRef.current(`Moved “${name}” to the trash.`);
       for (const slot of openSlots) {
         const other = sessions.current[slot === "a" ? "b" : "a"]?.ref;
@@ -793,7 +811,7 @@ export function useLibrary(notify: Notify) {
       if (!b) return;
       const result = await b.store.restore(id);
       await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
       notifyRef.current(`Restored “${result.name}”.`);
     },
     [broadcast, refresh],
@@ -811,7 +829,7 @@ export function useLibrary(notify: Notify) {
         }
       }
       await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
     },
     [broadcast, refresh],
   );
@@ -824,7 +842,7 @@ export function useLibrary(notify: Notify) {
     // Compare was left, or something else opened in B, while the list loaded.
     if (!ticket.current() || sessions.current.b) return;
     const a = sessions.current.a?.ref ?? null;
-    const saved = decodeRef(readKey(KEYS.openB));
+    const saved = readSetting(SETTINGS.openB);
     const pending = pendingFiles.current.b;
     const wanted = saved ?? pending?.ref ?? null;
     if (wanted?.kind === "file" && connected() && !sameRef(wanted, a)) {
@@ -856,7 +874,7 @@ export function useLibrary(notify: Notify) {
       if (!ticket.current()) return;
       await b.store.create(name, "");
       await refresh();
-      broadcast("");
+      broadcast(pagesChanged());
       await openInSlot("b", name, { ticket });
     }
   }, [broadcast, connected, openInSlot, refresh]);
@@ -899,7 +917,7 @@ export function useLibrary(notify: Notify) {
       } finally {
         // Refresh even after a partial import so every created page is visible.
         await refresh();
-        broadcast("");
+        broadcast(pagesChanged());
       }
     },
     [broadcast, refresh],
@@ -941,14 +959,7 @@ export function useLibrary(notify: Notify) {
   const openFolder = useCallback(async () => {
     const connection = connectionRef.current;
     if (!connection) return;
-    const picker = (
-      window as unknown as {
-        showDirectoryPicker?: (options?: {
-          mode?: "read" | "readwrite";
-          id?: string;
-        }) => Promise<FileSystemDirectoryHandle>;
-      }
-    ).showDirectoryPicker;
+    const picker = window.showDirectoryPicker;
     if (!picker) return;
     let handle: FileSystemDirectoryHandle;
     const asked = Date.now();

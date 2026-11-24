@@ -21,6 +21,13 @@ export function revisionOf(text: string): Revision {
   return `${hash.toString(16).padStart(14, "0")}.${text.length.toString(36)}` as Revision;
 }
 
+const REVISION = /^[0-9a-f]{14}\.[0-9a-z]+$/;
+
+/** A revision read back from storage, or null when `value` isn't one ("" included). */
+export function parseRevision(value: string): Revision | null {
+  return REVISION.test(value) ? (value as Revision) : null;
+}
+
 const encoder = new TextEncoder();
 
 /** UTF-8 byte length. */

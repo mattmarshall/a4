@@ -5,10 +5,14 @@ import { ModelCardSchema, Operation, Placement, View, type TransformRequest } fr
 import { PRESETS } from "../page-spec.ts";
 import { decodeGrid } from "../tensor/codec.ts";
 import { implement, type SheetModelHandlers } from "./client.ts";
-import { ModelError } from "./errors.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
 import { ModelHost } from "./host.ts";
 import { FakeWorker } from "./testing/fake-worker.ts";
-import { connectPort, fromWorker, servePort, type PortLike } from "./worker-transport.ts";
+import { connectPort, fromWorker, servePort } from "./worker-transport.ts";
+import { pluginIdOf } from "./plugin-id.ts";
+
+/** A plugin id, minted from a card as the host mints them. */
+const pid = (id: string) => pluginIdOf(create(ModelCardSchema, { id }));
 
 const T = PRESETS.terminal;
 const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i}`).join("\n");
@@ -68,8 +72,8 @@ function rowsPlugin(counts: number[]) {
 test("operations: an undeclared operation is refused without contacting the plugin", async () => {
   const { host, calls } = fake({ operations: [Operation.SCORE], handlers: { async *transform() {} } });
   await assert.rejects(
-    host.transform("fake", "x", T, { instruction: "fit" }),
-    (e: unknown) => e instanceof ModelError && e.code === "unsupported-operation",
+    host.transform(pid("fake"), "x", T, { instruction: "fit" }),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNSUPPORTED_OPERATION,
   );
   assert.deepEqual(calls, []);
 });
@@ -88,7 +92,7 @@ test("sheet views: a grid reader receives a grid that decodes to the page text",
       },
     },
   });
-  await host.score("fake", "hello\nworld", T);
+  await host.score(pid("fake"), "hello\nworld", T);
   assert.equal(seen, "hello\nworld");
 });
 
@@ -102,8 +106,8 @@ test("per-cell planes: a 60 × 79 plane for a 60 × 80 grid is rejected", async 
     },
   });
   await assert.rejects(
-    host.score("fake", "x", T),
-    (e: unknown) => e instanceof ModelError && e.code === "invalid-result" && /60 × 79/.test(e.message),
+    host.score(pid("fake"), "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_RESULT && /60 × 79/.test(e.message),
   );
 });
 
@@ -125,7 +129,7 @@ test("per-cell planes: a matching plane is returned with its text and values", a
       }),
     },
   });
-  const result = await host.score("fake", "x", T);
+  const result = await host.score(pid("fake"), "x", T);
   assert.equal(result.planes[0].values[0], 1);
   assert.equal(result.planes[0].values.length, 4800);
   assert.equal(result.planes[0].text, "x");
@@ -140,14 +144,14 @@ test("per-cell planes: a plane computed for other text is rejected", async () =>
     },
   });
   await assert.rejects(
-    host.score("fake", "x", T),
-    (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+    host.score(pid("fake"), "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_RESULT,
   );
 });
 
 test("host-enforced fit: a result laying out to 63 rows is over by 3", async () => {
   const { host } = rowsPlugin([63]);
-  const r = await host.transform("fake", "src", T, { instruction: "fit", maxAttempts: 1 });
+  const r = await host.transform(pid("fake"), "src", T, { instruction: "fit", maxAttempts: 1 });
   assert.equal(r.rowsUsed, 63);
   assert.equal(r.fits, false);
   assert.equal(r.overBy, 3);
@@ -156,7 +160,10 @@ test("host-enforced fit: a result laying out to 63 rows is over by 3", async () 
 test("fit with repairs: fits on the second attempt, with feedback and resume passed back", async () => {
   const { host, requests } = rowsPlugin([64, 58, 50]);
   const attempts: number[] = [];
-  const r = await host.transform("fake", "src", T, { instruction: "fit", onAttempt: (a) => attempts.push(a.rowsUsed) });
+  const r = await host.transform(pid("fake"), "src", T, {
+    instruction: "fit",
+    onAttempt: (a) => attempts.push(a.rowsUsed),
+  });
   assert.equal(r.fits, true);
   assert.equal(r.rowsUsed, 58);
   assert.equal(r.attempts, 2);
@@ -171,7 +178,7 @@ test("fit with repairs: fits on the second attempt, with feedback and resume pas
 
 test("fit with repairs: never fits, keeps the 63-row attempt, over by 3", async () => {
   const { host, requests } = rowsPlugin([70, 66, 63]);
-  const r = await host.transform("fake", "src", T, { instruction: "fit" });
+  const r = await host.transform(pid("fake"), "src", T, { instruction: "fit" });
   assert.equal(requests.length, 3);
   assert.equal(r.fits, false);
   assert.equal(r.rowsUsed, 63);
@@ -181,7 +188,7 @@ test("fit with repairs: never fits, keeps the 63-row attempt, over by 3", async 
 
 test("fit with repairs: keeps the fewest rows even when a later attempt is worse", async () => {
   const { host } = rowsPlugin([66, 70, 68]);
-  const r = await host.transform("fake", "src", T, { instruction: "fit" });
+  const r = await host.transform(pid("fake"), "src", T, { instruction: "fit" });
   assert.equal(r.rowsUsed, 66);
   assert.equal(r.overBy, 6);
 });
@@ -196,8 +203,8 @@ test("a plugin that describes itself under another id is refused", async () => {
   const host = new ModelHost();
   host.register({ card, connect: async () => implement({ describe: () => ({ card: { ...card, id: "other" } }) }) });
   await assert.rejects(
-    host.score("real", "x", T),
-    (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+    host.score(pid("real"), "x", T),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_CARD,
   );
 });
 
@@ -227,16 +234,13 @@ test("a plugin whose worker crashed is reconnected on the next call", async () =
     connect: async () => {
       const worker = new FakeWorker();
       workers.push(worker);
-      servePort(
-        worker.channel.port2 as unknown as PortLike,
-        implement({ describe: () => ({ card }), score: () => ({}) }),
-      );
+      servePort(worker.channel.port2, implement({ describe: () => ({ card }), score: () => ({}) }));
       return connectPort(fromWorker(worker));
     },
   });
-  await host.score("w", "hello", PRESETS.terminal);
+  await host.score(pid("w"), "hello", PRESETS.terminal);
   workers[0]!.crash();
-  await host.score("w", "hello again", PRESETS.terminal);
+  await host.score(pid("w"), "hello again", PRESETS.terminal);
   assert.equal(workers.length, 2);
   assert.ok(workers[0]!.terminated);
   workers[1]!.terminate();
@@ -263,8 +267,8 @@ test("changing a card after registration can't turn consent off", async () => {
   });
   card.sendsTextOffDevice = false; // the caller's object, after registration
   await assert.rejects(
-    host.transform("remote", "text", PRESETS.terminal, { instruction: "fit" }),
-    (e: unknown) => e instanceof ModelError && e.code === "consent-required",
+    host.transform(pid("remote"), "text", PRESETS.terminal, { instruction: "fit" }),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CONSENT_REQUIRED,
   );
   assert.equal(connected, false);
   // The host's own card can't be changed either.
@@ -273,7 +277,7 @@ test("changing a card after registration can't turn consent off", async () => {
   assert.throws(() => {
     (listed as { sendsTextOffDevice: boolean }).sendsTextOffDevice = false;
   });
-  assert.equal(host.card("remote").sendsTextOffDevice, true);
+  assert.equal(host.card(pid("remote")).sendsTextOffDevice, true);
 });
 
 test("the host rejects spans outside the page, deep planes, and duplicate plane names", async () => {
@@ -291,8 +295,8 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
   for (const [label, score] of cases) {
     const { host } = fake({ operations: [Operation.SCORE], handlers: { score } });
     await assert.rejects(
-      host.score("fake", text, PRESETS.terminal),
-      (e: unknown) => e instanceof ModelError && e.code === "invalid-result",
+      host.score(pid("fake"), text, PRESETS.terminal),
+      (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_RESULT,
       label,
     );
   }
@@ -305,7 +309,7 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
   });
   const deep = fake({ operations: [Operation.SCORE], handlers: { score: () => ({ planes: [plane("p", 2)] }) } });
   await assert.rejects(
-    deep.host.score("fake", text, PRESETS.terminal),
+    deep.host.score(pid("fake"), text, PRESETS.terminal),
     (e: unknown) => e instanceof ModelError && /depth 2/.test(e.message),
   );
   const twice = fake({
@@ -313,7 +317,7 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
     handlers: { score: () => ({ planes: [plane("p", 1), plane("p", 1)] }) },
   });
   await assert.rejects(
-    twice.host.score("fake", text, PRESETS.terminal),
+    twice.host.score(pid("fake"), text, PRESETS.terminal),
     (e: unknown) => e instanceof ModelError && /two planes/.test(e.message),
   );
   const ok = fake({
@@ -325,7 +329,7 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
       }),
     },
   });
-  const result = await ok.host.score("fake", text, PRESETS.terminal);
+  const result = await ok.host.score(pid("fake"), text, PRESETS.terminal);
   assert.deepEqual(
     result.planes.map((p) => p.name),
     ["p", "q"],

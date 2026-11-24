@@ -1,11 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Journal } from "../autosave/journal.ts";
-import { PageSession, type SessionEvent } from "../autosave/session.ts";
+import { createFileSession, type SessionEvent } from "../autosave/session.ts";
 import { FakeScheduler } from "../autosave/testing/fake-scheduler.ts";
 import { MemoryKeyValue, MemoryPageStore } from "../store/key-value.ts";
-import { parsePageName } from "../store/names.ts";
-import { fileCopyName, parseFilePath, type FilePath } from "../store/refs.ts";
+import { pageNameCodec, parsePageName } from "../store/names.ts";
+import { fileCopyName, filePathCodec, parseFilePath, type FilePath } from "../store/refs.ts";
 import { asDirectoryHandle, FakeDirectoryHandle, FakeVolume } from "../store/testing/fake-opfs.ts";
 import { FolderConnection, MemoryHandleStore } from "./connection.ts";
 import { FileWatcher } from "./watch.ts";
@@ -29,15 +29,13 @@ async function setup() {
   const library = new MemoryPageStore();
   const path = parseFilePath("AGENTS.md");
   const events: SessionEvent<FilePath>[] = [];
-  const session = new PageSession<FilePath>({
-    store: folder.sheet,
-    journal: new Journal<FilePath>(kv, "tab1", { prefix: `a4:folder:${folder.id}:` }),
-    copies: library,
-    copyName: fileCopyName,
-    scheduler,
-    page: await folder.sheet.read(path),
-    onEvent: (e) => events.push(e),
-  });
+  const session = createFileSession(
+    folder.sheet,
+    new Journal(kv, "tab1", filePathCodec, { prefix: `a4:folder:${folder.id}:` }),
+    await folder.sheet.read(path),
+    { library, libraryJournal: new Journal(kv, "tab1", pageNameCodec), copyName: fileCopyName },
+    { scheduler, onEvent: (e) => events.push(e) },
+  );
   let visible = true;
   const reloaded: string[] = [];
   const watcher = new FileWatcher({

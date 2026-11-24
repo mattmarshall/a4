@@ -70,6 +70,13 @@ type RelocationPolicy<Id> =
   `addEventListener<K extends keyof A4SheetEventMap>` overloads.
 - **`types/a4-sheet.d.ts`** is generated from the table by a small script,
   so the JSX attribute types can't drift.
+- **As built:**
+  - The `HTMLElementTagNameMap` entry sits beside the class in
+    `a4-sheet.ts`. In `contract.ts` it would need a type import of the class,
+    a cycle the import-boundary rules reject.
+  - `light` wraps into 0–360 instead of clamping to −360–720. The slider
+    keeps its 0–360 range, and an azimuth of 400 lights the page exactly
+    like 40.
 
 ### 5. Analysis vocabulary
 
@@ -87,7 +94,20 @@ type RelocationPolicy<Id> =
 
 - **Settings:** `defineSetting<T>({ key, codec, default })`. The registry is
   the only place that knows key strings. `useSetting(setting)` is
-  `useSyncExternalStore` over storage events, plus an in-memory fallback.
+  `useSyncExternalStore` over this tab's setting writes, plus an in-memory
+  fallback.
+  - **Same tab only:** it doesn't follow `storage` events from other tabs.
+    Live cross-tab settings would change behavior (switching one tab to
+    Compare would switch every tab), which this change avoids. Other tabs
+    read new values when they load, as before.
+  - **Hook placement:** `lib/settings.ts` holds the registry and storage;
+    the hook lives in `components/useSetting.ts`, because `lib/` stays
+    free of React.
+  - **The Workbench:** it keeps reading settings once after mount and
+    writing them on change, now through `readSetting` and `writeSetting`.
+    Moving its state into `useSetting` belongs to
+    refactor-workspace-controller. An unset Pages panel or inspector still
+    follows the window width.
 - **Library events:** a `LibraryEvent` proto, posted as bytes. A receiver
   that gets a string treats `""` as `PagesChanged`, and any other value as
   `PageSaved(name)`, for one release, as noted in the README.
@@ -100,6 +120,30 @@ type RelocationPolicy<Id> =
 - **`RpcFrame`:** `oneof kind`. The transport replies with an error to any
   frame that has an id but can't be decoded.
 - **`PluginId`:** a brand minted from registered cards only.
+- **As built:**
+  - **Where the frame lives:** `RpcFrame` and `RpcError` moved to their own
+    file, `rpc.proto`, which `buf.yaml` exempts from breaking checks.
+    Under buf's FILE rules, the move deletes two messages from
+    `model.proto`. A second exception allows exactly that rule
+    (`MESSAGE_NO_DELETE`) on `model.proto`, with a note to remove it once
+    this change has shipped.
+  - **Error codes:** `ErrorCode` also names registration problems
+    (`NOT_FOUND`, `INVALID_CARD`), so they no longer reuse result codes.
+    `UNREADABLE` is the code for a frame that can't be decoded.
+  - **The old spelling:** `errorCodeFromName` maps both spellings of
+    canceled, and `toModelError` uses it for errors that carry a string
+    `code`. The page and its worker always ship together, so the wire
+    itself carries only the enum.
+  - **Undecodable frames:** a request that can't be decoded gets an error
+    reply. On the client, a reply that can't be decoded fails its call.
+  - **Plugin ids:** the host's `register` returns the `PluginId`, and each
+    bundled card's module mints its own constant from its card.
+  - **Double casts:** seven `as unknown as` remain, each listed in
+    `scripts/cast-report.ts` with its reason. They are the worker scope (two
+    in the semantic worker), the Anthropic SDK boundary (two in the
+    adapter), and three test fakes. `navigator.locks`, the method
+    descriptors, the directory picker, and the test ports now type without
+    one.
 
 ## Risks / Trade-offs
 
@@ -115,4 +159,6 @@ type RelocationPolicy<Id> =
 No stored data changes. The proto changes regenerate `lib/gen/` and pass
 `buf breaking`, because fields are added and old shapes stay accepted. The
 one exception is `RpcFrame`, which is internal to a worker and its page and
-always ships together; it is excepted from breaking checks with a note.
+always ships together; it is excepted from breaking checks with a note
+(`buf.yaml`). After this change ships, remove the `MESSAGE_NO_DELETE`
+exception for `model.proto`.

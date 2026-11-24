@@ -11,7 +11,7 @@
  * the file through `createWritable()`, which commits atomically on close.
  */
 
-import { hasFileExtension, parseFilePath, type FilePath } from "./refs.ts";
+import { filePathCodec, hasFileExtension, parseFilePath, type FilePath } from "./refs.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import type { LockLike } from "./opfs.ts";
 import {
@@ -105,11 +105,9 @@ export async function walkFolder(
         if (handle.kind === "directory") {
           if (!skipFolder(name)) queue.push({ dir: handle as FileSystemDirectoryHandle, prefix: `${prefix}${name}/` });
         } else if (hasFileExtension(name)) {
-          try {
-            files.push({ path: parseFilePath(`${prefix}${name}`), handle: handle as FileSystemFileHandle });
-          } catch {
-            // A name A4 can't represent as a path (e.g. a backslash): leave it out.
-          }
+          // A name A4 can't represent as a path (e.g. a backslash) is left out.
+          const path = filePathCodec.parse(`${prefix}${name}`);
+          if (path) files.push({ path, handle: handle as FileSystemFileHandle });
         }
       }
     } catch (error) {
@@ -153,7 +151,7 @@ export class FolderPageFiles implements PageFiles<FilePath> {
       options.locks !== undefined
         ? options.locks
         : typeof navigator !== "undefined" && navigator.locks
-          ? (navigator.locks as unknown as LockLike)
+          ? navigator.locks
           : null;
   }
 
@@ -242,13 +240,13 @@ export class FolderPageFiles implements PageFiles<FilePath> {
     return this.#locked(valid, async () => {
       const handle = await this.handle(valid);
       if (!handle) throw new PageNotFoundError(valid);
-      if (expected) {
+      if (expected != null) {
         let actual: Revision;
         try {
           actual = (await this.#readHandle(valid, handle)).revision;
         } catch (error) {
           // A file that became unreadable no longer matches any revision we hold.
-          if (error instanceof FileUnreadableError) throw new PageConflictError(valid, expected, "" as Revision);
+          if (error instanceof FileUnreadableError) throw new PageConflictError(valid, expected, null);
           throw error;
         }
         if (actual !== expected) throw new PageConflictError(valid, expected, actual);
@@ -267,8 +265,5 @@ export class FolderPageFiles implements PageFiles<FilePath> {
 
 /** True when this browser can pick a folder and write to it. */
 export function folderPickerSupported(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    typeof (window as { showDirectoryPicker?: unknown }).showDirectoryPicker === "function"
-  );
+  return typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 }

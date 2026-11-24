@@ -1,6 +1,7 @@
 "use client";
 
-import { THRESHOLDS, VERDICT_SUMMARY, type Analysis, type Tone } from "@/lib/analyze";
+import { THRESHOLDS, type Analysis, type Tone } from "@/lib/analyze";
+import { describeFinding, VERDICT_LABEL, VERDICT_SUMMARY, VERDICT_TONE } from "./analysis-copy";
 import { KIND_LABEL, LENSES, type LensId } from "@/lib/lenses";
 import { InspectorSection } from "./InspectorSection";
 import { fontSizePt, type PageSpec } from "@/lib/page-spec";
@@ -65,8 +66,8 @@ function Metric({
 
 export function VerdictChip({ verdict }: { verdict: Analysis["verdict"] }) {
   return (
-    <span className="verdict-chip" data-v={verdict}>
-      {verdict}
+    <span className="verdict-chip" data-tone={VERDICT_TONE[verdict]}>
+      {VERDICT_LABEL[verdict]}
     </span>
   );
 }
@@ -215,12 +216,15 @@ export function MetricsPanel({
 
       <InspectorSection id="findings" title="Findings" defaultOpen badge={findingCount(a)}>
         <ul className="findings">
-          {a.findings.map((f) => (
-            <li key={f.id} className="finding" data-s={f.severity}>
-              <strong>{f.title}</strong>
-              <span>{f.detail}</span>
-            </li>
-          ))}
+          {a.findings.map((f) => {
+            const { title, detail } = describeFinding(f);
+            return (
+              <li key={f.id} className="finding" data-s={f.severity}>
+                <strong>{title}</strong>
+                <span>{detail}</span>
+              </li>
+            );
+          })}
         </ul>
       </InspectorSection>
 

@@ -26,13 +26,16 @@ pnpm dev          # http://localhost:5173
 | Command | What it does |
 | --- | --- |
 | `pnpm dev` | vinext dev server (Vite, running in workerd) |
-| `pnpm test` | Unit tests for the page model and analysis (Node's built-in test runner) |
+| `pnpm test` | Unit tests for `lib/` and the UI's pure modules in `components/` (Node's built-in test runner) |
 | `pnpm typecheck` | `tsc --noEmit` |
 | `pnpm lint` | All the lint guardrails below, in order (also runs in CI) |
 | `pnpm lint:code` | Biome: lint TypeScript and JSON, and check their formatting |
 | `pnpm lint:deps` | dependency-cruiser: import boundaries and cycles |
 | `pnpm lint:unused` | knip: unused files and dependencies fail; unused exports are reported |
 | `pnpm lint:css` | stylelint on `app/globals.css` |
+| `pnpm lint:casts` | Fail on a branded id cast outside its parser, or an undocumented `as unknown as` |
+| `pnpm lint:element-types` | Fail if `types/a4-sheet.d.ts` differs from the element's attribute table |
+| `pnpm gen:element-types` | Regenerate `types/a4-sheet.d.ts` from the attribute table (commit the result) |
 | `pnpm format` | Format TypeScript and JSON with Biome |
 | `pnpm build` | Production build to `.cloudflare/output`, with `/` and `/why` prerendered |
 | `pnpm check:bundle` | After a build, fail if the home page's first load contains plugin code or a model library |
@@ -71,9 +74,20 @@ push and pull request.
 - **CSS** (`.stylelintrc.json`): duplicate selectors, `!important` outside the
   print styles, and unknown custom properties fail. Other standard rules are
   warnings until refactor-styles.
+- **Branded ids** (`scripts/cast-report.ts`): page names, file paths,
+  revisions, trash ids, and plugin ids are minted only by their parsers, so a
+  cast such as `x as PageName` anywhere else fails. `as unknown as` fails too,
+  except in the files the script lists with the reason (worker scope typing,
+  the Anthropic SDK boundary, and test fakes).
+- **Element types:** `types/a4-sheet.d.ts`, the JSX types of `<a4-sheet>`, is
+  generated from the attribute table in `lib/element/contract.ts`, and
+  `pnpm lint` fails when it's stale.
 - **Protobuf compatibility:** `buf breaking` compares `proto/` with `main`
   locally, and in CI with the pull request's base or the previous `main`
-  commit.
+  commit. The worker transport (`proto/a4/v1/rpc.proto`) is exempt: a worker
+  and its page always ship together. `buf.yaml` also lets `model.proto` drop
+  the transport messages that moved to `rpc.proto`; remove that exception
+  once the move has shipped.
 - **First load:** the build records each client chunk's modules in
   `dist/client-chunks.json`. `pnpm check:bundle` fails if the chunks the home
   page loads contain the Fit to page adapter, the semantic worker,
@@ -273,8 +287,12 @@ message from `proto/a4/v1/`:
   (per-cell values plus the text they were computed for), `TextSpan`,
   `CellRect`, and `Embedding`.
 - `model.proto`: `ModelCard`, the `SheetModelService` operations (Describe,
-  Status, Prepare, Encode, Score, Transform, Generate), and `RpcFrame` for the
-  worker transport.
+  Status, Prepare, Encode, Score, Transform, Generate), and the `ErrorCode`
+  every model error carries.
+- `rpc.proto`: `RpcFrame`, the worker transport's message: a call, a cancel,
+  a streamed message, an end, or an error, each tagged with its call's id.
+- `library_event.proto`: `LibraryEvent`, what a tab tells the others when the
+  page list changes or a page is saved.
 
 `lib/tensor/record.ts` reads and writes `Sheet` records. A reader rejects a
 record whose grid isn't exactly the encoding of its text, and names the first
@@ -332,7 +350,8 @@ holds the host, the transports, and the bundled plugins.
   imports, or URLs.
 - **Worker isolation.** In-browser plugins run in a module Web Worker, so
   editing stays responsive. Every message over the worker port is an
-  `RpcFrame` protobuf.
+  `RpcFrame` protobuf. A frame that can't be decoded but has a call id gets
+  an error reply, so a call never waits forever.
 
 ### Semantic repetition
 
@@ -463,7 +482,11 @@ the page text, so a file can be handed to an agent as is.
   - If another tab saved first, your text is kept as a "(conflict …)" copy.
   - Drafts left by a crashed or closed tab are recovered on the next load.
 - **Cross-tab**: a `BroadcastChannel` tells other tabs to refresh, and an idle
-  tab reloads a page another tab saved.
+  tab reloads a page another tab saved. Each message is an
+  `a4.v1.LibraryEvent` (`proto/a4/v1/library_event.proto`): the page list
+  changed, or a named page was saved. For one release, tabs also accept the
+  bare string earlier versions posted, so a tab still on the old version
+  refreshes this one during a deploy.
 - **Durability**: on the first edit, A4 asks the browser for persistent storage
   (`navigator.storage.persist()`). The library footer shows the active backend
   and whether storage is persistent.

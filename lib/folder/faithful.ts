@@ -242,11 +242,12 @@ export function sheetFiles(files: PageFiles<FilePath>): PageFiles<FilePath> {
       try {
         current = await files.read(path);
       } catch (error) {
-        if (expected && error instanceof FileUnreadableError)
-          throw new PageConflictError(path, expected, "" as Revision);
+        if (expected != null && error instanceof FileUnreadableError) throw new PageConflictError(path, expected, null);
         throw error;
       }
-      if (expected && current.revision !== expected) throw new PageConflictError(path, expected, current.revision);
+      if (expected != null && current.revision !== expected) {
+        throw new PageConflictError(path, expected, current.revision);
+      }
       const raw = toFile(current.text, text);
       if (raw === current.text) {
         return { name: path, size: current.size, modifiedAt: current.modifiedAt, revision: current.revision };

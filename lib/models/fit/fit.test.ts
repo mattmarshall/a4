@@ -6,7 +6,7 @@ import { TransformRequestSchema } from "../../gen/a4/v1/model_pb.js";
 import { PRESETS } from "../../page-spec.ts";
 import { sheetRecord } from "../../tensor/record.ts";
 import { grantConsent } from "../consent.ts";
-import { ModelError, type ModelErrorCode } from "../errors.ts";
+import { ErrorCode, ModelError } from "../errors.ts";
 import { ModelHost } from "../host.ts";
 import { fitToPagePlugin, mapError, type StreamingClient } from "./adapter.ts";
 import { FIT_TO_PAGE_CARD, FIT_TO_PAGE_ID } from "./card.ts";
@@ -141,31 +141,31 @@ test("fit adapter: strips one wrapping code fence", () => {
 
 test("fit adapter: without a key nothing is sent", async () => {
   const { plugin: p, requests } = plugin([{ text: "x" }], null);
-  await assert.rejects(run(p), (e: unknown) => e instanceof ModelError && e.code === "auth");
+  await assert.rejects(run(p), (e: unknown) => e instanceof ModelError && e.code === ErrorCode.AUTH);
   assert.equal(requests.length, 0);
 });
 
 test("fit adapter: refusal and cut-off replies fail the run", async () => {
   await assert.rejects(
     run(plugin([{ text: "", stop: "refusal" }]).plugin),
-    (e: unknown) => e instanceof ModelError && e.code === "refused",
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.REFUSED,
   );
   await assert.rejects(
     run(plugin([{ text: "partial", stop: "max_tokens" }]).plugin),
-    (e: unknown) => e instanceof ModelError && e.code === "plugin",
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.PLUGIN,
   );
 });
 
 test("fit adapter: SDK errors map to the host's codes", () => {
-  const cases: [unknown, ModelErrorCode][] = [
-    [new sdk.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()), "auth"],
-    [new sdk.PermissionDeniedError(403, undefined, "forbidden", new Headers()), "auth"],
-    [new sdk.RateLimitError(429, undefined, "rate limited", new Headers()), "network"],
-    [new sdk.InternalServerError(500, undefined, "boom", new Headers()), "network"],
-    [new sdk.APIConnectionError({ message: "fetch failed" }), "network"],
-    [new sdk.APIUserAbortError(), "cancelled"],
-    [new sdk.BadRequestError(400, undefined, "bad", new Headers()), "plugin"],
-    [new Error("other"), "plugin"],
+  const cases: [unknown, ErrorCode][] = [
+    [new sdk.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()), ErrorCode.AUTH],
+    [new sdk.PermissionDeniedError(403, undefined, "forbidden", new Headers()), ErrorCode.AUTH],
+    [new sdk.RateLimitError(429, undefined, "rate limited", new Headers()), ErrorCode.NETWORK],
+    [new sdk.InternalServerError(500, undefined, "boom", new Headers()), ErrorCode.NETWORK],
+    [new sdk.APIConnectionError({ message: "fetch failed" }), ErrorCode.NETWORK],
+    [new sdk.APIUserAbortError(), ErrorCode.CANCELED],
+    [new sdk.BadRequestError(400, undefined, "bad", new Headers()), ErrorCode.PLUGIN],
+    [new Error("other"), ErrorCode.PLUGIN],
   ];
   for (const [error, code] of cases) assert.equal(mapError(sdk, error).code, code, String(error));
 });
@@ -174,7 +174,7 @@ test("fit adapter: a stream error surfaces as the mapped code", async () => {
   const { plugin: p } = plugin([
     { throws: new sdk.AuthenticationError(401, undefined, "invalid x-api-key", new Headers()) },
   ]);
-  await assert.rejects(run(p), (e: unknown) => e instanceof ModelError && e.code === "auth");
+  await assert.rejects(run(p), (e: unknown) => e instanceof ModelError && e.code === ErrorCode.AUTH);
 });
 
 test("fit adapter through the host: consent required, repaired until it fits", async () => {
@@ -187,7 +187,7 @@ test("fit adapter through the host: consent required, repaired until it fits", a
   const text = "Too long.\n".repeat(70);
   await assert.rejects(
     host.transform(FIT_TO_PAGE_ID, text, T, { instruction: "fit" }),
-    (e: unknown) => e instanceof ModelError && e.code === "consent-required",
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CONSENT_REQUIRED,
   );
   assert.equal(s.requests.length, 0);
   const result = await host.transform(FIT_TO_PAGE_ID, text, T, {

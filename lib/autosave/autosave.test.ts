@@ -1,14 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { MemoryKeyValue, MemoryPageStore } from "../store/key-value.ts";
-import { parsePageName } from "../store/names.ts";
+import { pageNameCodec, parsePageName } from "../store/names.ts";
 import type { PageStore, Revision, WriteResult } from "../store/types.ts";
 import { ensureFirstPage, migrateLegacySlots, recoverDrafts, STALE_DRAFT_MS } from "./bootstrap.ts";
 import { Journal } from "./journal.ts";
-import { PageSession, type SessionEvent } from "./session.ts";
+import { createFileSession, createLibrarySession, type SessionEvent } from "./session.ts";
 import { FakeScheduler } from "./testing/fake-scheduler.ts";
 import { sheetFiles } from "../folder/faithful.ts";
-import { fileCopyName, parseFilePath, type FilePath } from "../store/refs.ts";
+import { fileCopyName, filePathCodec, parseFilePath, type FilePath } from "../store/refs.ts";
 import { FolderPageFiles } from "../store/folder.ts";
 import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-opfs.ts";
 
@@ -42,15 +42,12 @@ class FlakyStore implements PageStore {
 async function setup(text = "start") {
   const store = new FlakyStore();
   const kv = new MemoryKeyValue();
-  const journal = new Journal(kv, "tab1");
+  const journal = new Journal(kv, "tab1", pageNameCodec);
   const scheduler = new FakeScheduler();
   await store.create(n("Brief"), text);
   const events: SessionEvent[] = [];
-  const session = new PageSession({
-    store,
-    journal,
+  const session = createLibrarySession(store, journal, await store.read(n("Brief")), {
     scheduler,
-    page: await store.read(n("Brief")),
     onEvent: (e) => events.push(e),
   });
   const statuses = () => events.filter((e) => e.type === "status").map((e) => (e as { status: string }).status);
@@ -162,46 +159,84 @@ test("recovery applies a draft when the page is unchanged since it was based", a
   const store = new MemoryPageStore();
   const kv = new MemoryKeyValue();
   const base = await store.create(n("Brief"), "saved");
-  new Journal(kv, "dead-tab").set(n("Brief"), "unsaved edits", base.revision);
-  const report = await recoverDrafts(store, new Journal(kv, "new-tab"), new Set());
-  assert.deepEqual(report, [{ kind: "applied", page: "Brief", savedAs: "Brief" }]);
+  new Journal(kv, "dead-tab", pageNameCodec).set(n("Brief"), "unsaved edits", base.revision);
+  const report = await recoverDrafts(
+    store,
+    new Journal(kv, "new-tab", pageNameCodec),
+    { kind: "same-store", store },
+    new Set(),
+  );
+  assert.deepEqual(report, [{ kind: "applied", page: "Brief" }]);
   assert.equal((await store.read(n("Brief"))).text, "unsaved edits");
-  assert.equal(new Journal(kv, "x").all().length, 0);
+  assert.equal(new Journal(kv, "x", pageNameCodec).all().length, 0);
 });
 
 test("recovery saves a copy when the page changed after the crash", async () => {
   const store = new MemoryPageStore();
   const kv = new MemoryKeyValue();
   const base = await store.create(n("Brief"), "saved");
-  new Journal(kv, "dead-tab").set(n("Brief"), "crashed edits", base.revision);
+  new Journal(kv, "dead-tab", pageNameCodec).set(n("Brief"), "crashed edits", base.revision);
   await store.write(n("Brief"), "changed later");
-  const [r] = await recoverDrafts(store, new Journal(kv, "new-tab"), new Set());
-  assert.equal(r.kind, "copied");
-  assert.match(r.savedAs ?? "", /^Brief \(recovered /);
-  assert.equal((await store.read(n(r.savedAs ?? ""))).text, "crashed edits");
+  const [r] = await recoverDrafts(
+    store,
+    new Journal(kv, "new-tab", pageNameCodec),
+    { kind: "same-store", store },
+    new Set(),
+  );
+  assert.ok(r?.kind === "copied");
+  assert.match(r.savedAs, /^Brief \(recovered /);
+  assert.equal((await store.read(r.savedAs)).text, "crashed edits");
   assert.equal((await store.read(n("Brief"))).text, "changed later");
 });
 
 test("recovery recreates a draft whose page is gone, and leaves live tabs alone", async () => {
   const store = new MemoryPageStore();
   const kv = new MemoryKeyValue();
-  new Journal(kv, "dead-tab").set(n("Gone"), "orphan", null);
-  new Journal(kv, "live-tab").set(n("Busy"), "still typing", null);
-  const report = await recoverDrafts(store, new Journal(kv, "new-tab"), new Set(["live-tab"]));
+  new Journal(kv, "dead-tab", pageNameCodec).set(n("Gone"), "orphan", null);
+  new Journal(kv, "live-tab", pageNameCodec).set(n("Busy"), "still typing", null);
+  const report = await recoverDrafts(
+    store,
+    new Journal(kv, "new-tab", pageNameCodec),
+    { kind: "same-store", store },
+    new Set(["live-tab"]),
+  );
   assert.deepEqual(report, [{ kind: "recreated", page: "Gone", savedAs: "Gone" }]);
   assert.equal((await store.read(n("Gone"))).text, "orphan");
-  assert.equal(new Journal(kv, "live-tab").get(n("Busy"))?.text, "still typing");
+  assert.equal(new Journal(kv, "live-tab", pageNameCodec).get(n("Busy"))?.text, "still typing");
 });
 
 test("without Web Locks, only stale drafts are recovered", async () => {
   const store = new MemoryPageStore();
   const kv = new MemoryKeyValue();
-  new Journal(kv, "old", { now: () => 1_000 }).set(n("Old"), "old draft", null);
-  new Journal(kv, "recent", { now: () => 1_000 + STALE_DRAFT_MS }).set(n("Recent"), "recent draft", null);
-  const report = await recoverDrafts(store, new Journal(kv, "me"), null, 1_000 + STALE_DRAFT_MS + 10);
+  new Journal(kv, "old", pageNameCodec, { now: () => 1_000 }).set(n("Old"), "old draft", null);
+  new Journal(kv, "recent", pageNameCodec, { now: () => 1_000 + STALE_DRAFT_MS }).set(
+    n("Recent"),
+    "recent draft",
+    null,
+  );
+  const report = await recoverDrafts(
+    store,
+    new Journal(kv, "me", pageNameCodec),
+    { kind: "same-store", store },
+    null,
+    1_000 + STALE_DRAFT_MS + 10,
+  );
   assert.deepEqual(
     report.map((r) => r.page),
     ["Old"],
+  );
+});
+
+test("the journal skips keys that don't parse and ignores a corrupt base", () => {
+  const kv = new MemoryKeyValue();
+  const files = new Journal(kv, "tab1", filePathCodec, { prefix: "a4:folder:f1:" });
+  files.set(parseFilePath("AGENTS.md"), "kept", null);
+  kv.set("a4:folder:f1:draft:tab1:../outside.md", "stale");
+  kv.set("a4:folder:f1:draft-base:tab1:AGENTS.md", "garbage");
+  const drafts = files.all();
+  assert.deepEqual(
+    drafts.map((d) => [d.name, d.text, d.base]),
+    [["AGENTS.md", "kept", null]],
   );
 });
 
@@ -232,19 +267,17 @@ async function folderSetup(raw = "# Agents\r\n\tRule one\r\n") {
   const files = sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "f1", locks: null }));
   const library = new MemoryPageStore();
   const kv = new MemoryKeyValue();
-  const journal = new Journal<FilePath>(kv, "tab1", { prefix: "a4:folder:f1:" });
+  const journal = new Journal(kv, "tab1", filePathCodec, { prefix: "a4:folder:f1:" });
   const scheduler = new FakeScheduler();
   const events: SessionEvent<FilePath>[] = [];
   const path = parseFilePath("AGENTS.md");
-  const session = new PageSession<FilePath>({
-    store: files,
+  const session = createFileSession(
+    files,
     journal,
-    scheduler,
-    copies: library,
-    copyName: fileCopyName,
-    page: await files.read(path),
-    onEvent: (e) => events.push(e),
-  });
+    await files.read(path),
+    { library, libraryJournal: new Journal(kv, "tab1", pageNameCodec), copyName: fileCopyName },
+    { scheduler, onEvent: (e) => events.push(e) },
+  );
   return { root, files, library, kv, journal, scheduler, events, path, session };
 }
 
@@ -290,18 +323,14 @@ test("a folder file deleted on disk is not recreated; its text goes to the libra
 test("a crashed folder draft is written to the file when the file is unchanged", async () => {
   const { root, files, library, kv, path } = await folderSetup("v1\n");
   const page = await files.read(path);
-  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "v1\nunsaved", page.revision);
+  new Journal(kv, "dead-tab", filePathCodec, { prefix: "a4:folder:f1:" }).set(path, "v1\nunsaved", page.revision);
   const report = await recoverDrafts(
     files,
-    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Journal(kv, "new-tab", filePathCodec, { prefix: "a4:folder:f1:" }),
+    { kind: "copy-out", library, libraryJournal: new Journal(kv, "new-tab", pageNameCodec), copyName: fileCopyName },
     new Set(),
-    Date.now(),
-    {
-      copies: library,
-      copyName: fileCopyName,
-    },
   );
-  assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md", savedAs: "AGENTS.md" }]);
+  assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md" }]);
   assert.equal(root.fileAt("AGENTS.md")!.text, "v1\nunsaved\n");
   assert.deepEqual(await library.list(), []);
 });
@@ -309,41 +338,33 @@ test("a crashed folder draft is written to the file when the file is unchanged",
 test("a crashed folder draft becomes a library copy when the file changed", async () => {
   const { root, files, library, kv, path } = await folderSetup("v1\n");
   const page = await files.read(path);
-  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "crashed edits", page.revision);
+  new Journal(kv, "dead-tab", filePathCodec, { prefix: "a4:folder:f1:" }).set(path, "crashed edits", page.revision);
   root.fileAt("AGENTS.md")!.setContent("changed later\n");
   const [r] = await recoverDrafts(
     files,
-    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Journal(kv, "new-tab", filePathCodec, { prefix: "a4:folder:f1:" }),
+    { kind: "copy-out", library, libraryJournal: new Journal(kv, "new-tab", pageNameCodec), copyName: fileCopyName },
     new Set(),
-    Date.now(),
-    {
-      copies: library,
-      copyName: fileCopyName,
-    },
   );
-  assert.equal(r.kind, "copied");
-  assert.match(r.savedAs ?? "", /^AGENTS\.md \(recovered /);
-  assert.equal((await library.read(n(r.savedAs ?? ""))).text, "crashed edits");
+  assert.ok(r?.kind === "copied");
+  assert.match(r.savedAs, /^AGENTS\.md \(recovered /);
+  assert.equal((await library.read(r.savedAs)).text, "crashed edits");
   assert.equal(root.fileAt("AGENTS.md")!.text, "changed later\n");
 });
 
 test("a crashed draft of a deleted folder file goes to the library, not the folder", async () => {
   const { root, files, library, kv, path } = await folderSetup("v1\n");
-  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "orphan", null);
+  new Journal(kv, "dead-tab", filePathCodec, { prefix: "a4:folder:f1:" }).set(path, "orphan", null);
   root.remove("AGENTS.md");
   const [r] = await recoverDrafts(
     files,
-    new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }),
+    new Journal(kv, "new-tab", filePathCodec, { prefix: "a4:folder:f1:" }),
+    { kind: "copy-out", library, libraryJournal: new Journal(kv, "new-tab", pageNameCodec), copyName: fileCopyName },
     new Set(),
-    Date.now(),
-    {
-      copies: library,
-      copyName: fileCopyName,
-    },
   );
-  assert.equal(r.kind, "recreated");
+  assert.ok(r?.kind === "recreated");
   assert.equal(root.fileAt("AGENTS.md"), undefined);
-  assert.equal((await library.read(n(r.savedAs ?? ""))).text, "orphan");
+  assert.equal((await library.read(r.savedAs)).text, "orphan");
 });
 
 test("text the store refuses is reported once, not retried", async () => {
@@ -373,18 +394,15 @@ test("keys typed while a folder file's text is copied to the library are kept", 
     return create(name, text);
   };
   const kv = new MemoryKeyValue();
-  const libraryJournal = new Journal(kv, "tab1");
+  const libraryJournal = new Journal(kv, "tab1", pageNameCodec);
   const events: SessionEvent<FilePath>[] = [];
-  const session = new PageSession<FilePath>({
-    store: files,
-    journal: new Journal<FilePath>(kv, "tab1", { prefix: "a4:folder:f1:" }),
-    copies: library,
-    copiesJournal: libraryJournal,
-    copyName: fileCopyName,
-    scheduler: new FakeScheduler(),
-    page: await files.read(parseFilePath("AGENTS.md")),
-    onEvent: (e) => events.push(e),
-  });
+  const session = createFileSession(
+    files,
+    new Journal(kv, "tab1", filePathCodec, { prefix: "a4:folder:f1:" }),
+    await files.read(parseFilePath("AGENTS.md")),
+    { library, libraryJournal, copyName: fileCopyName },
+    { scheduler: new FakeScheduler(), onEvent: (e) => events.push(e) },
+  );
   root.fileAt("AGENTS.md")!.setContent("checked out\n");
   session.update("mine");
   const flushing = session.flush();
@@ -400,7 +418,7 @@ test("keys typed while a folder file's text is copied to the library are kept", 
   assert.equal(libraryJournal.get(n(moved.copy))?.text, "mine, and more typed during the copy");
   // Opening the copy in this tab resumes that draft and saves it.
   const scheduler = new FakeScheduler();
-  const reopened = new PageSession({ store: library, journal: libraryJournal, scheduler, page: copy });
+  const reopened = createLibrarySession(library, libraryJournal, copy, { scheduler });
   assert.equal(reopened.text, "mine, and more typed during the copy");
   await scheduler.advance(0);
   assert.equal((await library.read(n(moved.copy))).text, "mine, and more typed during the copy");
@@ -416,7 +434,7 @@ test("a draft left by a failed save in this tab is resumed when the page is reop
   await session.dispose();
   store.failWrites = 0;
   // Reopening in the same tab shows the draft, not the stored text, and saves it.
-  const again = new PageSession({ store, journal, scheduler, page: await store.read(n("Brief")) });
+  const again = createLibrarySession(store, journal, await store.read(n("Brief")), { scheduler });
   assert.equal(again.text, "typed, never saved");
   assert.equal(again.status, "unsaved");
   await scheduler.advance(0);
@@ -433,11 +451,8 @@ test("a resumed draft whose page changed since becomes a conflict copy", async (
   store.failWrites = 0;
   await store.inner.write(n("Brief"), "changed in another tab");
   const events: SessionEvent[] = [];
-  const again = new PageSession({
-    store,
-    journal,
+  const again = createLibrarySession(store, journal, await store.read(n("Brief")), {
     scheduler,
-    page: await store.read(n("Brief")),
     onEvent: (e) => events.push(e),
   });
   await scheduler.advance(0);

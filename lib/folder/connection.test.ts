@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { Journal } from "../autosave/journal.ts";
 import { MemoryKeyValue, MemoryPageStore } from "../store/key-value.ts";
-import { parsePageName } from "../store/names.ts";
-import { parseFilePath, type FilePath } from "../store/refs.ts";
+import { pageNameCodec, parsePageName } from "../store/names.ts";
+import { filePathCodec, parseFilePath } from "../store/refs.ts";
 import { asDirectoryHandle, FakeDirectoryHandle, FakeVolume } from "../store/testing/fake-opfs.ts";
 import { FOLDER_KEY, FolderConnection, MemoryHandleStore } from "./connection.ts";
 
@@ -93,8 +93,8 @@ test("forgetting turns leftover drafts into library copies and forgets the folde
   assert.equal(state.status, "connected");
   const id = kv.get(FOLDER_KEY)!;
   const path = parseFilePath(".claude/skills/review/SKILL.md");
-  new Journal<FilePath>(kv, "dead-tab", { prefix: `a4:folder:${id}:` }).set(path, "crashed edits", null);
-  new Journal<FilePath>(kv, "live-tab", { prefix: `a4:folder:${id}:` }).set(path, "still typing", null);
+  new Journal(kv, "dead-tab", filePathCodec, { prefix: `a4:folder:${id}:` }).set(path, "crashed edits", null);
+  new Journal(kv, "live-tab", filePathCodec, { prefix: `a4:folder:${id}:` }).set(path, "still typing", null);
   const library = new MemoryPageStore();
   const copies = await connection.forget(library, new Set(["tab1", "live-tab"]));
   assert.equal(copies.length, 1);
@@ -104,7 +104,10 @@ test("forgetting turns leftover drafts into library copies and forgets the folde
   assert.equal(kv.get(FOLDER_KEY), null);
   assert.equal(await handles.get(id), null);
   // The live tab's draft is left alone, and no file was touched.
-  assert.equal(new Journal<FilePath>(kv, "live-tab", { prefix: `a4:folder:${id}:` }).get(path)?.text, "still typing");
+  assert.equal(
+    new Journal(kv, "live-tab", filePathCodec, { prefix: `a4:folder:${id}:` }).get(path)?.text,
+    "still typing",
+  );
 });
 
 test("recover applies a crashed file draft on connect", async () => {
@@ -115,15 +118,15 @@ test("recover applies a crashed file draft on connect", async () => {
   const id = kv.get(FOLDER_KEY)!;
   if (first.status !== "connected") return;
   const page = await first.folder.sheet.read(parseFilePath("AGENTS.md"));
-  new Journal<FilePath>(kv, "dead-tab", { prefix: `a4:folder:${id}:` }).set(
+  new Journal(kv, "dead-tab", filePathCodec, { prefix: `a4:folder:${id}:` }).set(
     page.name,
     "# Agents\nunsaved",
     page.revision,
   );
   const next = make("tab2");
   await next.restore();
-  const report = await next.recover(new MemoryPageStore(), new Set(["tab2"]));
-  assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md", savedAs: "AGENTS.md" }]);
+  const report = await next.recover(new MemoryPageStore(), new Journal(kv, "tab3", pageNameCodec), new Set(["tab2"]));
+  assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md" }]);
   assert.equal(root.fileAt("AGENTS.md")!.text, "# Agents\nunsaved\n");
 });
 

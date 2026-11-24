@@ -6,28 +6,44 @@
  *   <script type="module">import { defineA4Sheet } from ".../a4-sheet"; defineA4Sheet();</script>
  *   <a4-sheet value="Purpose: …" lens="syntax" fold-bottom="0.4"></a4-sheet>
  *
- * Attributes: value (initial), preset, lens, render (3d | flat | auto),
- *   fold-bottom, fold-top, curl (0–1), tilt (0–65), turn (−180–180), light
- *   (azimuth°), zoom (px per mm | fit), grid (boolean), label.
+ * Attributes and events are declared once in ./contract.ts (`ATTRIBUTES`,
+ * `A4SheetEventMap`); this file implements them.
  * Properties/methods: value, selectionStart, selectionEnd,
  *   setSelectionRange(), focus(), fold(), render (active rendering).
- * Events: input (composed, from the inner textarea), a4-focus, a4-render
- *   (detail: "3d" | "flat"), a4-viewchange (detail: { tilt, turn }),
- *   a4-posechange (detail: Pose).
+ * Events: input (composed, from the inner textarea), plus the contract's
+ *   a4-focus, a4-render, a4-viewchange, and a4-posechange.
  */
 
 import { analyze, type Analysis } from "../analyze.ts";
-import { isLensId, type LensId } from "../lenses.ts";
-import { DEFAULT_PRESET, fontSizeMm, isPresetId, PRESETS, PX_PER_MM_ACTUAL, type PageSpec } from "../page-spec.ts";
+import { assertNever } from "../assert-never.ts";
+import type { LensId } from "../lenses.ts";
+import { DEFAULT_PRESET, fontSizeMm, PRESETS, PX_PER_MM_ACTUAL, type PageSpec } from "../page-spec.ts";
 import { FOLD_DURATION, foldPoseAt } from "../paper/animation.ts";
 import { FLAT, PAPER_H, PAPER_W, type Pose } from "../paper/deform.ts";
 import { caretOffset, cellAt } from "../paper/pick.ts";
 import { PaperRenderer } from "../paper/renderer.ts";
 import { paintPage, printRows } from "../paper/texture.ts";
 import { layoutRows, normalizeText, TAB_SPACES } from "../text.ts";
+import {
+  A4_EVENTS,
+  A4_SHEET_TAG,
+  a4Event,
+  ATTRIBUTES,
+  OBSERVED_ATTRIBUTES,
+  parseLensAttr,
+  type A4AttributeName,
+  type A4Render,
+  type A4RenderRequest,
+  type A4SheetEventMap,
+} from "./contract.ts";
 
-export type A4Render = "3d" | "flat";
-export type A4RenderRequest = A4Render | "auto";
+export type { A4Render, A4RenderRequest, A4SheetEventMap } from "./contract.ts";
+
+declare global {
+  interface HTMLElementTagNameMap {
+    "a4-sheet": A4SheetElement;
+  }
+}
 
 /**
  * Per-cell values for a model lens: one value in [0, 1] per cell of `text`'s
@@ -39,8 +55,6 @@ export interface A4Plane {
   values: Float32Array;
   label?: string;
 }
-
-const MODEL_LENS = "model:";
 
 const DEFAULT_FONT = '"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace';
 
@@ -133,11 +147,6 @@ const STYLE = /* css */ `
 }
 `;
 
-function numberAttr(value: string | null, fallback: number, lo: number, hi: number): number {
-  const n = value === null ? Number.NaN : Number(value);
-  return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : fallback;
-}
-
 function cssColor(value: string, fallback: [number, number, number]): [number, number, number] {
   const m = /^#([0-9a-f]{6})$/i.exec(value.trim());
   if (!m) return fallback;
@@ -156,24 +165,10 @@ function insertAtCaret(el: HTMLTextAreaElement, insert: string) {
   }
 }
 
-const OBSERVED = [
-  "value",
-  "preset",
-  "lens",
-  "render",
-  "fold-bottom",
-  "fold-top",
-  "curl",
-  "tilt",
-  "turn",
-  "light",
-  "zoom",
-  "grid",
-  "label",
-] as const;
+type Listener<E> = (this: A4SheetElement, event: E) => unknown;
 
 export class A4SheetElement extends HTMLElement {
-  static observedAttributes = OBSERVED;
+  static observedAttributes = OBSERVED_ATTRIBUTES;
 
   readonly #root: ShadowRoot;
   readonly #stage: HTMLDivElement;
@@ -200,7 +195,12 @@ export class A4SheetElement extends HTMLElement {
   /** After a lost device, 3D is recreated once; a second loss renders flat. */
   #recreatedAfterLoss = false;
   #pose: Pose = FLAT;
-  #view = { tilt: 32, yaw: 0, lightAzimuth: 215, lightElevation: 52 };
+  #view = {
+    tilt: ATTRIBUTES.tilt.default,
+    yaw: ATTRIBUTES.turn.default,
+    lightAzimuth: ATTRIBUTES.light.default,
+    lightElevation: 52,
+  };
   #zoom: number | null = null;
   #grid = false;
   #valueInitialized = false;
@@ -274,7 +274,7 @@ export class A4SheetElement extends HTMLElement {
       insertAtCaret(this.#input, clean);
     });
     this.#input.addEventListener("focus", () => {
-      this.dispatchEvent(new CustomEvent("a4-focus", { bubbles: true, composed: true }));
+      this.dispatchEvent(a4Event(A4_EVENTS.focus, null));
       this.#schedule();
     });
     for (const type of ["blur", "select", "keyup", "selectionchange", "pointerup"]) {
@@ -293,9 +293,9 @@ export class A4SheetElement extends HTMLElement {
   connectedCallback() {
     // A property set before upgrade shadows the accessor; re-apply it.
     if (Object.hasOwn(this, "value")) {
-      const v = (this as unknown as { value: string }).value;
-      delete (this as unknown as { value?: string }).value;
-      this.value = v;
+      const v: unknown = Reflect.get(this, "value");
+      Reflect.deleteProperty(this, "value");
+      this.value = String(v ?? "");
     }
     if (!this.#valueInitialized) this.#setInputValue(this.getAttribute("value") ?? "");
     this.#resize = new ResizeObserver(() => this.#schedule());
@@ -320,56 +320,113 @@ export class A4SheetElement extends HTMLElement {
     this.#creation++; // a creation still pending is stale now
   }
 
-  attributeChangedCallback(name: (typeof OBSERVED)[number], _old: string | null, value: string | null) {
+  attributeChangedCallback(name: A4AttributeName, _old: string | null, value: string | null) {
     switch (name) {
       case "value":
-        if (!this.#valueInitialized) this.#setInputValue(value ?? "");
+        if (!this.#valueInitialized) this.#setInputValue(ATTRIBUTES.value.parse(value));
         break;
       case "preset":
-        this.#spec = PRESETS[isPresetId(value) ? value : DEFAULT_PRESET];
+        this.#spec = PRESETS[ATTRIBUTES.preset.parse(value)];
         break;
-      case "lens":
-        if (value?.startsWith(MODEL_LENS) && value.length > MODEL_LENS.length) {
-          this.#modelLens = value.slice(MODEL_LENS.length);
-          this.#lens = "ink";
-        } else {
-          this.#modelLens = null;
-          this.#lens = isLensId(value) ? value : "ink";
-        }
+      case "lens": {
+        const { lens, plane } = parseLensAttr(value);
+        this.#lens = lens;
+        this.#modelLens = plane;
         break;
+      }
       case "render":
-        this.#request = value === "3d" || value === "flat" ? value : "auto";
+        this.#request = ATTRIBUTES.render.parse(value);
         this.#applyRender();
         break;
       case "fold-bottom":
-      case "fold-top":
-      case "curl": {
-        this.#stopAnimation();
-        const key = name === "fold-bottom" ? "foldBottom" : name === "fold-top" ? "foldTop" : "curl";
-        this.#pose = { ...this.#pose, [key]: numberAttr(value, 0, 0, 1) };
+        this.#setPose({ foldBottom: ATTRIBUTES.foldBottom.parse(value) });
         break;
-      }
+      case "fold-top":
+        this.#setPose({ foldTop: ATTRIBUTES.foldTop.parse(value) });
+        break;
+      case "curl":
+        this.#setPose({ curl: ATTRIBUTES.curl.parse(value) });
+        break;
       case "tilt":
-        this.#view = { ...this.#view, tilt: numberAttr(value, 32, 0, 65) };
+        this.#view = { ...this.#view, tilt: ATTRIBUTES.tilt.parse(value) };
         break;
       case "turn":
-        this.#view = { ...this.#view, yaw: numberAttr(value, 0, -180, 180) };
+        this.#view = { ...this.#view, yaw: ATTRIBUTES.turn.parse(value) };
         break;
       case "light":
-        this.#view = { ...this.#view, lightAzimuth: numberAttr(value, 215, -360, 720) };
+        this.#view = { ...this.#view, lightAzimuth: ATTRIBUTES.light.parse(value) };
         break;
       case "zoom":
-        this.#zoom = value === null || value === "fit" ? null : numberAttr(value, PX_PER_MM_ACTUAL, 0.5, 12);
+        this.#zoom = ATTRIBUTES.zoom.parse(value);
         break;
       case "grid":
-        this.#grid = value !== null && value !== "false";
+        this.#grid = ATTRIBUTES.grid.parse(value);
         break;
-      case "label":
-        if (value) this.#input.setAttribute("aria-label", value);
+      case "label": {
+        const label = ATTRIBUTES.label.parse(value);
+        if (label) this.#input.setAttribute("aria-label", label);
         else this.#input.removeAttribute("aria-label");
         break;
+      }
+      default:
+        assertNever(name);
     }
     this.#schedule();
+  }
+
+  /** An attribute set part of the pose: stop any fold animation and apply it. */
+  #setPose(patch: Partial<Pose>) {
+    this.#stopAnimation();
+    this.#pose = { ...this.#pose, ...patch };
+  }
+
+  // -------------------------------------------------------------------------
+  // Typed events (A4SheetEventMap), alongside the standard ones.
+
+  override addEventListener<K extends keyof A4SheetEventMap>(
+    type: K,
+    listener: Listener<A4SheetEventMap[K]>,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  override addEventListener<K extends keyof HTMLElementEventMap>(
+    type: K,
+    listener: Listener<HTMLElementEventMap[K]>,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  override addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void;
+  override addEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | AddEventListenerOptions,
+  ): void {
+    super.addEventListener(type, listener, options);
+  }
+
+  override removeEventListener<K extends keyof A4SheetEventMap>(
+    type: K,
+    listener: Listener<A4SheetEventMap[K]>,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  override removeEventListener<K extends keyof HTMLElementEventMap>(
+    type: K,
+    listener: Listener<HTMLElementEventMap[K]>,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  override removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions,
+  ): void;
+  override removeEventListener(
+    type: string,
+    listener: EventListenerOrEventListenerObject,
+    options?: boolean | EventListenerOptions,
+  ): void {
+    super.removeEventListener(type, listener, options);
   }
 
   // -------------------------------------------------------------------------
@@ -494,7 +551,7 @@ export class A4SheetElement extends HTMLElement {
   }
 
   #emitPose() {
-    this.dispatchEvent(new CustomEvent("a4-posechange", { bubbles: true, composed: true, detail: { ...this.#pose } }));
+    this.dispatchEvent(a4Event(A4_EVENTS.poseChange, { ...this.#pose }));
   }
 
   #effectiveRender(): A4Render {
@@ -533,7 +590,7 @@ export class A4SheetElement extends HTMLElement {
     const settled: A4Render | null = render === "flat" ? "flat" : this.#renderer ? "3d" : null;
     if (settled && settled !== this.#reported) {
       this.#reported = settled;
-      this.dispatchEvent(new CustomEvent("a4-render", { bubbles: true, composed: true, detail: settled }));
+      this.dispatchEvent(a4Event(A4_EVENTS.render, settled));
     }
     this.#schedule();
   }
@@ -724,12 +781,11 @@ export class A4SheetElement extends HTMLElement {
       return;
     }
     const yaw = ((((d.yaw + (e.clientX - d.x) * 0.3 + 180) % 360) + 360) % 360) - 180;
-    const tilt = Math.max(0, Math.min(65, d.tilt + (e.clientY - d.y) * 0.25));
+    const { min, max } = ATTRIBUTES.tilt;
+    const tilt = Math.max(min, Math.min(max, d.tilt + (e.clientY - d.y) * 0.25));
     this.#view = { ...this.#view, tilt, yaw };
     this.#schedule();
-    this.dispatchEvent(
-      new CustomEvent("a4-viewchange", { bubbles: true, composed: true, detail: { tilt, turn: yaw } }),
-    );
+    this.dispatchEvent(a4Event(A4_EVENTS.viewChange, { tilt, turn: yaw }));
   }
 
   #pointerUp() {
@@ -739,7 +795,7 @@ export class A4SheetElement extends HTMLElement {
 }
 
 /** Register <a4-sheet> (safe to call more than once). */
-export function defineA4Sheet(name = "a4-sheet"): void {
+export function defineA4Sheet(name: string = A4_SHEET_TAG): void {
   if (typeof customElements !== "undefined" && !customElements.get(name)) {
     customElements.define(name, A4SheetElement);
   }

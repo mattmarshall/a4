@@ -7,12 +7,13 @@
  * - Saves pass the expected revision. On conflict the local text is saved as a
  *   "(conflict …)" copy and the session follows the copy; if the page was
  *   deleted it is recreated; other failures retry with backoff (1 s → 30 s).
- * - With a separate `copies` store (a folder file's session uses the
- *   library), conflict copies and text whose page is gone go there instead:
- *   the session saves the copy, stops, and reports it with `moved: true`, so
- *   the workbench can open the copy. A folder file is never recreated. Edits
- *   typed while the copy was being saved are journaled under the copy (in
- *   `copiesJournal`) and reported as `pendingText`.
+ * - Where that text goes depends on the session's `RelocationPolicy`. A
+ *   library session (`same-store`) saves the copy in its own store and
+ *   follows it. A folder file's session (`copy-out`) saves the copy in the
+ *   library, stops, and reports it with `moved: true`, so the workbench can
+ *   open the copy; a folder file is never recreated. Edits typed while the
+ *   copy was being saved are journaled under the copy (in the library
+ *   journal) and reported as `pendingText`.
  * - A session opened on a page with a draft from this tab (a save that
  *   failed before the page was closed) starts from the draft and saves it,
  *   expecting the draft's base revision, so a page changed since becomes a
@@ -20,6 +21,7 @@
  */
 
 import { availableName, stamp } from "../store/names.ts";
+import type { FilePath } from "../store/refs.ts";
 import {
   isStoreError,
   type Page,
@@ -30,6 +32,35 @@ import {
   type WriteResult,
 } from "../store/types.ts";
 import type { Journal } from "./journal.ts";
+
+/**
+ * A store a session can relocate into while keeping its own identifiers:
+ * new pages are created by page name and come back as `Id`. A `PageStore`
+ * is one for `Id = PageName`; folder files are not, so a file session can't
+ * follow a copy in its own store.
+ */
+export type SameStorePages<Id extends string> = PageFiles<Id> & {
+  create(name: PageName, text: string): Promise<WriteResult<Id & PageName>>;
+};
+
+/** Text that can't be saved over its page follows a copy in the same store. */
+export interface SameStorePolicy<Id extends string> {
+  readonly kind: "same-store";
+  readonly store: SameStorePages<Id>;
+}
+
+/** Text that can't be saved over its page goes to a copy in the library, and the session stops. */
+export interface CopyOutPolicy<Id extends string> {
+  readonly kind: "copy-out";
+  readonly library: PageStore;
+  /** This tab's library journal, for edits typed while a copy is saved. */
+  readonly libraryJournal: Journal<PageName>;
+  /** The desired name of a copy: the page's identifier plus `suffix`. */
+  readonly copyName: (id: Id, suffix: string) => string;
+}
+
+/** Where a session or a recovery puts text it can't save over its page. */
+export type RelocationPolicy<Id extends string> = SameStorePolicy<Id> | CopyOutPolicy<Id>;
 
 export type SaveStatus = "saved" | "unsaved" | "saving" | "error";
 
@@ -60,28 +91,39 @@ export const MAX_WAIT_MS = 4000;
 export const RETRY_BASE_MS = 1000;
 export const RETRY_MAX_MS = 30000;
 
+/** Timing and events, shared by every kind of session. */
 export interface PageSessionOptions<Id extends string = PageName> {
-  store: PageFiles<Id>;
-  journal: Journal<Id>;
-  page: Page<Id>;
-  /** Where copies go when it isn't `store` (the library, for a folder file). */
-  copies?: PageStore;
-  /** The journal for pages in `copies` (this tab's library journal). */
-  copiesJournal?: Journal<PageName>;
-  /** The desired name of a copy: the page's identifier plus `suffix`. */
-  copyName?: (id: Id, suffix: string) => string;
   scheduler?: Scheduler;
   debounceMs?: number;
   maxWaitMs?: number;
   onEvent?: (event: SessionEvent<Id>) => void;
 }
 
+/** Open a library page: conflict copies stay in the library, and the page can be renamed. */
+export function createLibrarySession(
+  store: PageStore,
+  journal: Journal<PageName>,
+  page: Page,
+  options: PageSessionOptions = {},
+): LibrarySession {
+  return new LibrarySession(store, journal, page, options);
+}
+
+/** Open a folder file: conflict copies and orphaned text go to the library. */
+export function createFileSession(
+  files: PageFiles<FilePath>,
+  journal: Journal<FilePath>,
+  page: Page<FilePath>,
+  copyOut: Omit<CopyOutPolicy<FilePath>, "kind">,
+  options: PageSessionOptions<FilePath> = {},
+): PageSession<FilePath> {
+  return new PageSession(files, journal, page, { kind: "copy-out", ...copyOut }, options);
+}
+
 export class PageSession<Id extends string = PageName> {
-  readonly #store: PageFiles<Id>;
+  readonly #files: PageFiles<Id>;
   readonly #journal: Journal<Id>;
-  readonly #copies: PageStore | null;
-  readonly #copiesJournal: Journal<PageName> | null;
-  readonly #copyName: (id: Id, suffix: string) => string;
+  readonly #policy: RelocationPolicy<Id>;
   readonly #scheduler: Scheduler;
   readonly #debounceMs: number;
   readonly #maxWaitMs: number;
@@ -99,27 +141,31 @@ export class PageSession<Id extends string = PageName> {
   #saving: Promise<void> | null = null;
   #disposed = false;
 
-  constructor(options: PageSessionOptions<Id>) {
-    this.#store = options.store;
-    this.#journal = options.journal;
-    this.#copies = options.copies && options.copies !== (options.store as unknown) ? options.copies : null;
-    this.#copiesJournal = options.copiesJournal ?? null;
-    this.#copyName = options.copyName ?? ((id, suffix) => `${id}${suffix}`);
+  constructor(
+    files: PageFiles<Id>,
+    journal: Journal<Id>,
+    page: Page<Id>,
+    policy: RelocationPolicy<Id>,
+    options: PageSessionOptions<Id> = {},
+  ) {
+    this.#files = files;
+    this.#journal = journal;
+    this.#policy = policy;
     this.#scheduler = options.scheduler ?? realScheduler;
     this.#debounceMs = options.debounceMs ?? DEBOUNCE_MS;
     this.#maxWaitMs = options.maxWaitMs ?? MAX_WAIT_MS;
     this.#onEvent = options.onEvent ?? (() => {});
-    this.#name = options.page.name;
-    this.#text = options.page.text;
-    this.#savedText = options.page.text;
-    this.#revision = options.page.revision;
+    this.#name = page.name;
+    this.#text = page.text;
+    this.#savedText = page.text;
+    this.#revision = page.revision;
     // A draft this tab left for this page (its last save failed) wins over the
     // stored text. Saving expects the draft's base, so a page changed since
     // becomes a conflict copy instead of being overwritten.
     const draft = this.#journal.get(this.#name);
-    if (draft && draft.text !== options.page.text) {
+    if (draft && draft.text !== page.text) {
       this.#text = draft.text;
-      if (draft.base) this.#revision = draft.base;
+      if (draft.base != null) this.#revision = draft.base;
       this.#status = "unsaved";
       this.#schedule(0);
     }
@@ -128,7 +174,7 @@ export class PageSession<Id extends string = PageName> {
   get name(): Id {
     return this.#name;
   }
-  /** True once the session has stopped, after `dispose` or a move to `copies`. */
+  /** True once the session has stopped, after `dispose` or a move to the library. */
   get stopped(): boolean {
     return this.#disposed;
   }
@@ -211,7 +257,7 @@ export class PageSession<Id extends string = PageName> {
     const name = this.#name;
     this.#setStatus("saving");
     try {
-      const result = await this.#store.write(name, text, this.#revision);
+      const result = await this.#files.write(name, text, this.#revision);
       this.#accept(result, text);
       this.#onEvent({ type: "saved", result });
     } catch (error) {
@@ -225,7 +271,8 @@ export class PageSession<Id extends string = PageName> {
       } else if (isStoreError(error, "not-found")) {
         // A page missing from its own store is recreated under its name; a
         // folder file is never recreated: its text goes to the library.
-        const desired = this.#copies ? this.#copyName(name, ` (recovered ${stamp()})`) : this.#copyName(name, "");
+        const desired =
+          this.#policy.kind === "copy-out" ? this.#copyName(name, ` (recovered ${stamp()})`) : this.#copyName(name, "");
         await this.#relocate(desired, (created, moved) => ({
           type: "recreated",
           original: name,
@@ -238,21 +285,26 @@ export class PageSession<Id extends string = PageName> {
     }
   }
 
+  #copyName(id: Id, suffix: string): string {
+    return this.#policy.kind === "copy-out" ? this.#policy.copyName(id, suffix) : `${id}${suffix}`;
+  }
+
   /**
    * Save the current text as a new page. In the same store, the session
-   * follows it; in a separate `copies` store, the session stops.
+   * follows it; in the library (`copy-out`), the session stops.
    */
   async #relocate(desired: string, event: (name: PageName, moved: boolean) => SessionEvent<Id>): Promise<void> {
     const previous = this.#name;
     const text = this.#text;
+    const policy = this.#policy;
     try {
-      if (this.#copies) {
-        const target = await availableName(this.#copies, desired);
-        const result = await this.#copies.create(target, text);
+      if (policy.kind === "copy-out") {
+        const target = await availableName(policy.library, desired);
+        const result = await policy.library.create(target, text);
         // Keys typed while the copy was saved belong to the copy now: journal
         // them under it before dropping the old draft, so a crash keeps them.
         const pending = this.#text !== text ? this.#text : undefined;
-        if (pending !== undefined) this.#copiesJournal?.set(result.name, pending, result.revision);
+        if (pending !== undefined) policy.libraryJournal.set(result.name, pending, result.revision);
         this.#journal.clear(previous);
         this.#savedText = this.#text;
         this.#attempt = 0;
@@ -260,16 +312,14 @@ export class PageSession<Id extends string = PageName> {
         this.#clearTimers();
         this.#setStatus("saved");
         const moved = event(result.name, true);
-        this.#onEvent(pending === undefined ? moved : ({ ...moved, pendingText: pending } as SessionEvent<Id>));
+        this.#onEvent(pending === undefined ? moved : withPendingText(moved, pending));
         return;
       }
-      // Without separate copies, identifiers are page names (a library store).
-      const store = this.#store as unknown as PageStore;
-      const target = await availableName(store, desired);
-      const result = await store.create(target, text);
+      const target = await availableName(policy.store, desired);
+      const result = await policy.store.create(target, text);
       this.#journal.clear(previous);
-      this.#name = result.name as string as Id;
-      this.#accept(result as unknown as WriteResult<Id>, text);
+      this.#name = result.name;
+      this.#accept(result, text);
       this.#onEvent(event(result.name, false));
     } catch (error) {
       this.#fail(error);
@@ -322,15 +372,16 @@ export class PageSession<Id extends string = PageName> {
     return true;
   }
 
-  /** Rename the page (after saving pending edits). Library pages only. */
-  async rename(to: PageName): Promise<WriteResult> {
+  /**
+   * Save pending edits, then move the page with `move` (a rename) and follow
+   * it. For subclasses whose store can rename.
+   */
+  protected async follow(move: (from: Id) => Promise<WriteResult<Id>>): Promise<WriteResult<Id>> {
     await this.flush();
-    const store = this.#store as unknown as PageStore;
-    if (typeof store.rename !== "function") throw new Error("This page can’t be renamed.");
     const from = this.#name;
-    const result = await store.rename(from as string as PageName, to);
+    const result = await move(from);
     this.#journal.clear(from);
-    this.#name = result.name as string as Id;
+    this.#name = result.name;
     if (this.dirty) this.#journal.set(this.#name, this.#text, this.#revision);
     return result;
   }
@@ -341,4 +392,23 @@ export class PageSession<Id extends string = PageName> {
     this.#disposed = true;
     this.#clearTimers();
   }
+}
+
+/** A library page's session: it can also rename the page. */
+export class LibrarySession extends PageSession<PageName> {
+  readonly #store: PageStore;
+
+  constructor(store: PageStore, journal: Journal<PageName>, page: Page, options: PageSessionOptions = {}) {
+    super(store, journal, page, { kind: "same-store", store }, options);
+    this.#store = store;
+  }
+
+  /** Rename the page, after saving pending edits. */
+  rename(to: PageName): Promise<WriteResult> {
+    return this.follow((from) => this.#store.rename(from, to));
+  }
+}
+
+function withPendingText<Id extends string>(event: SessionEvent<Id>, pendingText: string): SessionEvent<Id> {
+  return event.type === "conflict" || event.type === "recreated" ? { ...event, pendingText } : event;
 }

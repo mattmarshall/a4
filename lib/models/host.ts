@@ -24,7 +24,8 @@ import { encodeGrid } from "../tensor/codec.ts";
 import { pageSpecMessage } from "../tensor/record.ts";
 import type { SheetModelClient } from "./client.ts";
 import { consumeConsent, type ConsentToken } from "./consent.ts";
-import { ModelError, toModelError } from "./errors.ts";
+import { ErrorCode, ModelError, toModelError } from "./errors.ts";
+import { pluginIdOf, type PluginId } from "./plugin-id.ts";
 import { isClosed } from "./worker-transport.ts";
 
 /** A bundled plugin: a static card plus a lazy connection to its code. */
@@ -34,7 +35,7 @@ export interface PluginEntry {
 }
 
 export interface PlaneResult {
-  pluginId: string;
+  pluginId: PluginId;
   pluginName: string;
   name: string;
   label: string;
@@ -107,29 +108,35 @@ interface Registered {
 }
 
 function checkCard(card: ModelCard): void {
-  if (!card.id) throw new ModelError("invalid-result", "A model card needs an id.");
+  if (!card.id) throw new ModelError(ErrorCode.INVALID_CARD, "A model card needs an id.");
   if (card.sendsTextOffDevice && !card.destinationHost) {
-    throw new ModelError("invalid-result", `Model "${card.id}" sends text off the device but names no destination.`);
+    throw new ModelError(
+      ErrorCode.INVALID_CARD,
+      `Model "${card.id}" sends text off the device but names no destination.`,
+    );
   }
 }
 
 export class ModelHost {
-  readonly #plugins = new Map<string, Registered>();
-  readonly #clients = new Map<string, Promise<SheetModelClient>>();
+  readonly #plugins = new Map<PluginId, Registered>();
+  readonly #clients = new Map<PluginId, Promise<SheetModelClient>>();
 
-  register(entry: PluginEntry): void {
+  /** Register a bundled plugin; returns its id, the only way to call it. */
+  register(entry: PluginEntry): PluginId {
     checkCard(entry.card);
-    if (this.#plugins.has(entry.card.id))
-      throw new ModelError("invalid-result", `Model "${entry.card.id}" is already registered.`);
+    if (this.#plugins.has(pluginIdOf(entry.card)))
+      throw new ModelError(ErrorCode.INVALID_CARD, `Model "${entry.card.id}" is already registered.`);
     // A private, frozen copy: later changes to the caller's card object change nothing here.
     const card = deepFreeze(clone(ModelCardSchema, entry.card));
     const policy: Policy = { egress: card.sendsTextOffDevice ? { host: card.destinationHost } : "none" };
-    this.#plugins.set(card.id, { card, policy, connect: entry.connect });
+    const id = pluginIdOf(card);
+    this.#plugins.set(id, { card, policy, connect: entry.connect });
+    return id;
   }
 
-  #policy(id: string): Policy {
+  #policy(id: PluginId): Policy {
     const entry = this.#plugins.get(id);
-    if (!entry) throw new ModelError("unsupported-operation", `No model "${id}".`);
+    if (!entry) throw new ModelError(ErrorCode.NOT_FOUND, `No model "${id}".`);
     return entry.policy;
   }
 
@@ -137,16 +144,16 @@ export class ModelHost {
     return [...this.#plugins.values()].map((p) => p.card);
   }
 
-  card(id: string): ModelCard {
+  card(id: PluginId): ModelCard {
     const entry = this.#plugins.get(id);
-    if (!entry) throw new ModelError("unsupported-operation", `No model "${id}".`);
+    if (!entry) throw new ModelError(ErrorCode.NOT_FOUND, `No model "${id}".`);
     return entry.card;
   }
 
   /** Connect once, and check the plugin describes itself as its card says. */
-  async #client(id: string): Promise<SheetModelClient> {
+  async #client(id: PluginId): Promise<SheetModelClient> {
     const entry = this.#plugins.get(id);
-    if (!entry) throw new ModelError("unsupported-operation", `No model "${id}".`);
+    if (!entry) throw new ModelError(ErrorCode.NOT_FOUND, `No model "${id}".`);
     let pending = this.#clients.get(id);
     if (pending) {
       // A client whose worker failed is replaced by a fresh connection.
@@ -160,7 +167,10 @@ export class ModelHost {
         const client = await entry.connect();
         const described = await client.describe(create(DescribeRequestSchema));
         if (described.card?.id !== id)
-          throw new ModelError("invalid-result", `Model "${id}" describes itself as "${described.card?.id ?? ""}".`);
+          throw new ModelError(
+            ErrorCode.INVALID_CARD,
+            `Model "${id}" describes itself as "${described.card?.id ?? ""}".`,
+          );
         return client;
       })();
       pending.catch(() => this.#clients.delete(id));
@@ -169,11 +179,11 @@ export class ModelHost {
     return pending;
   }
 
-  #require(id: string, operation: Operation): ModelCard {
+  #require(id: PluginId, operation: Operation): ModelCard {
     const card = this.card(id);
     if (!card.operations.includes(operation)) {
       throw new ModelError(
-        "unsupported-operation",
+        ErrorCode.UNSUPPORTED_OPERATION,
         `${card.name || id} doesn't support ${Operation[operation].toLowerCase()}.`,
       );
     }
@@ -189,13 +199,17 @@ export class ModelHost {
     });
   }
 
-  async status(id: string): Promise<boolean> {
+  async status(id: PluginId): Promise<boolean> {
     const client = await this.#client(id);
     return (await client.status(create(StatusRequestSchema))).ready;
   }
 
   /** Download and load model files. Call only after the author asks. */
-  async prepare(id: string, onProgress?: (loaded: number, total: number) => void, signal?: AbortSignal): Promise<void> {
+  async prepare(
+    id: PluginId,
+    onProgress?: (loaded: number, total: number) => void,
+    signal?: AbortSignal,
+  ): Promise<void> {
     const client = await this.#client(id);
     try {
       for await (const event of client.prepare(create(PrepareRequestSchema), signal)) {
@@ -206,10 +220,10 @@ export class ModelHost {
     }
   }
 
-  async score(id: string, text: string, spec: PageSpec, signal?: AbortSignal): Promise<ScoreResult> {
+  async score(id: PluginId, text: string, spec: PageSpec, signal?: AbortSignal): Promise<ScoreResult> {
     const card = this.#require(id, Operation.SCORE);
     if (this.#policy(id).egress !== "none")
-      throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
+      throw new ModelError(ErrorCode.CONSENT_REQUIRED, "Scoring with a remote model isn't supported.");
     const client = await this.#client(id);
     let response: Awaited<ReturnType<SheetModelClient["score"]>>;
     try {
@@ -229,22 +243,22 @@ export class ModelHost {
         plane.values.length !== rows * cols * depth
       ) {
         throw new ModelError(
-          "invalid-result",
+          ErrorCode.INVALID_RESULT,
           `${who} returned a ${plane.shape.join(" × ")} plane for a ${grid.rows} × ${grid.cols} grid.`,
         );
       }
       // The sheet paints one value per cell; deeper planes aren't supported yet.
       if (depth !== 1)
         throw new ModelError(
-          "invalid-result",
+          ErrorCode.INVALID_RESULT,
           `${who} returned a plane with depth ${depth}; only depth 1 is supported.`,
         );
-      if (!plane.name) throw new ModelError("invalid-result", `${who} returned a plane without a name.`);
+      if (!plane.name) throw new ModelError(ErrorCode.INVALID_RESULT, `${who} returned a plane without a name.`);
       if (names.has(plane.name))
-        throw new ModelError("invalid-result", `${who} returned two planes named "${plane.name}".`);
+        throw new ModelError(ErrorCode.INVALID_RESULT, `${who} returned two planes named "${plane.name}".`);
       names.add(plane.name);
       if (plane.text !== text)
-        throw new ModelError("invalid-result", `${card.name || id} scored different text than it was sent.`);
+        throw new ModelError(ErrorCode.INVALID_RESULT, `${card.name || id} scored different text than it was sent.`);
       return {
         pluginId: id,
         pluginName: card.name,
@@ -267,7 +281,7 @@ export class ModelHost {
         )
       ) {
         throw new ModelError(
-          "invalid-result",
+          ErrorCode.INVALID_RESULT,
           `${who} returned a span ${s.start}–${s.end} outside the ${text.length}-character page.`,
         );
       }
@@ -290,7 +304,7 @@ export class ModelHost {
    * the overflow, for at most `maxAttempts` attempts. Keeps the candidate with
    * the fewest rows when none fits.
    */
-  async transform(id: string, text: string, spec: PageSpec, options: TransformOptions): Promise<TransformResult> {
+  async transform(id: PluginId, text: string, spec: PageSpec, options: TransformOptions): Promise<TransformResult> {
     const card = this.#require(id, Operation.TRANSFORM);
     if (this.#policy(id).egress !== "none") consumeConsent(options.consent, id, text);
     const client = await this.#client(id);
@@ -300,7 +314,7 @@ export class ModelHost {
     let last: { rowsUsed: number } | null = null;
     let best: { text: string; rowsUsed: number; model: string } | null = null;
     for (let attempt = 1; attempt <= max; attempt++) {
-      if (options.signal?.aborted) throw new ModelError("cancelled", "Canceled.");
+      if (options.signal?.aborted) throw new ModelError(ErrorCode.CANCELED, "Canceled.");
       const request = create(TransformRequestSchema, {
         sheet,
         instruction: options.instruction,
@@ -320,7 +334,7 @@ export class ModelHost {
       } catch (error) {
         throw toModelError(error);
       }
-      if (!candidate) throw new ModelError("invalid-result", `${card.name || id} finished without a result.`);
+      if (!candidate) throw new ModelError(ErrorCode.INVALID_RESULT, `${card.name || id} finished without a result.`);
       const result = normalizeText(candidate.text);
       const rowsUsed = layoutRows(result, spec.cols).length;
       const fits = rowsUsed <= spec.rows;

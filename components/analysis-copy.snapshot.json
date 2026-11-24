@@ -1,0 +1,2672 @@
+{
+  "welcome@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "welcome@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "19 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "welcome@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "7 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "welcome@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "incident-json@terminal": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "55 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 80",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "incident-json@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "59 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "3 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "incident-json@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "57 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "incident-json@dense": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "34 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "incident-narrative@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "incident-narrative@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "17 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "incident-narrative@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "8 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "incident-narrative@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-situation-brief@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-situation-brief@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "9 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-situation-brief@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "4 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-situation-brief@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-entity-card@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-entity-card@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "7 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-entity-card@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "3 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-entity-card@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,819 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "template-handoff@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-handoff@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "6 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-handoff@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "5 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-handoff@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-decision-record@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-decision-record@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "6 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-decision-record@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "3 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-decision-record@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,839 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "template-agent-charter@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "template-agent-charter@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "9 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-agent-charter@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "5 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "template-agent-charter@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "pair-incident-a@terminal": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "55 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 80",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "pair-incident-a@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "59 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "3 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "pair-incident-a@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "57 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "pair-incident-a@dense": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "34 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "24% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "44% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 4% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "pair-incident-b@terminal": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "pair-incident-b@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "17 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "pair-incident-b@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "8 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "pair-incident-b@dense": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      }
+    ]
+  },
+  "empty@terminal": {
+    "verdict": "Empty",
+    "summary": "Nothing on the page yet.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Blank page",
+        "detail": "Start with one line that says what this page is for and who will read it."
+      }
+    ]
+  },
+  "empty@pica": {
+    "verdict": "Empty",
+    "summary": "Nothing on the page yet.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Blank page",
+        "detail": "Start with one line that says what this page is for and who will read it."
+      }
+    ]
+  },
+  "empty@elite": {
+    "verdict": "Empty",
+    "summary": "Nothing on the page yet.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Blank page",
+        "detail": "Start with one line that says what this page is for and who will read it."
+      }
+    ]
+  },
+  "empty@dense": {
+    "verdict": "Empty",
+    "summary": "Nothing on the page yet.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Blank page",
+        "detail": "Start with one line that says what this page is for and who will read it."
+      }
+    ]
+  },
+  "prose@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 75% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 80",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,073 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "prose@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 79% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈772 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "prose@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 80% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈960 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "prose@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 77% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 100",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,873 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "half-page@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww” appears 30×",
+        "detail": "97% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "half-page@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww” appears 30×",
+        "detail": "97% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "half-page@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww” appears 30×",
+        "detail": "97% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "half-page@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww” appears 30×",
+        "detail": "97% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflow@terminal": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "7 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 67×",
+        "detail": "99% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflow@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "9 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 67×",
+        "detail": "99% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflow@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "9 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 67×",
+        "detail": "99% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflow@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 67×",
+        "detail": "99% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "crowded@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 100% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,071 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "crowded@pica": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "10 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "crowded@elite": {
+    "verdict": "Balanced",
+    "summary": "Fits the page and reads clean.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "10 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "crowded@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 80% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,871 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "wall@terminal": {
+    "verdict": "Busy",
+    "summary": "Fits, but crowded. Hard to scan at a glance.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 86% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      }
+    ]
+  },
+  "wall@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "22 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "info",
+        "title": "40 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "wall@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "22 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "info",
+        "title": "40 lines wrap past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "wall@dense": {
+    "verdict": "Busy",
+    "summary": "Fits, but crowded. Hard to scan at a glance.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 69% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      }
+    ]
+  },
+  "json-line@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "48% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,188 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "json-line@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "48% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈887 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "json-line@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "48% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,075 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "json-line@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "48% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,988 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-json@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,081 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-json@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈780 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-json@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈968 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-json@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 10×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,881 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "duplicates@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 4×",
+        "detail": "75% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "3 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,183 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "duplicates@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 4×",
+        "detail": "75% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "3 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈882 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "duplicates@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 4×",
+        "detail": "75% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "3 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,070 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "duplicates@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 4×",
+        "detail": "75% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "3 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,983 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "indents@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,185 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "indents@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈884 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "indents@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,072 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "indents@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,985 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "half-narrative@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,147 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "half-narrative@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "3 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈846 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "half-narrative@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,034 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "half-narrative@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,947 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "heading@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,179 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "heading@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈878 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "heading@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,066 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "heading@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,979 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "overflowing-json@terminal": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "10 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "61% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflowing-json@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "12 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "61% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflowing-json@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "12 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "61% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "overflowing-json@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "61% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "noisy-json@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 12×",
+        "detail": "88% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈937 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "noisy-json@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 12×",
+        "detail": "88% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈636 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "noisy-json@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 12×",
+        "detail": "88% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈824 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "noisy-json@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "45% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "“status” appears 12×",
+        "detail": "88% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,737 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "light@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 68% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,133 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "light@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "4 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈832 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "light@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "Rows are 73% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,020 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "light@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,933 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "repeated-term@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 28×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,131 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "repeated-term@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 28×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈830 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "repeated-term@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 28×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,018 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "repeated-term@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 28×",
+        "detail": "90% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,931 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "key-values@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,188 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "key-values@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈887 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "key-values@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,075 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "key-values@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "Reads clean",
+        "detail": "Fits the page, with little scaffolding and little repetition."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,988 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "nested-json@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "68% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈984 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "nested-json@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "68% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈683 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "nested-json@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "68% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈871 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "nested-json@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "68% of the ink is syntax",
+        "detail": "Quotes, braces, colons, and markup are scaffolding, not meaning. Say it in sentences, or use a compact table for genuinely tabular data."
+      },
+      {
+        "severity": "warning",
+        "title": "11 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,784 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-lines@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 64×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "7 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,128 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-lines@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 64×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "7 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 77% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈827 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-lines@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 64×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "7 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,015 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "status-lines@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“status” appears 64×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "7 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,928 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "words@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“word” appears 450×",
+        "detail": "100% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 75% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      }
+    ]
+  },
+  "words@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "2 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“word” appears 450×",
+        "detail": "100% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "info",
+        "title": "30 lines wrap past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      }
+    ]
+  },
+  "words@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“word” appears 450×",
+        "detail": "100% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 80% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      }
+    ]
+  },
+  "words@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“word” appears 450×",
+        "detail": "100% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "29 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      }
+    ]
+  },
+  "deep-indent@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“indent” appears 20×",
+        "detail": "95% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "19 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "deep-indent@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“indent” appears 20×",
+        "detail": "95% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "19 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Indentation uses 13% of the used area",
+        "detail": "Deepest indent is 8 columns. Flatten the nesting and state relationships in words instead of whitespace."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "deep-indent@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“indent” appears 20×",
+        "detail": "95% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "19 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "deep-indent@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“indent” appears 20×",
+        "detail": "95% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "19 duplicated lines",
+        "detail": "Collapse identical lines into one statement with a count or a range."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "one-sentence@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“explains” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,170 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "one-sentence@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“explains” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 73% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈869 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "one-sentence@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“explains” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,057 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "one-sentence@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“explains” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,970 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "long-line@terminal": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“going” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 80",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,159 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "long-line@pica": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“going” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 76% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈858 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "long-line@elite": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“going” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 75",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,046 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "long-line@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“going” appears 3×",
+        "detail": "67% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Rows are 71% inked",
+        "detail": "Break the text into short paragraphs separated by blank lines so it can be scanned."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 100",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,959 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "one-row-over@terminal": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "1 row over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 61×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "one-row-over@pica": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "3 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 61×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "one-row-over@elite": {
+    "verdict": "Overflowing",
+    "summary": "Doesn’t fit. This is more than one page of context.",
+    "findings": [
+      {
+        "severity": "critical",
+        "title": "3 rows over the page",
+        "detail": "Cut what the agent does not need, or split this into two pages that each serve one purpose."
+      },
+      {
+        "severity": "warning",
+        "title": "“line” appears 61×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "one-row-over@dense": {
+    "verdict": "Noisy",
+    "summary": "Too much scaffolding or repetition for the meaning it carries.",
+    "findings": [
+      {
+        "severity": "warning",
+        "title": "“line” appears 61×",
+        "detail": "98% of word ink is repeats. State shared values once, then list only the exceptions."
+      },
+      {
+        "severity": "warning",
+        "title": "Only 0% of lines read as sentences",
+        "detail": "Fields tell the agent what; sentences tell it why. Connect facts with “because”, “so”, and “unless”."
+      }
+    ]
+  },
+  "checklist@terminal": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "11% of the ink is syntax",
+        "detail": "Acceptable, but check that every bit of formatting carries meaning."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,129 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "checklist@pica": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "11% of the ink is syntax",
+        "detail": "Acceptable, but check that every bit of formatting carries meaning."
+      },
+      {
+        "severity": "info",
+        "title": "1 line wraps past column 62",
+        "detail": "Break long lines where the thought breaks; wrapped rows are harder to scan."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈828 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "checklist@elite": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "11% of the ink is syntax",
+        "detail": "Acceptable, but check that every bit of formatting carries meaning."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,016 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  },
+  "checklist@dense": {
+    "verdict": "Light",
+    "summary": "A short page with plenty of room.",
+    "findings": [
+      {
+        "severity": "info",
+        "title": "11% of the ink is syntax",
+        "detail": "Acceptable, but check that every bit of formatting carries meaning."
+      },
+      {
+        "severity": "info",
+        "title": "Room for ≈1,929 more tokens",
+        "detail": "A light page is fine. Don’t pad it; add only what changes what the agent will do."
+      }
+    ]
+  }
+}

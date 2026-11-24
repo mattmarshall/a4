@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 import { Placement, type ModelCard } from "@/lib/gen/a4/v1/model_pb.js";
 import { BUNDLED_CARDS, formatBytes } from "@/lib/models/cards";
 import type { FindingResult } from "@/lib/models/host";
+import { pluginIdOf } from "@/lib/models/plugin-id";
 import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
 import { SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
 import { cellValue, RESTATE_SIMILARITY, SIMILARITY_FLOOR } from "@/lib/models/semantic/similarity";
@@ -91,7 +92,11 @@ export function ModelsPanel({
                     Needs a one-time download of {formatBytes(size)}. It’s kept in this browser for later visits.
                   </span>
                   <div className="panel-actions">
-                    <button type="button" className="btn btn-outline" onClick={() => void models.prepare(card.id)}>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => void models.prepare(pluginIdOf(card))}
+                    >
                       Download ({formatBytes(size)})
                     </button>
                   </div>

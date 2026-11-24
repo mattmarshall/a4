@@ -3,6 +3,7 @@
   "entry": [
     "app/**/{page,layout,not-found}.tsx",
     "lib/**/*.test.ts",
+    "components/**/*.test.ts",
     "lib/models/semantic/worker.ts",
     "scripts/*.ts",
     "cloudflare.config.ts"
