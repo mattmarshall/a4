@@ -13,6 +13,14 @@ import { FolderRegistry } from "./registry.ts";
 import { browserFixture, nodeFixture, type FolderFixture } from "./testing/fixtures.ts";
 import { FileWatcher } from "./watch.ts";
 
+/** Wait (real time, up to 5 s) until `check` holds: the node adapter's writes take real time. */
+async function until(check: () => boolean): Promise<void> {
+  for (let waited = 0; !check(); waited += 10) {
+    if (waited >= 5000) throw new Error("timed out waiting for the condition");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
 let ids = 0;
 const nextId = () => `folder${++ids}`;
 
@@ -113,8 +121,12 @@ function suite<H>(label: string, makeFixture: (clock: () => number) => Promise<F
     },
   );
 
-  run("A4's own saves are not reported as outside changes", async ({ scheduler, repo, session, reloaded }) => {
+  run("A4's own saves are not reported as outside changes", async ({ scheduler, repo, session, events, reloaded }) => {
     session.update("# Agents\nMine");
+    // The debounced save runs on fake time; its disk write takes real time.
+    await scheduler.advance(1000);
+    await until(() => events.some((e) => e.type === "saved"));
+    // Polls after A4's own save must not report it.
     await scheduler.advance(3000);
     assert.equal(await repo.text("AGENTS.md"), "# Agents\nMine\n");
     assert.deepEqual(reloaded, []);
