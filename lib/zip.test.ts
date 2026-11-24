@@ -98,7 +98,7 @@ test("an empty archive is valid", async () => {
 });
 
 test("library export: every page, exact text, dated folder, no trash", async () => {
-  const store = new MemoryPageStore({ now: () => new Date(2026, 10, 23, 9, 30, 0).getTime() });
+  const store = new MemoryPageStore({ clock: { now: () => new Date(2026, 10, 23, 9, 30, 0).getTime() } });
   await store.create(parsePageName("Charter"), "AGENT CHARTER\n");
   await store.create(parsePageName("Brief"), "SITUATION BRIEF\n\nPurpose: …\n");
   await store.create(parsePageName("Old"), "trashed");

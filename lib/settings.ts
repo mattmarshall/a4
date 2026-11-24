@@ -2,17 +2,19 @@
  * Settings: each one is a `Setting<T>` with its storage key, a codec, and a
  * default, declared once in `SETTINGS`. Nothing else knows the key strings.
  *
- * Every setting is a separate scalar localStorage key (`a4:<key>`), so no
- * structured record is serialized, and keys and values are the ones earlier
- * versions wrote. Access tolerates blocked or missing storage (private
- * windows, disabled site data, server rendering): writes this tab makes are
- * kept in memory too, so the session keeps working without storage.
+ * Every setting is a separate scalar key (`a4:<key>`) in the KeyValue port
+ * (localStorage in the browser), so no structured record is serialized, and
+ * keys and values are the ones earlier versions wrote. Access tolerates
+ * blocked or missing storage (private windows, disabled site data, server
+ * rendering): writes this tab makes are kept in memory too, so the session
+ * keeps working without storage.
  *
  * Changes are announced to this tab's subscribers (`subscribeSettings`), so
  * `useSetting` re-renders; other tabs read the new value the next time they
  * load, as before.
  */
 
+import { browserKeyValue, type KeyValue } from "./platform/key-value.ts";
 import { pageRefCodec } from "./store/refs.ts";
 import { DEFAULT_PRESET, PRESET_ORDER, type PresetId } from "./page-spec.ts";
 import { LENSES, type LensId } from "./lenses.ts";
@@ -74,8 +76,8 @@ export const SETTINGS = {
   grid: defineSetting({ key: "grid", codec: flagCodec, default: false }),
   mode: defineSetting<Mode>({ key: "mode", codec: modeCodec, default: "single" }),
   render: defineSetting<"3d" | "flat">({ key: "render", codec: choiceCodec(["3d", "flat"]), default: "3d" }),
-  /** The Pages panel. Unset means "decide by window width". */
-  library: defineSetting({ key: "library", codec: flagCodec, default: true }),
+  /** The Pages panel (stored as "library", as earlier versions did). Unset means "decide by window width". */
+  pagesPanel: defineSetting({ key: "library", codec: flagCodec, default: true }),
   /** The inspector. Unset means "decide by window width". */
   inspector: defineSetting({ key: "inspector", codec: flagCodec, default: true }),
   openA: defineSetting({ key: "open:a", codec: openRefCodec, default: null }),
@@ -94,12 +96,24 @@ const PREFIX = "a4:";
 /** This tab's writes, so settings work in a session even when storage doesn't. */
 const memory = new Map<string, string>();
 const listeners = new Set<() => void>();
+let storage: KeyValue | null = null;
+
+/** Where settings are stored: the workspace's KeyValue port (localStorage until it sets one). */
+export function setSettingsStorage(kv: KeyValue): void {
+  storage = kv;
+  memory.clear();
+}
+
+function store(): KeyValue {
+  storage ??= browserKeyValue();
+  return storage;
+}
 
 function readRaw(key: string): string | null {
   const own = memory.get(key);
   if (own !== undefined) return own;
   try {
-    return globalThis.localStorage?.getItem(PREFIX + key) ?? null;
+    return store().get(PREFIX + key);
   } catch {
     return null;
   }
@@ -121,7 +135,7 @@ export function writeSetting<T>(setting: Setting<T>, value: T): void {
   if (readRaw(setting.key) === raw) return;
   memory.set(setting.key, raw);
   try {
-    globalThis.localStorage?.setItem(PREFIX + setting.key, raw);
+    store().set(PREFIX + setting.key, raw);
   } catch {
     // Storage unavailable: the in-memory copy keeps this session working.
   }

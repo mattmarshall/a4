@@ -11,7 +11,8 @@
  * store confirms a save of the same text.
  */
 
-import type { KeyValue } from "../store/key-value.ts";
+import { systemClock, type Clock } from "../platform/clock.ts";
+import type { KeyValue } from "../platform/key-value.ts";
 import { parseRevision } from "../store/revision.ts";
 import type { IdCodec, PageName, Revision } from "../store/types.ts";
 
@@ -32,18 +33,18 @@ export class Journal<Id extends string = PageName> {
   readonly tabId: string;
   readonly #kv: KeyValue;
   readonly #codec: IdCodec<Id>;
-  readonly #now: () => number;
+  readonly #clock: Clock;
   readonly #text: string;
   readonly #base: string;
   readonly #at: string;
 
-  constructor(kv: KeyValue, tabId: string, codec: IdCodec<Id>, options: { prefix?: string; now?: () => number } = {}) {
+  constructor(kv: KeyValue, tabId: string, codec: IdCodec<Id>, options: { prefix?: string; clock?: Clock } = {}) {
     if (tabId.includes(":")) throw new Error("Tab ids cannot contain ':'");
     const prefix = options.prefix ?? "a4:";
     this.#kv = kv;
     this.#codec = codec;
     this.tabId = tabId;
-    this.#now = options.now ?? Date.now;
+    this.#clock = options.clock ?? systemClock;
     this.#text = `${prefix}draft:`;
     this.#base = `${prefix}draft-base:`;
     this.#at = `${prefix}draft-at:`;
@@ -55,7 +56,7 @@ export class Journal<Id extends string = PageName> {
     try {
       this.#kv.set(this.#text + key, text);
       this.#kv.set(this.#base + key, base ?? "");
-      this.#kv.set(this.#at + key, String(this.#now()));
+      this.#kv.set(this.#at + key, String(this.#clock.now()));
       return true;
     } catch {
       return false;

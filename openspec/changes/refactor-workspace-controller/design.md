@@ -114,3 +114,56 @@ interface WorkspaceSnapshot {
 
 No stored data changes: the same keys, journal, OPFS, and IndexedDB.
 Reverting restores the old hook.
+
+## Implementation Notes
+
+Where the code differs from the decisions above, and why:
+
+- **The globals rule is Biome's, not dependency-cruiser's.** Browser
+  globals are a language-level matter, so `noRestrictedGlobals` (bare
+  names) and a GritQL plugin (`globalThis.x`, `Date.now()`) enforce "no
+  browser globals outside `lib/platform`" in `biome.json`.
+  dependency-cruiser keeps the import boundaries.
+- **Folders:**
+  - **`FolderSource<H>`** is the port for picking, comparing,
+    permissions, and opening a `FolderFs`. It lets the registry and the
+    access state machine run on the `node:fs` adapter in tests.
+  - **`FolderAccess.forget`** recovers drafts the way connecting does.
+  - **`FolderIndex`** tears down when it leaves `connected`. Leaving
+    because access was lost keeps the open files as pending refs, which
+    reopen on reconnect.
+- **`useWorkspace()` returns the whole snapshot.** Components don't
+  select from it. The Workbench is the only reader, and it renders from
+  the whole snapshot.
+- **Results carry `error: unknown`.** There is no `WorkspaceError` union:
+  `describeError` already names every error kind, and `reportResult` turns
+  a failed command into a toast in one place. `useNotices` handles
+  notices only.
+- **One workspace per tab** comes from `acquireWorkspace` and
+  `releaseWorkspace`, with disposal deferred one task. That deferral
+  survives StrictMode's mount, unmount, and mount without a `WeakRef`
+  registry.
+- **`Workspace` keeps a `#compare` flag** set by `ensureSlotB` and
+  `closeSlotB`. That lets a folder file remembered for B reopen when
+  Compare is shown, not while B is hidden.
+- **`useWorkspaceApi`** is the Workbench's command surface. It keeps the
+  old hook's shape, with stable command identities so effects can depend
+  on them. It reports failures as toasts, or returns the message for
+  inline fields.
+- **Layout:**
+  - Mode and panels are settings; zoom lasts for the visit.
+  - A panel the author hasn't toggled follows the `max-width: 1099px`
+    breakpoint live.
+  - The Pages panel setting is `SETTINGS.pagesPanel`, still stored as
+    `library`.
+- **The Escape stack** works through `defaultPrevented`:
+  - menus and inline fields handle Esc first and mark it handled;
+  - open dialogs keep their own Esc;
+  - otherwise `useShortcuts` closes the pose panel, then focus mode.
+- **Closing a folder** is one command, `closeFolder`: it saves, closes,
+  and forgets the folder. The connected view's Close button and the
+  Forget buttons all use it. Close's tooltip says how to open the folder
+  again.
+- **Not in this change:** the Welcome text's "sidebar" and "Use New"
+  (review U13). The text feeds the analysis-copy snapshot, so it changes
+  with a copy review.

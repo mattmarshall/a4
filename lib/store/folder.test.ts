@@ -7,11 +7,15 @@ import { pageFilesContract } from "./testing/contract.ts";
 import { asDirectoryHandle, FakeDirectoryHandle } from "./testing/fake-opfs.ts";
 import { forgeFilePath } from "./testing/forge.ts";
 import { isStoreError, type PageStoreErrorCode } from "./types.ts";
+import { browserFolderSource } from "../folder/fs-browser.ts";
 
 const p = (s: string) => parseFilePath(s);
 
 function folder(root = new FakeDirectoryHandle("repo")) {
-  return { root, store: new FolderPageFiles(asDirectoryHandle(root), { id: "test", locks: null }) };
+  return {
+    root,
+    store: new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), { id: "test", locks: null }),
+  };
 }
 
 async function rejectsWith(promise: Promise<unknown>, code: PageStoreErrorCode) {
@@ -108,9 +112,9 @@ test("the walk skips dependency, build, and hidden folders but keeps agent folde
   ]) {
     root.put(path, "x");
   }
-  const { files, partial } = await walkFolder(asDirectoryHandle(root));
+  const { files, partial } = await walkFolder(browserFolderSource.open(asDirectoryHandle(root)));
   assert.equal(partial, false);
-  assert.deepEqual(files.map((f) => f.path).sort(), [
+  assert.deepEqual([...files].sort(), [
     ".agents/skills/x/SKILL.md",
     ".claude/agents/reviewer.md",
     ".cursor/rules/style.mdc",
@@ -123,7 +127,7 @@ test("the walk skips dependency, build, and hidden folders but keeps agent folde
 test("the walk stops at the entry limit and reports a partial list", async () => {
   const root = new FakeDirectoryHandle("repo");
   for (let i = 0; i < 30; i++) root.put(`notes/${i}.md`, "x");
-  const result = await walkFolder(asDirectoryHandle(root), 20);
+  const result = await walkFolder(browserFolderSource.open(asDirectoryHandle(root)), 20);
   assert.equal(result.partial, true);
   assert.equal(result.visited, 20);
   assert.equal(result.files.length, 19); // the "notes" folder counts as one entry

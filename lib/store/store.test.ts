@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { KeyValuePageStore, MemoryKeyValue, MemoryPageStore } from "./key-value.ts";
+import { KeyValuePageStore, MemoryPageStore } from "./key-value.ts";
+import { MemoryKeyValue } from "../platform/key-value.ts";
 import { nameFromText, nextAvailableName, parsePageName, sanitizePageName } from "./names.ts";
 import { movePages } from "./open.ts";
 import { OpfsPageStore } from "./opfs.ts";
@@ -16,7 +17,7 @@ pageStoreContract(
   async () => new KeyValuePageStore(new MemoryKeyValue(), { kind: "local-storage", durable: true }),
 );
 pageStoreContract("OPFS (in-memory fake)", async () =>
-  OpfsPageStore.open({ root: asDirectoryHandle(new FakeDirectoryHandle()), locks: null }),
+  OpfsPageStore.open(asDirectoryHandle(new FakeDirectoryHandle()), { locks: null }),
 );
 
 test("name rules", () => {
@@ -73,7 +74,7 @@ test("revisions depend only on content", () => {
 
 test("OPFS layout: a4/pages/<name>.md holds exactly the page text", async () => {
   const root = new FakeDirectoryHandle();
-  const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
+  const store = await OpfsPageStore.open(asDirectoryHandle(root), { locks: null });
   await store.create(parsePageName("Brief"), "Purpose: brief the agent.\n");
   assert.equal(root.fileAt("a4/pages/Brief.md")?.text, "Purpose: brief the agent.\n");
   const entry = await store.trash(parsePageName("Brief"));
@@ -83,7 +84,7 @@ test("OPFS layout: a4/pages/<name>.md holds exactly the page text", async () => 
 
 test("OPFS ignores non-page files such as swap files", async () => {
   const root = new FakeDirectoryHandle();
-  const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
+  const store = await OpfsPageStore.open(asDirectoryHandle(root), { locks: null });
   await store.create(parsePageName("Brief"), "x");
   const pages = await (await root.getDirectoryHandle("a4")).getDirectoryHandle("pages");
   await pages.getFileHandle("Brief.md.crswap", { create: true });
@@ -97,7 +98,7 @@ test("OPFS ignores non-page files such as swap files", async () => {
 
 test("OPFS: an interrupted write leaves the previous text intact", async () => {
   const root = new FakeDirectoryHandle();
-  const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
+  const store = await OpfsPageStore.open(asDirectoryHandle(root), { locks: null });
   await store.create(parsePageName("Brief"), "complete previous text");
   const file = root.fileAt("a4/pages/Brief.md");
   assert.ok(file);
@@ -114,7 +115,7 @@ test("OPFS writes run inside a per-page lock", async () => {
       return fn();
     },
   };
-  const store = await OpfsPageStore.open({ root: asDirectoryHandle(new FakeDirectoryHandle()), locks });
+  const store = await OpfsPageStore.open(asDirectoryHandle(new FakeDirectoryHandle()), { locks });
   await store.create(parsePageName("Brief"), "x");
   await store.write(parsePageName("Brief"), "y");
   assert.deepEqual(requested, ["a4:page:brief", "a4:page:brief"]);
@@ -124,7 +125,7 @@ test("moving pages from the fallback store into OPFS keeps every page", async ()
   const fallback = new KeyValuePageStore(new MemoryKeyValue(), { kind: "local-storage", durable: true });
   await fallback.create(parsePageName("Brief"), "from fallback");
   await fallback.create(parsePageName("Charter"), "charter");
-  const opfs = await OpfsPageStore.open({ root: asDirectoryHandle(new FakeDirectoryHandle()), locks: null });
+  const opfs = await OpfsPageStore.open(asDirectoryHandle(new FakeDirectoryHandle()), { locks: null });
   await opfs.create(parsePageName("Brief"), "already in opfs");
   assert.equal(await movePages(fallback, opfs), 2);
   assert.deepEqual(await fallback.list(), []);
@@ -155,7 +156,7 @@ test("sanitized names always parse, and never split a surrogate pair", () => {
 
 test("OPFS: a failed first write leaves no empty page, and moves change nothing", async () => {
   const root = new FakeDirectoryHandle();
-  const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
+  const store = await OpfsPageStore.open(asDirectoryHandle(root), { locks: null });
   await store.create(parsePageName("Brief"), "keep me");
   root.volume.failWritable = true;
   await assert.rejects(store.create(parsePageName("Fresh"), "x"));

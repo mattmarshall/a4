@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MemoryKeyValue, KeyValuePageStore } from "./key-value.ts";
+import { KeyValuePageStore } from "./key-value.ts";
+import { MemoryKeyValue } from "../platform/key-value.ts";
 import { pageNameCodec, parsePageName } from "./names.ts";
 import { filePathCodec, pageRefCodec, parseFilePath } from "./refs.ts";
 import { parseRevision, revisionOf } from "./revision.ts";

@@ -1,6 +1,10 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**/*.ts",
@@ -31,10 +35,20 @@
     }
   },
   "css": {
-    "formatter": { "enabled": false },
-    "linter": { "enabled": false }
+    "formatter": {
+      "enabled": false
+    },
+    "linter": {
+      "enabled": false
+    }
   },
-  "assist": { "actions": { "source": { "organizeImports": "off" } } },
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
   "linter": {
     "enabled": true,
     "rules": {
@@ -54,5 +68,38 @@
         "noFloatingPromises": "error"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "includes": [
+        "lib/**",
+        "!lib/platform/**",
+        "!lib/element/**",
+        "!lib/paper/**",
+        "!lib/models/**",
+        "!**/*.test.ts",
+        "!**/testing/**"
+      ],
+      "plugins": ["./biome/platform-globals.grit"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedGlobals": {
+              "level": "error",
+              "options": {
+                "deniedGlobals": {
+                  "localStorage": "Reach browser APIs through the lib/platform ports.",
+                  "sessionStorage": "Reach browser APIs through the lib/platform ports.",
+                  "indexedDB": "Reach browser APIs through the lib/platform ports.",
+                  "navigator": "Reach browser APIs through the lib/platform ports.",
+                  "crypto": "Reach browser APIs through the lib/platform ports.",
+                  "BroadcastChannel": "Reach browser APIs through the lib/platform ports."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

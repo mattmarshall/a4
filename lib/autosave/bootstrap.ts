@@ -3,7 +3,8 @@
  * single-page slots, and make sure a first-time library has a Welcome page.
  */
 
-import type { KeyValue } from "../store/key-value.ts";
+import { systemClock } from "../platform/clock.ts";
+import type { KeyValue } from "../platform/key-value.ts";
 import { availableName, nameFromText, parsePageName, stamp } from "../store/names.ts";
 import { isStoreError, type PageFiles, type PageName, type PageStore } from "../store/types.ts";
 import type { Journal } from "./journal.ts";
@@ -26,14 +27,16 @@ export const STALE_DRAFT_MS = 60_000;
  * Recover drafts from other tabs. `liveTabs` is the set of tab ids that are
  * still open (from Web Locks), or null when liveness can't be determined.
  * `policy` says where a draft goes when it can't be saved over its page, as
- * for a session over the same pages.
+ * for a session over the same pages. With `includeOwnTab`, this tab's own
+ * drafts (saves that failed) are recovered too, as when a folder is closed.
  */
 export async function recoverDrafts<Id extends string = PageName>(
   files: PageFiles<Id>,
   journal: Journal<Id>,
   policy: RelocationPolicy<Id>,
   liveTabs: ReadonlySet<string> | null,
-  now: number = Date.now(),
+  now: number = systemClock.now(),
+  options: { includeOwnTab?: boolean } = {},
 ): Promise<Recovery<Id>[]> {
   const out: Recovery<Id>[] = [];
   const copies = policy.kind === "copy-out" ? policy.library : policy.store;
@@ -46,7 +49,7 @@ export async function recoverDrafts<Id extends string = PageName>(
   const recoveredName = (draft: { name: Id; at: number }) =>
     copyName(draft.name, ` (recovered ${stamp(new Date(draft.at || now))})`);
   for (const draft of journal.all()) {
-    if (draft.tabId === journal.tabId) continue;
+    if (draft.tabId === journal.tabId && !options.includeOwnTab) continue;
     if (liveTabs ? liveTabs.has(draft.tabId) : now - draft.at < STALE_DRAFT_MS) continue;
     let recovery: Recovery<Id>;
     try {

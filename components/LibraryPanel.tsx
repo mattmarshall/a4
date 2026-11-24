@@ -1,10 +1,67 @@
 "use client";
 
+/**
+ * The Pages panel: the library (search, open, rename, duplicate, trash), the
+ * open folder's files, export and import, and the trash. Pages and files are
+ * both opened by reference; commands arrive grouped as `PageActions` and
+ * `FolderActions`.
+ */
+
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import type { FolderFile } from "@/lib/folder/scan";
 import { PAGE_ROWS } from "@/lib/folder/scan";
-import type { FilePath, PageName, PageSummary, TrashEntry, TrashId } from "@/lib/store";
-import type { FolderView, Slot, StorageInfo } from "./useLibrary";
+import {
+  fileRef,
+  libraryRef,
+  sameRef,
+  type PageName,
+  type PageRef,
+  type PageSummary,
+  type TrashEntry,
+  type TrashId,
+} from "@/lib/store";
+import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace/types";
+
+/** Library commands. Rename returns an error message to show inline, or null. */
+export interface PageActions {
+  create(): void;
+  rename(name: PageName, input: string): Promise<string | null>;
+  /** Copy a page, or a folder file, into a new library page. */
+  duplicate(ref: PageRef): void;
+  trash(name: PageName): void;
+  restore(id: TrashId): void;
+  purge(ids: readonly TrashId[]): void;
+  exportAll(): void;
+  importArchive(file: File): void;
+}
+
+/** Folder commands. Creating and saving return an error message to show inline, or null. */
+export interface FolderActions {
+  /** Pick a folder and open it. */
+  pick(): void;
+  reconnect(): void;
+  /** Save open files, close the folder, and forget it. */
+  close(): void;
+  createFile(path: string): Promise<string | null>;
+  /** Write the page "Save to folder…" was chosen for to `path`. */
+  saveTo(path: string): Promise<string | null>;
+  cancelSave(): void;
+}
+
+/** Where a page shows in the panel's badges and "Open in" buttons. */
+interface Placement {
+  /** What each shown slot holds (B is null in Single). */
+  readonly open: Readonly<Record<Slot, PageRef | null>>;
+  readonly compare: boolean;
+  readonly activeSlot: Slot;
+}
+
+/** The shown slot holding `ref`, if any. */
+function slotOf(placement: Placement, ref: PageRef): Slot | null {
+  return SLOTS.find((slot) => sameRef(placement.open[slot], ref)) ?? null;
+}
+
+const otherSlot = (slot: Slot): Slot => (slot === "a" ? "b" : "a");
 
 export function relativeTime(ms: number, now: number = Date.now()): string {
   const s = Math.round((now - ms) / 1000);
@@ -40,7 +97,10 @@ function RenameField({
   }
   function onKey(e: KeyboardEvent<HTMLInputElement>) {
     if (e.key === "Enter") void commit(e.currentTarget.value);
-    if (e.key === "Escape") onCancel();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      onCancel();
+    }
   }
   return (
     <div className="lib-rename">
@@ -66,59 +126,32 @@ function RenameField({
 export function LibraryPanel({
   pages,
   trash,
+  storage,
+  folder,
   open,
   compare,
   activeSlot,
-  storage,
-  onOpen,
-  onNew,
-  onRename,
-  onDuplicate,
-  onTrash,
-  onRestore,
-  onPurge,
-  onExportAll,
-  onImport,
-  folder,
-  openFiles,
   saveRequest,
-  onOpenFolder,
-  onReconnect,
-  onCloseFolder,
-  onOpenFile,
-  onDuplicateFile,
-  onNewFile,
-  onSaveToFolder,
-  onCancelSave,
+  onOpen,
+  pageActions,
+  folderActions,
 }: {
-  pages: PageSummary[];
-  trash: TrashEntry[];
-  open: Record<Slot, PageName | null>;
-  compare: boolean;
-  activeSlot: Slot;
+  pages: readonly PageSummary[];
+  trash: readonly TrashEntry[];
   storage: StorageInfo | null;
-  onOpen: (name: PageName, slot: Slot) => void;
-  onNew: () => void;
-  onRename: (name: PageName, input: string) => Promise<string | null>;
-  onDuplicate: (name: PageName) => void;
-  onTrash: (name: PageName) => void;
-  onRestore: (id: TrashId) => void;
-  onPurge: (ids: TrashId[]) => void;
-  onExportAll: () => void;
-  onImport: (file: File) => void;
-  folder: FolderView;
-  openFiles: Record<Slot, FilePath | null>;
+  folder: FolderSnapshot;
+  /** What each shown slot holds (B is null in Single). */
+  open: Readonly<Record<Slot, PageRef | null>>;
+  compare: boolean;
+  /** The slot a plain click opens into. */
+  activeSlot: Slot;
   /** "Save to folder…" was chosen for this library page. */
-  saveRequest: { name: string } | null;
-  onOpenFolder: () => void;
-  onReconnect: () => void;
-  onCloseFolder: () => void;
-  onOpenFile: (path: FilePath, slot: Slot) => void;
-  onDuplicateFile: (path: FilePath) => void;
-  onNewFile: (path: string) => Promise<string | null>;
-  onSaveToFolder: (path: string) => Promise<string | null>;
-  onCancelSave: () => void;
+  saveRequest: { readonly name: string } | null;
+  onOpen: (ref: PageRef, slot: Slot) => void;
+  pageActions: PageActions;
+  folderActions: FolderActions;
 }) {
+  const placement: Placement = { open, compare, activeSlot };
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<PageName | null>(null);
   const [showTrash, setShowTrash] = useState(false);
@@ -131,12 +164,12 @@ export function LibraryPanel({
   }, [pages, query]);
 
   return (
-    <aside className="library" aria-label="Page library">
+    <aside className="library" aria-label="Page library" data-print="hide">
       <div className="lib-head">
         <h2>
           Pages <span className="lib-count">{pages.length}</span>
         </h2>
-        <button type="button" className="btn btn-outline" onClick={onNew}>
+        <button type="button" className="btn btn-outline" onClick={pageActions.create}>
           + New page
         </button>
       </div>
@@ -152,7 +185,8 @@ export function LibraryPanel({
 
       <ul className="lib-list">
         {visible.map((p) => {
-          const slot: Slot | null = open.a === p.name ? "a" : open.b === p.name ? "b" : null;
+          const ref = libraryRef(p.name);
+          const slot = slotOf(placement, ref);
           return (
             <li key={p.name} className="lib-item" data-open={slot ?? undefined}>
               {renaming === p.name ? (
@@ -160,7 +194,7 @@ export function LibraryPanel({
                   initial={p.name}
                   onCancel={() => setRenaming(null)}
                   onDone={async (value) => {
-                    const error = await onRename(p.name, value);
+                    const error = await pageActions.rename(p.name, value);
                     if (!error) setRenaming(null);
                     return error;
                   }}
@@ -169,7 +203,7 @@ export function LibraryPanel({
                 <button
                   type="button"
                   className="lib-open"
-                  onClick={() => onOpen(p.name, compare ? activeSlot : "a")}
+                  onClick={() => onOpen(ref, compare ? activeSlot : "a")}
                   title={compare ? `Open in ${activeSlot.toUpperCase()}` : "Open"}
                 >
                   <span className="lib-name">{p.name}</span>
@@ -182,17 +216,17 @@ export function LibraryPanel({
               {renaming !== p.name ? (
                 <div className="lib-actions">
                   {compare ? (
-                    <button type="button" onClick={() => onOpen(p.name, activeSlot === "a" ? "b" : "a")}>
-                      Open in {activeSlot === "a" ? "B" : "A"}
+                    <button type="button" onClick={() => onOpen(ref, otherSlot(activeSlot))}>
+                      Open in {otherSlot(activeSlot).toUpperCase()}
                     </button>
                   ) : null}
                   <button type="button" onClick={() => setRenaming(p.name)}>
                     Rename
                   </button>
-                  <button type="button" onClick={() => onDuplicate(p.name)}>
+                  <button type="button" onClick={() => pageActions.duplicate(ref)}>
                     Duplicate
                   </button>
-                  <button type="button" onClick={() => onTrash(p.name)}>
+                  <button type="button" onClick={() => pageActions.trash(p.name)}>
                     Delete
                   </button>
                 </div>
@@ -206,25 +240,18 @@ export function LibraryPanel({
       <FolderSection
         folder={folder}
         query={query}
-        open={openFiles}
-        compare={compare}
-        activeSlot={activeSlot}
+        placement={placement}
         saveRequest={saveRequest}
-        onOpenFolder={onOpenFolder}
-        onReconnect={onReconnect}
-        onCloseFolder={onCloseFolder}
-        onOpenFile={onOpenFile}
-        onDuplicateFile={onDuplicateFile}
-        onNewFile={onNewFile}
-        onSaveToFolder={onSaveToFolder}
-        onCancelSave={onCancelSave}
+        onOpen={onOpen}
+        onDuplicate={pageActions.duplicate}
+        actions={folderActions}
       />
 
       <div className="lib-transfer">
         <button
           type="button"
           className="btn btn-outline"
-          onClick={onExportAll}
+          onClick={pageActions.exportAll}
           disabled={pages.length === 0}
           title="Download every page as .md files in one .zip"
         >
@@ -246,7 +273,7 @@ export function LibraryPanel({
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
-            if (file) onImport(file);
+            if (file) pageActions.importArchive(file);
           }}
         />
       </div>
@@ -272,13 +299,14 @@ export function LibraryPanel({
                     </span>
                   </div>
                   <div className="lib-actions lib-actions-visible">
-                    <button type="button" onClick={() => onRestore(t.id)}>
+                    <button type="button" onClick={() => pageActions.restore(t.id)}>
                       Restore
                     </button>
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Permanently delete “${t.name}”? This can’t be undone.`)) onPurge([t.id]);
+                        if (window.confirm(`Permanently delete “${t.name}”? This can’t be undone.`))
+                          pageActions.purge([t.id]);
                       }}
                     >
                       Delete forever
@@ -296,7 +324,7 @@ export function LibraryPanel({
                   if (
                     window.confirm(`Permanently delete ${trash.length} page(s) in the trash? This can’t be undone.`)
                   ) {
-                    onPurge(trash.map((t) => t.id));
+                    pageActions.purge(trash.map((t) => t.id));
                   }
                 }}
               >
@@ -376,7 +404,10 @@ function PathForm({
             setError(null);
           }}
           onKeyDown={(e) => {
-            if (e.key === "Escape") onCancel();
+            if (e.key === "Escape") {
+              e.preventDefault();
+              onCancel();
+            }
           }}
         />
       </label>
@@ -395,19 +426,18 @@ function PathForm({
 
 function FileRow({
   file,
-  slot,
-  compare,
-  activeSlot,
+  placement,
   onOpen,
   onDuplicate,
 }: {
   file: FolderFile;
-  slot: Slot | null;
-  compare: boolean;
-  activeSlot: Slot;
-  onOpen: (path: FilePath, slot: Slot) => void;
-  onDuplicate: (path: FilePath) => void;
+  placement: Placement;
+  onOpen: (ref: PageRef, slot: Slot) => void;
+  onDuplicate: (ref: PageRef) => void;
 }) {
+  const { compare, activeSlot } = placement;
+  const ref = fileRef(file.path);
+  const slot = slotOf(placement, ref);
   const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
   if (file.unreadable) {
     return (
@@ -424,7 +454,7 @@ function FileRow({
       <button
         type="button"
         className="lib-open"
-        onClick={() => onOpen(file.path, compare ? activeSlot : "a")}
+        onClick={() => onOpen(ref, compare ? activeSlot : "a")}
         title={compare ? `Open in ${activeSlot.toUpperCase()}` : "Open"}
       >
         <span className="lib-name lib-path">{file.path}</span>
@@ -443,11 +473,11 @@ function FileRow({
       </button>
       <div className="lib-actions">
         {compare ? (
-          <button type="button" onClick={() => onOpen(file.path, activeSlot === "a" ? "b" : "a")}>
-            Open in {activeSlot === "a" ? "B" : "A"}
+          <button type="button" onClick={() => onOpen(ref, otherSlot(activeSlot))}>
+            Open in {otherSlot(activeSlot).toUpperCase()}
           </button>
         ) : null}
-        <button type="button" onClick={() => onDuplicate(file.path)} title="Copy into a new library page">
+        <button type="button" onClick={() => onDuplicate(ref)} title="Copy into a new library page">
           Duplicate to library
         </button>
       </div>
@@ -458,33 +488,19 @@ function FileRow({
 function FolderSection({
   folder,
   query,
-  open,
-  compare,
-  activeSlot,
+  placement,
   saveRequest,
-  onOpenFolder,
-  onReconnect,
-  onCloseFolder,
-  onOpenFile,
-  onDuplicateFile,
-  onNewFile,
-  onSaveToFolder,
-  onCancelSave,
+  onOpen,
+  onDuplicate,
+  actions,
 }: {
-  folder: FolderView;
+  folder: FolderSnapshot;
   query: string;
-  open: Record<Slot, FilePath | null>;
-  compare: boolean;
-  activeSlot: Slot;
-  saveRequest: { name: string } | null;
-  onOpenFolder: () => void;
-  onReconnect: () => void;
-  onCloseFolder: () => void;
-  onOpenFile: (path: FilePath, slot: Slot) => void;
-  onDuplicateFile: (path: FilePath) => void;
-  onNewFile: (path: string) => Promise<string | null>;
-  onSaveToFolder: (path: string) => Promise<string | null>;
-  onCancelSave: () => void;
+  placement: Placement;
+  saveRequest: { readonly name: string } | null;
+  onOpen: (ref: PageRef, slot: Slot) => void;
+  onDuplicate: (ref: PageRef) => void;
+  actions: FolderActions;
 }) {
   const [creating, setCreating] = useState(false);
   const [showOther, setShowOther] = useState(false);
@@ -496,17 +512,8 @@ function FolderSection({
   }, [folder.files, query]);
   const context = visible.filter((f) => f.group === "context");
   const other = visible.filter((f) => f.group === "other");
-  const slotOf = (path: FilePath): Slot | null => (open.a === path ? "a" : open.b === path ? "b" : null);
   const row = (f: FolderFile) => (
-    <FileRow
-      key={f.path}
-      file={f}
-      slot={slotOf(f.path)}
-      compare={compare}
-      activeSlot={activeSlot}
-      onOpen={onOpenFile}
-      onDuplicate={onDuplicateFile}
-    />
+    <FileRow key={f.path} file={f} placement={placement} onOpen={onOpen} onDuplicate={onDuplicate} />
   );
 
   if (state.status === "unsupported") {
@@ -520,7 +527,7 @@ function FolderSection({
   if (state.status === "none") {
     return (
       <section className="lib-folder" aria-label="Folder">
-        <button type="button" className="btn btn-outline lib-folder-open" onClick={onOpenFolder}>
+        <button type="button" className="btn btn-outline lib-folder-open" onClick={actions.pick}>
           Open folder…
         </button>
         <p className="lib-note">
@@ -546,10 +553,10 @@ function FolderSection({
         </div>
         <p className="lib-note">The browser needs your permission again for A4 to edit this folder.</p>
         <div className="lib-path-actions">
-          <button type="button" className="btn btn-outline" onClick={onReconnect}>
+          <button type="button" className="btn btn-outline" onClick={actions.reconnect}>
             Reconnect
           </button>
-          <button type="button" className="btn" onClick={onCloseFolder}>
+          <button type="button" className="btn" onClick={actions.close}>
             Forget
           </button>
         </div>
@@ -565,10 +572,10 @@ function FolderSection({
           {state.name ? `“${state.name}” was moved or deleted.` : "The remembered folder is gone."}
         </p>
         <div className="lib-path-actions">
-          <button type="button" className="btn btn-outline" onClick={onOpenFolder}>
+          <button type="button" className="btn btn-outline" onClick={actions.pick}>
             Open folder…
           </button>
-          <button type="button" className="btn" onClick={onCloseFolder}>
+          <button type="button" className="btn" onClick={actions.close}>
             Forget
           </button>
         </div>
@@ -586,7 +593,12 @@ function FolderSection({
           <button type="button" className="btn" onClick={() => setCreating((c) => !c)} aria-expanded={creating}>
             + New file
           </button>
-          <button type="button" className="btn" onClick={onCloseFolder} title="Save open files and close the folder">
+          <button
+            type="button"
+            className="btn"
+            onClick={actions.close}
+            title="Save open files and close the folder. Open it again with Open folder…"
+          >
             Close
           </button>
         </span>
@@ -598,8 +610,8 @@ function FolderSection({
           label={`Save “${saveRequest.name}” to ${state.name} as`}
           initial={`${saveRequest.name}.md`}
           submit="Save to folder"
-          onSubmit={onSaveToFolder}
-          onCancel={onCancelSave}
+          onSubmit={actions.saveTo}
+          onCancel={actions.cancelSave}
         />
       ) : creating ? (
         <PathForm
@@ -607,7 +619,7 @@ function FolderSection({
           initial="AGENTS.md"
           submit="Create"
           onSubmit={async (path) => {
-            const error = await onNewFile(path);
+            const error = await actions.createFile(path);
             if (!error) setCreating(false);
             return error;
           }}

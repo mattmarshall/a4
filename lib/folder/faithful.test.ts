@@ -6,6 +6,7 @@ import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-op
 import { isStoreError } from "../store/types.ts";
 import { layoutRows } from "../text.ts";
 import { matchLines, sheetFiles, toFile, toSheet } from "./faithful.ts";
+import { browserFolderSource } from "./fs-browser.ts";
 
 /** Seeded PRNG (mulberry32), so failures reproduce. */
 function rng(seed: number) {
@@ -150,7 +151,10 @@ test("line matching is a common subsequence, even past the edit-distance cap", (
 
 function folder() {
   const root = new FakeDirectoryHandle("repo");
-  return { root, files: sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "t", locks: null })) };
+  return {
+    root,
+    files: sheetFiles(new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), { id: "t", locks: null })),
+  };
 }
 
 test("the adapter reads sheet text and writes the file faithfully", async () => {

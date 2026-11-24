@@ -4,9 +4,13 @@
  * the localStorage store (saved while OPFS was unavailable) are moved in.
  */
 
-import { KeyValuePageStore, MemoryPageStore, StorageKeyValue } from "./key-value.ts";
+import type { Clock } from "../platform/clock.ts";
+import type { DeviceStorage } from "../platform/device-storage.ts";
+import { StorageKeyValue } from "../platform/key-value.ts";
+import type { Locks } from "../platform/locks.ts";
+import { KeyValuePageStore, MemoryPageStore } from "./key-value.ts";
 import { nextAvailableName } from "./names.ts";
-import { OpfsPageStore, opfsSupported } from "./opfs.ts";
+import { OpfsPageStore } from "./opfs.ts";
 import type { PageStore } from "./types.ts";
 
 export interface OpenedStore {
@@ -15,21 +19,12 @@ export interface OpenedStore {
   movedFromFallback: number;
 }
 
-export function localStorageStore(storage: Storage): KeyValuePageStore {
-  return new KeyValuePageStore(new StorageKeyValue(storage), { kind: "local-storage", durable: true });
-}
-
-function usableLocalStorage(): Storage | null {
-  try {
-    const storage = globalThis.localStorage;
-    if (!storage) return null;
-    const probe = "a4:probe";
-    storage.setItem(probe, "1");
-    storage.removeItem(probe);
-    return storage;
-  } catch {
-    return null;
-  }
+export function localStorageStore(storage: Storage, clock?: Clock): KeyValuePageStore {
+  return new KeyValuePageStore(new StorageKeyValue(storage), {
+    kind: "local-storage",
+    durable: true,
+    ...(clock ? { clock } : {}),
+  });
 }
 
 /** Copy every page from `from` into `to` (unique names), then purge it from `from`. */
@@ -50,17 +45,21 @@ export async function movePages(from: PageStore, to: PageStore): Promise<number>
   return moved;
 }
 
-export async function openPageStore(): Promise<OpenedStore> {
-  const storage = usableLocalStorage();
-  if (opfsSupported()) {
+export async function openPageStore(
+  device: DeviceStorage,
+  options: { locks: Locks | null; clock: Clock },
+): Promise<OpenedStore> {
+  const storage = device.localStorage();
+  const root = device.opfsRoot();
+  if (root) {
     try {
-      const store = await OpfsPageStore.open();
-      const movedFromFallback = storage ? await movePages(localStorageStore(storage), store) : 0;
+      const store = await OpfsPageStore.open(await root, options);
+      const movedFromFallback = storage ? await movePages(localStorageStore(storage, options.clock), store) : 0;
       return { store, movedFromFallback };
     } catch {
       // Fall through (e.g. Firefox private windows reject OPFS access).
     }
   }
-  if (storage) return { store: localStorageStore(storage), movedFromFallback: 0 };
-  return { store: new MemoryPageStore(), movedFromFallback: 0 };
+  if (storage) return { store: localStorageStore(storage, options.clock), movedFromFallback: 0 };
+  return { store: new MemoryPageStore({ clock: options.clock }), movedFromFallback: 0 };
 }

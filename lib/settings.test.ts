@@ -7,24 +7,22 @@ import {
   modeCodec,
   readSetting,
   SETTINGS,
+  setSettingsStorage,
   settingValue,
   snapshotReader,
   subscribeSettings,
   writeSetting,
 } from "./settings.ts";
+import { MemoryKeyValue, type KeyValue } from "./platform/key-value.ts";
 import { parseFilePath } from "./store/refs.ts";
 import { parsePageName } from "./store/names.ts";
 
-/** A Web Storage stand-in, installed as globalThis.localStorage. */
+/** A fresh settings store with `entries`, returned for assertions. */
 function installStorage(entries: Record<string, string> = {}) {
-  const map = new Map(Object.entries(entries));
-  const storage = {
-    getItem: (key: string) => map.get(key) ?? null,
-    setItem: (key: string, value: string) => void map.set(key, value),
-    removeItem: (key: string) => void map.delete(key),
-  };
-  Object.defineProperty(globalThis, "localStorage", { value: storage, configurable: true, writable: true });
-  return map;
+  const kv = new MemoryKeyValue();
+  for (const [key, value] of Object.entries(entries)) kv.set(key, value);
+  setSettingsStorage(kv);
+  return { get: (key: string) => kv.get(key) ?? undefined };
 }
 
 test("codecs read what earlier versions stored", () => {
@@ -74,12 +72,17 @@ test("writes keep the stored format, and notify this tab", () => {
 });
 
 test("without storage, a session still keeps its settings", () => {
-  Object.defineProperty(globalThis, "localStorage", {
+  const blocked: KeyValue = {
     get() {
       throw new Error("blocked");
     },
-    configurable: true,
-  });
+    set() {
+      throw new Error("blocked");
+    },
+    remove() {},
+    keys: () => [],
+  };
+  setSettingsStorage(blocked);
   const section = inspectorSection("models", false);
   assert.equal(settingValue(section), false);
   writeSetting(section, true);

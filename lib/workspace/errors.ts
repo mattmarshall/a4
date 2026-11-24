@@ -6,6 +6,7 @@
 
 import { ModelError } from "../models/errors.ts";
 import { PageStoreError } from "../store/types.ts";
+import type { Result } from "./types.ts";
 
 function errorName(error: unknown): string | undefined {
   return typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
@@ -41,4 +42,19 @@ export async function runReported<T>(action: () => Promise<T>, notify: Notify, w
     notify(`Couldn’t ${what}: ${describeError(error)}`, "warn");
     return undefined;
   }
+}
+
+/**
+ * Report a failed result as "Couldn’t <what>: <reason>". Resolves to the
+ * value, or undefined after a failure.
+ */
+export async function reportResult<T>(
+  result: Promise<Result<T>>,
+  notify: Notify,
+  what: string,
+): Promise<T | undefined> {
+  const settled = await result;
+  if (settled.ok) return settled.value;
+  notify(`Couldn’t ${what}: ${describeError(settled.error)}`, "warn");
+  return undefined;
 }

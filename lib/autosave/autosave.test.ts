@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { MemoryKeyValue, MemoryPageStore } from "../store/key-value.ts";
+import { MemoryPageStore } from "../store/key-value.ts";
+import { MemoryKeyValue } from "../platform/key-value.ts";
 import { pageNameCodec, parsePageName } from "../store/names.ts";
 import type { PageStore, Revision, WriteResult } from "../store/types.ts";
 import { ensureFirstPage, migrateLegacySlots, recoverDrafts, STALE_DRAFT_MS } from "./bootstrap.ts";
@@ -11,6 +12,7 @@ import { sheetFiles } from "../folder/faithful.ts";
 import { fileCopyName, filePathCodec, parseFilePath, type FilePath } from "../store/refs.ts";
 import { FolderPageFiles } from "../store/folder.ts";
 import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-opfs.ts";
+import { browserFolderSource } from "../folder/fs-browser.ts";
 
 const n = parsePageName;
 
@@ -208,8 +210,8 @@ test("recovery recreates a draft whose page is gone, and leaves live tabs alone"
 test("without Web Locks, only stale drafts are recovered", async () => {
   const store = new MemoryPageStore();
   const kv = new MemoryKeyValue();
-  new Journal(kv, "old", pageNameCodec, { now: () => 1_000 }).set(n("Old"), "old draft", null);
-  new Journal(kv, "recent", pageNameCodec, { now: () => 1_000 + STALE_DRAFT_MS }).set(
+  new Journal(kv, "old", pageNameCodec, { clock: { now: () => 1_000 } }).set(n("Old"), "old draft", null);
+  new Journal(kv, "recent", pageNameCodec, { clock: { now: () => 1_000 + STALE_DRAFT_MS } }).set(
     n("Recent"),
     "recent draft",
     null,
@@ -264,7 +266,9 @@ test("an empty library gets a Welcome page; a non-empty one does not", async () 
 async function folderSetup(raw = "# Agents\r\n\tRule one\r\n") {
   const root = new FakeDirectoryHandle("a4");
   root.put("AGENTS.md", raw);
-  const files = sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "f1", locks: null }));
+  const files = sheetFiles(
+    new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), { id: "f1", locks: null }),
+  );
   const library = new MemoryPageStore();
   const kv = new MemoryKeyValue();
   const journal = new Journal(kv, "tab1", filePathCodec, { prefix: "a4:folder:f1:" });
@@ -385,7 +389,9 @@ test("text the store refuses is reported once, not retried", async () => {
 test("keys typed while a folder file's text is copied to the library are kept", async () => {
   const root = new FakeDirectoryHandle("a4");
   root.put("AGENTS.md", "v1\n");
-  const files = sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "f1", locks: null }));
+  const files = sheetFiles(
+    new FolderPageFiles(browserFolderSource.open(asDirectoryHandle(root)), { id: "f1", locks: null }),
+  );
   const library = new MemoryPageStore();
   let release: () => void = () => {};
   const create = library.create.bind(library);

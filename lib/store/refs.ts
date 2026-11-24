@@ -70,15 +70,23 @@ export function baseName(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-export type PageRef =
-  | { readonly kind: "library"; readonly name: PageName }
-  | { readonly kind: "file"; readonly path: FilePath };
+export interface LibraryRef {
+  readonly kind: "library";
+  readonly name: PageName;
+}
 
-export function libraryRef(name: PageName): PageRef {
+export interface FileRef {
+  readonly kind: "file";
+  readonly path: FilePath;
+}
+
+export type PageRef = LibraryRef | FileRef;
+
+export function libraryRef(name: PageName): LibraryRef {
   return { kind: "library", name };
 }
 
-export function fileRef(path: FilePath): PageRef {
+export function fileRef(path: FilePath): FileRef {
   return { kind: "file", path };
 }
 

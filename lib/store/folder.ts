@@ -1,19 +1,21 @@
 /**
- * Folder backend: Markdown files in a folder the user picked (File System
- * Access API), keyed by relative path. Implements only the core `PageFiles`
- * contract: A4 never renames or deletes a user's files.
+ * Folder backend: Markdown files in a folder the user picked, keyed by
+ * relative path, over the `FolderFs` port (lib/folder/fs.ts). Implements
+ * only the core `PageFiles` contract: A4 never renames or deletes a user's
+ * files.
  *
  * The store is exact. Reads decode strict UTF-8 and keep a byte-order mark as
  * U+FEFF; writes encode the given text as-is. Faithful line handling for the
  * sheet lives above this, in `lib/folder/faithful.ts`.
  *
  * Writes take a Web Lock per path, verify the expected revision, and replace
- * the file through `createWritable()`, which commits atomically on close.
+ * the file with `FolderFs.writeAtomic`, all at once.
  */
 
+import { isFsError, type FolderFs } from "../folder/fs.ts";
+import type { Locks } from "../platform/locks.ts";
 import { filePathCodec, hasFileExtension, parseFilePath, type FilePath } from "./refs.ts";
 import { byteLength, revisionOf } from "./revision.ts";
-import type { LockLike } from "./opfs.ts";
 import {
   assertStorableText,
   FileUnreadableError,
@@ -51,15 +53,6 @@ export function skipFolder(name: string): boolean {
   return SKIPPED_FOLDERS.has(name) || (name.startsWith(".") && !CONTEXT_DOT_FOLDERS.has(name));
 }
 
-function errorName(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
-}
-
-function isMissing(error: unknown): boolean {
-  const name = errorName(error);
-  return name === "NotFoundError" || name === "TypeMismatchError";
-}
-
 const strict = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
 const encoder = new TextEncoder();
 
@@ -72,13 +65,8 @@ export function decodeStrict(bytes: ArrayBuffer | Uint8Array): string | null {
   }
 }
 
-export interface WalkedFile {
-  readonly path: FilePath;
-  readonly handle: FileSystemFileHandle;
-}
-
 export interface WalkResult {
-  readonly files: WalkedFile[];
+  readonly files: FilePath[];
   /** Entries visited, files and folders alike. */
   readonly visited: number;
   /** True when the walk stopped at the limit. */
@@ -89,74 +77,54 @@ export interface WalkResult {
  * Walk a folder breadth-first, collecting `.md` and `.mdc` files and skipping
  * the folders `skipFolder` names. Stops after `limit` entries.
  */
-export async function walkFolder(
-  root: FileSystemDirectoryHandle,
-  limit: number = SCAN_ENTRY_LIMIT,
-): Promise<WalkResult> {
-  const files: WalkedFile[] = [];
-  const queue: { dir: FileSystemDirectoryHandle; prefix: string }[] = [{ dir: root, prefix: "" }];
+export async function walkFolder(fs: FolderFs, limit: number = SCAN_ENTRY_LIMIT): Promise<WalkResult> {
+  const files: FilePath[] = [];
+  const queue: string[] = [""];
   let visited = 0;
-  while (queue.length > 0) {
-    const { dir, prefix } = queue.shift()!;
+  for (let dir = queue.shift(); dir !== undefined; dir = queue.shift()) {
+    const prefix = dir === "" ? "" : `${dir}/`;
     try {
-      for await (const [name, handle] of dir.entries()) {
+      for await (const { name, kind } of fs.entries(dir)) {
         if (visited >= limit) return { files, visited, partial: true };
         visited++;
-        if (handle.kind === "directory") {
-          if (!skipFolder(name)) queue.push({ dir: handle as FileSystemDirectoryHandle, prefix: `${prefix}${name}/` });
+        if (kind === "directory") {
+          if (!skipFolder(name)) queue.push(`${prefix}${name}`);
         } else if (hasFileExtension(name)) {
           // A name A4 can't represent as a path (e.g. a backslash) is left out.
           const path = filePathCodec.parse(`${prefix}${name}`);
-          if (path) files.push({ path, handle: handle as FileSystemFileHandle });
+          if (path) files.push(path);
         }
       }
     } catch (error) {
       // The root itself must be readable; a sub-folder that vanished or can't be read is skipped.
-      if (prefix === "") throw error;
+      if (dir === "") throw error;
     }
   }
   return { files, visited, partial: false };
 }
 
-async function writeFile(handle: FileSystemFileHandle, text: string): Promise<File> {
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(encoder.encode(text));
-    await writable.close();
-  } catch (error) {
-    await writable.abort().catch(() => {});
-    throw error;
-  }
-  return handle.getFile();
-}
-
 export interface FolderPageFilesOptions {
   /** Distinguishes this folder in lock names. */
   id: string;
-  /** Omitted or undefined: the browser's lock manager. Null: no locking. */
-  locks?: LockLike | null | undefined;
+  /** Web Locks shared with other tabs, or null for none. */
+  locks: Locks | null;
 }
 
 export class FolderPageFiles implements PageFiles<FilePath> {
   readonly kind = "folder" as const;
   readonly durable = true;
-  readonly root: FileSystemDirectoryHandle;
   readonly id: string;
-  readonly #locks: LockLike | null;
+  readonly fs: FolderFs;
+  readonly #locks: Locks | null;
 
-  constructor(root: FileSystemDirectoryHandle, options: FolderPageFilesOptions) {
-    this.root = root;
+  constructor(fs: FolderFs, options: FolderPageFilesOptions) {
+    this.fs = fs;
     this.id = options.id;
-    this.#locks =
-      options.locks !== undefined
-        ? options.locks
-        : typeof navigator !== "undefined" && navigator.locks
-          ? navigator.locks
-          : null;
+    this.#locks = options.locks;
   }
 
   get name(): string {
-    return this.root.name;
+    return this.fs.name;
   }
 
   async #locked<T>(path: string, fn: () => Promise<T>): Promise<T> {
@@ -164,73 +132,38 @@ export class FolderPageFiles implements PageFiles<FilePath> {
     return this.#locks.request(`a4:file:${this.id}:${path}`, fn);
   }
 
-  /** The handle for `path`, or null when it doesn't exist. */
-  async handle(path: FilePath, create = false): Promise<FileSystemFileHandle | null> {
-    const parts = parseFilePath(path).split("/");
-    try {
-      let dir = this.root;
-      for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part, { create });
-      return await dir.getFileHandle(parts[parts.length - 1], { create });
-    } catch (error) {
-      if (!create && isMissing(error)) return null;
-      throw error;
-    }
-  }
-
-  /** Remove a file A4 just created (only used to undo a failed create). */
-  async #remove(path: FilePath): Promise<void> {
-    const parts = path.split("/");
-    let dir = this.root;
-    for (const part of parts.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
-    await dir.removeEntry(parts[parts.length - 1]!);
-  }
-
   async list(): Promise<PageSummary<FilePath>[]> {
-    const { files } = await walkFolder(this.root);
+    const { files } = await walkFolder(this.fs);
     const out: PageSummary<FilePath>[] = [];
-    for (const { path, handle } of files) {
-      const file = await handle.getFile();
-      out.push({ name: path, size: file.size, modifiedAt: file.lastModified });
+    for (const path of files) {
+      const stat = await this.fs.stat(path);
+      if (stat) out.push({ name: path, size: stat.size, modifiedAt: stat.modifiedAt });
     }
     return out;
   }
 
-  async #readHandle(path: FilePath, handle: FileSystemFileHandle): Promise<Page<FilePath>> {
-    let file: File;
+  async read(path: FilePath): Promise<Page<FilePath>> {
+    const valid = parseFilePath(path);
+    let read: Awaited<ReturnType<FolderFs["readBytes"]>>;
     try {
-      file = await handle.getFile();
+      read = await this.fs.readBytes(valid, { maxBytes: MAX_FILE_BYTES });
     } catch (error) {
-      if (isMissing(error)) throw new PageNotFoundError(path);
+      if (isFsError(error, "not-found")) throw new PageNotFoundError(valid);
       throw error;
     }
-    if (file.size > MAX_FILE_BYTES) throw new FileUnreadableError(path, "too-large");
-    const text = decodeStrict(await file.arrayBuffer());
-    if (text === null) throw new FileUnreadableError(path, "not-utf8");
-    return { name: path, text, size: file.size, modifiedAt: file.lastModified, revision: revisionOf(text) };
-  }
-
-  async read(path: FilePath): Promise<Page<FilePath>> {
-    const handle = await this.handle(path);
-    if (!handle) throw new PageNotFoundError(path);
-    return this.#readHandle(path, handle);
+    if (read.bytes === null) throw new FileUnreadableError(valid, "too-large");
+    const text = decodeStrict(read.bytes);
+    if (text === null) throw new FileUnreadableError(valid, "not-utf8");
+    return { name: valid, text, size: read.stat.size, modifiedAt: read.stat.modifiedAt, revision: revisionOf(text) };
   }
 
   async create(path: FilePath, text: string): Promise<WriteResult<FilePath>> {
     const valid = parseFilePath(path);
     assertStorableText(valid, text);
     return this.#locked(valid, async () => {
-      if (await this.handle(valid)) throw new PageExistsError(valid);
-      const handle = await this.handle(valid, true);
-      if (!handle) throw new PageNotFoundError(valid);
-      let file: File;
-      try {
-        file = await writeFile(handle, text);
-      } catch (error) {
-        // Don't leave an empty file in the user's folder.
-        await this.#remove(valid).catch(() => {});
-        throw error;
-      }
-      return { name: valid, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
+      if (await this.fs.stat(valid)) throw new PageExistsError(valid);
+      const stat = await this.fs.writeAtomic(valid, encoder.encode(text), { create: true });
+      return { name: valid, size: byteLength(text), modifiedAt: stat.modifiedAt, revision: revisionOf(text) };
     });
   }
 
@@ -238,12 +171,10 @@ export class FolderPageFiles implements PageFiles<FilePath> {
     const valid = parseFilePath(path);
     assertStorableText(valid, text);
     return this.#locked(valid, async () => {
-      const handle = await this.handle(valid);
-      if (!handle) throw new PageNotFoundError(valid);
       if (expected != null) {
         let actual: Revision;
         try {
-          actual = (await this.#readHandle(valid, handle)).revision;
+          actual = (await this.read(valid)).revision;
         } catch (error) {
           // A file that became unreadable no longer matches any revision we hold.
           if (error instanceof FileUnreadableError) throw new PageConflictError(valid, expected, null);
@@ -251,19 +182,14 @@ export class FolderPageFiles implements PageFiles<FilePath> {
         }
         if (actual !== expected) throw new PageConflictError(valid, expected, actual);
       }
-      let file: File;
+      let stat: Awaited<ReturnType<FolderFs["writeAtomic"]>>;
       try {
-        file = await writeFile(handle, text);
+        stat = await this.fs.writeAtomic(valid, encoder.encode(text));
       } catch (error) {
-        if (isMissing(error)) throw new PageNotFoundError(valid);
+        if (isFsError(error, "not-found")) throw new PageNotFoundError(valid);
         throw error;
       }
-      return { name: valid, size: byteLength(text), modifiedAt: file.lastModified, revision: revisionOf(text) };
+      return { name: valid, size: byteLength(text), modifiedAt: stat.modifiedAt, revision: revisionOf(text) };
     });
   }
-}
-
-/** True when this browser can pick a folder and write to it. */
-export function folderPickerSupported(): boolean {
-  return typeof window !== "undefined" && typeof window.showDirectoryPicker === "function";
 }

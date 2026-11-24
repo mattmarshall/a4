@@ -16,7 +16,10 @@ export function useOutsideClose(open: boolean, close: () => void) {
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
+      if (e.key !== "Escape") return;
+      // Handled: the Workbench's Esc (pose panel, focus mode) waits for the next press.
+      e.preventDefault();
+      close();
     }
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);

@@ -1,0 +1,14 @@
+// The clock and browser APIs that only lib/platform may read directly
+// (biome.json applies this plugin outside lib/platform). noRestrictedGlobals
+// covers the bare names; this covers Date.now() and the globalThis spellings.
+or {
+  `Date.now()`,
+  `globalThis.localStorage`,
+  `globalThis.sessionStorage`,
+  `globalThis.indexedDB`,
+  `globalThis.navigator`,
+  `globalThis.crypto`,
+  `globalThis.BroadcastChannel`
+} as $hit where {
+  register_diagnostic(span=$hit, message="Reach the clock and browser APIs through the lib/platform ports.", severity="error")
+}

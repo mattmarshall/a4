@@ -7,6 +7,8 @@
  *   <prefix>trash:<id>           trashed page text (id = "<name>.<trashedAt>")
  */
 
+import { systemClock, type Clock } from "../platform/clock.ts";
+import { MemoryKeyValue, type KeyValue } from "../platform/key-value.ts";
 import { nextAvailableName, pageNameCodec, parsePageName, sameName } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import { makeTrashId, parseTrashId } from "./trash-ids.ts";
@@ -27,59 +29,11 @@ import {
   type WriteResult,
 } from "./types.ts";
 
-export interface KeyValue {
-  get(key: string): string | null;
-  set(key: string, value: string): void;
-  remove(key: string): void;
-  keys(): string[];
-}
-
-export class MemoryKeyValue implements KeyValue {
-  readonly #map = new Map<string, string>();
-  get(key: string): string | null {
-    return this.#map.get(key) ?? null;
-  }
-  set(key: string, value: string): void {
-    this.#map.set(key, value);
-  }
-  remove(key: string): void {
-    this.#map.delete(key);
-  }
-  keys(): string[] {
-    return [...this.#map.keys()];
-  }
-}
-
-/** Adapter over the Web Storage API (`localStorage`). */
-export class StorageKeyValue implements KeyValue {
-  readonly #storage: Storage;
-  constructor(storage: Storage) {
-    this.#storage = storage;
-  }
-  get(key: string): string | null {
-    return this.#storage.getItem(key);
-  }
-  set(key: string, value: string): void {
-    this.#storage.setItem(key, value);
-  }
-  remove(key: string): void {
-    this.#storage.removeItem(key);
-  }
-  keys(): string[] {
-    const out: string[] = [];
-    for (let i = 0; i < this.#storage.length; i++) {
-      const k = this.#storage.key(i);
-      if (k !== null) out.push(k);
-    }
-    return out;
-  }
-}
-
 export interface KeyValuePageStoreOptions {
   kind?: StoreKind;
   durable?: boolean;
   prefix?: string;
-  now?: () => number;
+  clock?: Clock;
 }
 
 export class KeyValuePageStore implements PageStore {
@@ -89,7 +43,7 @@ export class KeyValuePageStore implements PageStore {
   readonly #page: string;
   readonly #mtime: string;
   readonly #trash: string;
-  readonly #now: () => number;
+  readonly #clock: Clock;
 
   constructor(kv: KeyValue, options: KeyValuePageStoreOptions = {}) {
     const prefix = options.prefix ?? "a4:";
@@ -99,7 +53,7 @@ export class KeyValuePageStore implements PageStore {
     this.#page = `${prefix}page:`;
     this.#mtime = `${prefix}page-mtime:`;
     this.#trash = `${prefix}trash:`;
-    this.#now = options.now ?? Date.now;
+    this.#clock = options.clock ?? systemClock;
   }
 
   #names(): PageName[] {
@@ -123,7 +77,7 @@ export class KeyValuePageStore implements PageStore {
   }
 
   #put(name: PageName, text: string): WriteResult {
-    const at = this.#now();
+    const at = this.#clock.now();
     try {
       this.#kv.set(this.#page + name, text);
       this.#kv.set(this.#mtime + name, String(at));
@@ -179,7 +133,7 @@ export class KeyValuePageStore implements PageStore {
     if (text === null) throw new PageNotFoundError(name);
     const { id, trashedAt } = makeTrashId(
       name,
-      this.#now(),
+      this.#clock.now(),
       (candidate) => this.#kv.get(this.#trash + candidate) !== null,
     );
     this.#kv.set(this.#trash + id, text);

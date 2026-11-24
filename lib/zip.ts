@@ -9,6 +9,8 @@
  * stay under 4 GB and 65,535 entries.
  */
 
+import { systemClock, type Clock } from "./platform/clock.ts";
+
 export interface ZipEntry {
   /** Path inside the archive, using "/" separators. */
   name: string;
@@ -20,6 +22,8 @@ export interface ZipEntry {
 export interface ZipOptions {
   /** Try deflate compression (default true). */
   compress?: boolean;
+  /** Dates entries without `modifiedAt` (default: the system clock). */
+  clock?: Clock;
 }
 
 const encoder = new TextEncoder();
@@ -85,7 +89,7 @@ export async function createZip(entries: readonly ZipEntry[], options: ZipOption
     const useDeflate = deflated !== null && deflated.length < raw.length;
     const body = useDeflate ? deflated : raw;
     const method = useDeflate ? 8 : 0;
-    const { date, time } = dosDateTime(entry.modifiedAt ?? Date.now());
+    const { date, time } = dosDateTime(entry.modifiedAt ?? (options.clock ?? systemClock).now());
     if (offset + 30 + name.length + body.length > 0xffffffff) throw new Error("Archive too large without Zip64.");
 
     const local = new Uint8Array(30 + name.length);

@@ -2,7 +2,7 @@
 
 import { ATTRIBUTES, type NumberAttribute } from "@/lib/element/contract";
 import { withPose, type Pose } from "@/lib/paper/deform";
-import type { Slot } from "./useLibrary";
+import type { Slot } from "@/lib/workspace/types";
 
 export interface SheetView {
   tilt: number;

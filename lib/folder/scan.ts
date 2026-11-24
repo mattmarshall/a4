@@ -6,6 +6,7 @@
 
 import { PRESETS } from "../page-spec.ts";
 import { decodeStrict, MAX_FILE_BYTES, SCAN_ENTRY_LIMIT, walkFolder } from "../store/folder.ts";
+import type { FolderFs } from "./fs.ts";
 import { baseName, type FilePath } from "../store/refs.ts";
 import type { UnreadableReason } from "../store/types.ts";
 import { layoutRows, rowsUsed } from "../text.ts";
@@ -65,23 +66,22 @@ async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T
   return out;
 }
 
-export async function scanFolder(
-  root: FileSystemDirectoryHandle,
-  options: { limit?: number } = {},
-): Promise<FolderScan> {
-  const walk = await walkFolder(root, options.limit ?? SCAN_ENTRY_LIMIT);
-  const files = await mapLimited(walk.files, 4, async ({ path, handle }): Promise<FolderFile | null> => {
-    let file: File;
+export async function scanFolder(fs: FolderFs, options: { limit?: number } = {}): Promise<FolderScan> {
+  const walk = await walkFolder(fs, options.limit ?? SCAN_ENTRY_LIMIT);
+  const files = await mapLimited(walk.files, 4, async (path): Promise<FolderFile | null> => {
+    const group: FileGroup = isContextFile(path) ? "context" : "other";
+    let read: Awaited<ReturnType<FolderFs["readBytes"]>>;
     try {
-      file = await handle.getFile();
+      // Other Markdown is listed by size and date only; its text isn't read.
+      read = await fs.readBytes(path, { maxBytes: group === "context" ? MAX_FILE_BYTES : 0 });
     } catch {
       return null; // Gone since the walk.
     }
-    const group: FileGroup = isContextFile(path) ? "context" : "other";
-    const base = { path, size: file.size, modifiedAt: file.lastModified, group };
-    if (file.size > MAX_FILE_BYTES) return { ...base, rows: null, unreadable: "too-large" };
-    if (group === "other") return { ...base, rows: null, unreadable: null };
-    const text = decodeStrict(await file.arrayBuffer());
+    const { stat } = read;
+    const base = { path, size: stat.size, modifiedAt: stat.modifiedAt, group };
+    if (stat.size > MAX_FILE_BYTES) return { ...base, rows: null, unreadable: "too-large" };
+    if (group === "other" || read.bytes === null) return { ...base, rows: null, unreadable: null };
+    const text = decodeStrict(read.bytes);
     if (text === null) return { ...base, rows: null, unreadable: "not-utf8" };
     return { ...base, rows: fileRows(text), unreadable: null };
   });

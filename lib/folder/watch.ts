@@ -2,7 +2,7 @@
  * Notice changes made outside A4 to the open folder files.
  *
  * While the tab is visible, each watched file is polled every second
- * (`getFile()`: modification time and size). When either changes, the file
+ * (`FolderFs.stat`: modification time and size). When either changes, the file
  * is read and its revision compared with the session's. A session with no
  * unsaved edits adopts the new text; one with unsaved edits is left alone,
  * and its next save meets a revision conflict, which saves A4's text as a
@@ -12,19 +12,15 @@
 import type { PageSession, Scheduler } from "../autosave/session.ts";
 import type { FilePath } from "../store/refs.ts";
 import type { Page } from "../store/types.ts";
-import type { ConnectedFolder } from "./connection.ts";
+import type { ConnectedFolder } from "./access.ts";
+import type { FileStat } from "./fs.ts";
 
 export const POLL_MS = 1000;
-
-interface Stat {
-  lastModified: number;
-  size: number;
-}
 
 interface Watched {
   path: FilePath;
   session: PageSession<FilePath>;
-  last: Stat | null;
+  last: FileStat | null;
 }
 
 export interface FileWatcherOptions {
@@ -84,12 +80,9 @@ export class FileWatcher {
     }, this.#intervalMs);
   }
 
-  async #stat(path: FilePath): Promise<Stat | null> {
+  async #stat(path: FilePath): Promise<FileStat | null> {
     try {
-      const handle = await this.#folder.files.handle(path);
-      if (!handle) return null;
-      const file = await handle.getFile();
-      return { lastModified: file.lastModified, size: file.size };
+      return await this.#folder.fs.stat(path);
     } catch {
       return null;
     }
@@ -106,8 +99,7 @@ export class FileWatcher {
           continue;
         }
         const stat = await this.#stat(entry.path);
-        const same =
-          stat && entry.last && stat.lastModified === entry.last.lastModified && stat.size === entry.last.size;
+        const same = stat && entry.last && stat.modifiedAt === entry.last.modifiedAt && stat.size === entry.last.size;
         if (same || !stat) {
           // Unchanged, or gone: a missing file is handled by the next save.
           if (!stat) entry.last = null;

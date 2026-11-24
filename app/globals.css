@@ -552,7 +552,7 @@ select {
   font-weight: 600;
 }
 
-.sidebar {
+.inspector {
   border-left: 1px solid var(--desk-line);
   background: var(--panel);
   padding: 12px 18px 40px;
@@ -640,7 +640,7 @@ select {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sidebar,
+  .inspector,
   .library {
     position: fixed;
     top: 0;
@@ -651,7 +651,7 @@ select {
     box-shadow: var(--shadow);
   }
 
-  .sidebar {
+  .inspector {
     right: 0;
   }
 
@@ -1969,19 +1969,8 @@ select {
     background: #fff !important;
   }
 
-  .topbar,
-  .sidebar,
-  .library,
-  .banner,
-  .desk-tools,
-  .pose-panel,
-  .lens-chip,
-  .focus-exit,
-  .focus-bar,
-  .fit-chip,
-  .sheet-caption,
-  .sheet-controls,
-  .toast {
+  /* App chrome (the top bar, panels, desk tools, captions, toasts) marks itself. */
+  [data-print="hide"] {
     display: none !important;
   }
 

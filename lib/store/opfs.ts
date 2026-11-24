@@ -8,6 +8,8 @@
  * the file through `createWritable()`, which commits atomically on close.
  */
 
+import { systemClock, type Clock } from "../platform/clock.ts";
+import type { Locks } from "../platform/locks.ts";
 import { nextAvailableName, pageNameCodec, parsePageName, sameName } from "./names.ts";
 import { byteLength, revisionOf } from "./revision.ts";
 import { makeTrashId, parseTrashId } from "./trash-ids.ts";
@@ -16,7 +18,6 @@ import {
   PageConflictError,
   PageExistsError,
   PageNotFoundError,
-  StoreUnavailableError,
   type Page,
   type PageName,
   type PageStore,
@@ -31,11 +32,6 @@ export const OPFS_APP_DIR = "a4";
 export const OPFS_PAGES_DIR = "pages";
 export const OPFS_TRASH_DIR = "trash";
 export const PAGE_EXTENSION = ".md";
-
-/** The subset of the Web Locks API the store uses. */
-export interface LockLike {
-  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
-}
 
 function isNotFound(error: unknown): boolean {
   return (
@@ -96,38 +92,30 @@ export class OpfsPageStore implements PageStore {
   readonly durable = true;
   readonly #pages: FileSystemDirectoryHandle;
   readonly #trash: FileSystemDirectoryHandle;
-  readonly #locks: LockLike | null;
+  readonly #locks: Locks | null;
+  readonly #clock: Clock;
 
-  private constructor(pages: FileSystemDirectoryHandle, trash: FileSystemDirectoryHandle, locks: LockLike | null) {
+  private constructor(
+    pages: FileSystemDirectoryHandle,
+    trash: FileSystemDirectoryHandle,
+    locks: Locks | null,
+    clock: Clock,
+  ) {
     this.#pages = pages;
     this.#trash = trash;
     this.#locks = locks;
+    this.#clock = clock;
   }
 
-  /**
-   * Open (creating if needed) `a4/pages` and `a4/trash` under `root`
-   * (default: the origin's OPFS root).
-   */
+  /** Open (creating if needed) `a4/pages` and `a4/trash` under `root`, the origin's OPFS root. */
   static async open(
-    options: { root?: FileSystemDirectoryHandle; locks?: LockLike | null } = {},
+    root: FileSystemDirectoryHandle,
+    options: { locks?: Locks | null; clock?: Clock } = {},
   ): Promise<OpfsPageStore> {
-    let root = options.root;
-    if (!root) {
-      if (typeof navigator === "undefined" || !navigator.storage?.getDirectory) {
-        throw new StoreUnavailableError("This browser has no Origin Private File System.");
-      }
-      root = await navigator.storage.getDirectory();
-    }
     const app = await root.getDirectoryHandle(OPFS_APP_DIR, { create: true });
     const pages = await app.getDirectoryHandle(OPFS_PAGES_DIR, { create: true });
     const trash = await app.getDirectoryHandle(OPFS_TRASH_DIR, { create: true });
-    const locks =
-      options.locks !== undefined
-        ? options.locks
-        : typeof navigator !== "undefined" && navigator.locks
-          ? navigator.locks
-          : null;
-    return new OpfsPageStore(pages, trash, locks);
+    return new OpfsPageStore(pages, trash, options.locks ?? null, options.clock ?? systemClock);
   }
 
   async #locked<T>(name: string, fn: () => Promise<T>): Promise<T> {
@@ -226,7 +214,7 @@ export class OpfsPageStore implements PageStore {
       const text = await readText(await source.getFile());
       const taken = new Set<string>();
       for await (const [stem] of mdFiles(this.#trash)) taken.add(stem);
-      const { id, trashedAt } = makeTrashId(name, Date.now(), (candidate) => taken.has(candidate));
+      const { id, trashedAt } = makeTrashId(name, this.#clock.now(), (candidate) => taken.has(candidate));
       await createFile(this.#trash, fileName(id), text);
       await this.#pages.removeEntry(fileName(name));
       return { id, name, size: byteLength(text), trashedAt };
@@ -262,14 +250,4 @@ export class OpfsPageStore implements PageStore {
     if (!handle) throw new PageNotFoundError(id);
     await this.#trash.removeEntry(fileName(id));
   }
-}
-
-/** True when this browser can host the OPFS store (writable OPFS files). */
-export function opfsSupported(): boolean {
-  return (
-    typeof navigator !== "undefined" &&
-    typeof navigator.storage?.getDirectory === "function" &&
-    typeof FileSystemFileHandle !== "undefined" &&
-    "createWritable" in FileSystemFileHandle.prototype
-  );
 }
