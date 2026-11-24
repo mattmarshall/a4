@@ -4,6 +4,11 @@
  * React wrapper for the <a4-sheet> custom element. Defines the element on the
  * client (it can't be evaluated during server rendering), mirrors props to
  * attributes, sets `value` only when it differs, and forwards events.
+ *
+ * Attributes are requested values: after the user orbits or folds, the sheet
+ * shows something else, and writing a prop's value again resets it. So a
+ * prop is written whenever it differs from what this wrapper last wrote, not
+ * from the element's current attribute (sheet-sync.ts).
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
@@ -12,6 +17,7 @@ import {
   A4_EVENTS,
   defineSheetElement,
   toAttributes,
+  type A4AttributeName,
   type A4Plane,
   type A4Render,
   type A4RenderRequest,
@@ -20,10 +26,14 @@ import {
   type LensAttr,
   type Pose,
 } from "@/lib/render";
+import { attributeWrites, diffPlanes } from "./sheet-sync";
 
+/** What the page can ask of a sheet; each call waits until the element is defined. */
 export interface A4SheetHandle {
-  element(): A4SheetElement | null;
   focus(): void;
+  /** Focus the sheet and select [start, end) of its text. */
+  select(start: number, end: number): void;
+  /** Play the letter fold. */
   fold(): void;
 }
 
@@ -62,9 +72,8 @@ function syncPlanes(
   planes: Readonly<Record<string, A4Plane>> | undefined,
   shown: Map<string, A4Plane>,
 ) {
-  const next = planes ?? {};
-  for (const [name, plane] of Object.entries(next)) {
-    if (shown.get(name) === plane) continue;
+  const { set, remove } = diffPlanes(planes, shown);
+  for (const [name, plane] of set) {
     try {
       el.setPlane(name, plane);
       shown.set(name, plane);
@@ -72,11 +81,9 @@ function syncPlanes(
       // A plane for another preset: leave it off rather than crash the page.
     }
   }
-  for (const name of [...shown.keys()]) {
-    if (!(name in next)) {
-      el.removePlane(name);
-      shown.delete(name);
-    }
+  for (const name of remove) {
+    el.removePlane(name);
+    shown.delete(name);
   }
 }
 
@@ -85,11 +92,24 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
   const latest = useRef(props);
   latest.current = props;
 
-  useImperativeHandle(ref, () => ({
-    element: () => host.current,
-    focus: () => host.current?.focus(),
-    fold: () => host.current?.fold(),
-  }));
+  useImperativeHandle(ref, () => {
+    /** Run `act` on the element once it is defined (calls before then would hit a plain element). */
+    const whenDefined = (act: (el: A4SheetElement) => void) => {
+      void ensureDefined().then(() => {
+        const el = host.current;
+        if (el) act(el);
+      });
+    };
+    return {
+      focus: () => whenDefined((el) => el.focus()),
+      select: (start, end) =>
+        whenDefined((el) => {
+          el.focus();
+          el.setSelectionRange(start, end);
+        }),
+      fold: () => whenDefined((el) => el.fold()),
+    };
+  }, []);
 
   useEffect(() => {
     void ensureDefined();
@@ -142,7 +162,8 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
     };
   }, [planes]);
 
-  // Attributes.
+  // Attributes: each prop that changed since this wrapper last wrote it.
+  const written = useRef(new Map<A4AttributeName, string | null>());
   const { preset, lens, render, pose, tilt, turn, light, zoom, grid, label } = props;
   useEffect(() => {
     const el = host.current;
@@ -161,9 +182,10 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
       grid,
       label,
     });
-    for (const [name, value] of attrs) {
+    for (const [name, value] of attributeWrites(attrs, written.current)) {
       if (value === null) el.removeAttribute(name);
-      else if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+      else el.setAttribute(name, value);
+      written.current.set(name, value);
     }
   }, [preset, lens, render, pose, tilt, turn, light, zoom, grid, label]);
 

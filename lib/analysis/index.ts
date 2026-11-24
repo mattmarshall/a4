@@ -5,12 +5,12 @@
  * first load.
  */
 
-export { analyze, type Analysis } from "./analyze.ts";
+export { analyze, pageLayout, type Analysis } from "./analyze.ts";
 export type { Assessment, Finding, Severity, VerdictId } from "./assess.ts";
 export { classifyLines, type LineKind } from "./classify.ts";
 export { compressibility } from "./compress.ts";
 export { DEFAULT_CONFIG, type AnalysisConfig } from "./config.ts";
-export { KIND_LABEL, LENSES, segmentsFor, type SegmentStyle } from "./lenses.ts";
+export { KIND_LABEL, LENSES, segmentsFor, type Segment, type SegmentStyle } from "./lenses.ts";
 export type { Layout, Metrics } from "./metrics.ts";
 export type { Signals, Tone } from "./signals.ts";
 export { isSyntaxAt } from "./syntax.ts";

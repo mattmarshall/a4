@@ -1,10 +1,12 @@
 /**
- * WGSL for the paper view. `deform` mirrors `lib/paper/deform.ts` exactly;
- * keep the two in step (the TypeScript copy is what the tests and picking use).
+ * WGSL for the paper view. The paper is deformed on the CPU (deform.ts,
+ * `deformAttributes`): each vertex arrives with its world position, the
+ * printed side's normal, and its crease factor, so the vertex stages only
+ * transform. The `Uniforms` struct mirrors `UNIFORM_OFFSETS` in uniforms.ts
+ * (a test checks every offset).
  */
 
 import { PAPER_H, PAPER_W } from "../../page/index.ts";
-import { CREASE_BOTTOM, CREASE_TOP, CURL_DIR, CURL_MAX_DEPTH, CURL_RADIUS, HINGE_BOTTOM, HINGE_TOP } from "./deform.ts";
 
 const f = (n: number) => (Number.isInteger(n) ? `${n}.0` : String(n));
 
@@ -13,71 +15,21 @@ struct Uniforms {
   viewProj: mat4x4f,
   eye: vec4f,
   lightDir: vec4f,   // xyz: direction toward the light
-  pose: vec4f,       // foldBottom, foldTop, curl, shadow strength
-  desk: vec4f,       // desk rgb, unused
+  desk: vec4f,       // rgb: the desk; a: how much the shadow darkens it
 };
 
 @group(0) @binding(0) var<uniform> U: Uniforms;
 @group(0) @binding(1) var pageTex: texture_2d<f32>;
 @group(0) @binding(2) var pageSampler: sampler;
 
-const PI = 3.14159265358979;
 const PAPER = vec2f(${f(PAPER_W)}, ${f(PAPER_H)});
-const HINGE_TOP = ${f(HINGE_TOP)};
-const HINGE_BOTTOM = ${f(HINGE_BOTTOM)};
-const CREASE_TOP = ${f(CREASE_TOP)};
-const CREASE_BOTTOM = ${f(CREASE_BOTTOM)};
-const CURL_RADIUS = ${f(CURL_RADIUS)};
-const CURL_DIR = vec2f(${CURL_DIR[0]}, ${CURL_DIR[1]});
-const CURL_MAX_DEPTH = ${f(CURL_MAX_DEPTH)};
 
-// (along, height, onCrease) after bending around a rounded crease.
-fn bend(d: f32, h: f32, alpha: f32, r: f32) -> vec3f {
-  let arcLen = r * alpha;
-  let a = min(d, arcLen);
-  let phi = a / r;
-  let tail = max(0.0, d - arcLen);
-  let along = r * sin(phi) + tail * cos(alpha) - h * sin(phi);
-  let height = r * (1.0 - cos(phi)) + tail * sin(alpha) + h * cos(phi);
-  return vec3f(along, height, select(0.0, 1.0, d < arcLen && alpha > 0.001));
-}
-
-// World position (xyz) and crease factor (w) for paper uv.
-fn deform(uv: vec2f) -> vec4f {
-  var p = uv * PAPER;
-  var h = 0.0;
-  var crease = 0.0;
-  let curl = U.pose.z;
-  if (curl > 0.0) {
-    let line = PAPER - CURL_DIR * (clamp(curl, 0.0, 1.0) * CURL_MAX_DEPTH);
-    let s = dot(p - line, CURL_DIR);
-    if (s > 0.0) {
-      var s2 = 0.0;
-      if (s <= PI * CURL_RADIUS) {
-        s2 = CURL_RADIUS * sin(s / CURL_RADIUS);
-        h = CURL_RADIUS * (1.0 - cos(s / CURL_RADIUS));
-        crease = 0.35;
-      } else {
-        s2 = -(s - PI * CURL_RADIUS);
-        h = 2.0 * CURL_RADIUS;
-      }
-      p = p + CURL_DIR * (s2 - s);
-    }
-  }
-  if (U.pose.x > 0.0 && p.y > HINGE_BOTTOM) {
-    let b = bend(p.y - HINGE_BOTTOM, h, U.pose.x * PI, CREASE_BOTTOM);
-    p.y = HINGE_BOTTOM + b.x;
-    h = b.y;
-    crease = max(crease, b.z);
-  }
-  if (U.pose.y > 0.0 && p.y < HINGE_TOP) {
-    let b = bend(HINGE_TOP - p.y, h, U.pose.y * PI, CREASE_TOP);
-    p.y = HINGE_TOP - b.x;
-    h = b.y;
-    crease = max(crease, b.z);
-  }
-  return vec4f(p.x - PAPER.x * 0.5, h, p.y - PAPER.y * 0.5, crease);
-}
+struct PaperIn {
+  @location(0) uv: vec2f,
+  @location(1) position: vec3f,
+  @location(2) normal: vec3f,   // printed side; +Y when flat
+  @location(3) crease: f32,
+};
 
 struct PaperOut {
   @builtin(position) position: vec4f,
@@ -88,17 +40,13 @@ struct PaperOut {
 };
 
 @vertex
-fn vsPaper(@location(0) uv: vec2f) -> PaperOut {
-  let d = deform(uv);
-  let e = vec2f(0.0015, 0.0);
-  let du = deform(uv + e.xy).xyz - deform(uv - e.xy).xyz;
-  let dv = deform(uv + e.yx).xyz - deform(uv - e.yx).xyz;
+fn vsPaper(in: PaperIn) -> PaperOut {
   var out: PaperOut;
-  out.position = U.viewProj * vec4f(d.xyz, 1.0);
-  out.uv = uv;
-  out.normal = normalize(cross(dv, du)); // printed side; +Y when flat
-  out.world = d.xyz;
-  out.crease = d.w;
+  out.position = U.viewProj * vec4f(in.position, 1.0);
+  out.uv = in.uv;
+  out.normal = in.normal;
+  out.world = in.position;
+  out.crease = in.crease;
   return out;
 }
 
@@ -139,11 +87,10 @@ struct ShadowOut {
 };
 
 @vertex
-fn vsShadow(@location(0) uv: vec2f) -> ShadowOut {
-  let d = deform(uv).xyz;
+fn vsShadow(in: PaperIn) -> ShadowOut {
   let l = normalize(U.lightDir.xyz);
   // Project onto the desk (y = 0) along the light.
-  let onDesk = d - l * (d.y / max(l.y, 0.05));
+  let onDesk = in.position - l * (in.position.y / max(l.y, 0.05));
   var out: ShadowOut;
   out.position = U.viewProj * vec4f(onDesk.x, 0.0, onDesk.z, 1.0);
   return out;
@@ -152,6 +99,6 @@ fn vsShadow(@location(0) uv: vec2f) -> ShadowOut {
 @fragment
 fn fsShadow() -> @location(0) vec4f {
   // Blended with "min", so overlapping folds darken the desk only once.
-  return vec4f(U.desk.rgb * (1.0 - U.pose.w), 1.0);
+  return vec4f(U.desk.rgb * (1.0 - U.desk.a), 1.0);
 }
 `;

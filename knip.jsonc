@@ -6,7 +6,9 @@
     "components/**/*.test.ts",
     "lib/models/plugins/semantic/worker.ts",
     "scripts/*.ts",
-    "cloudflare.config.ts"
+    "cloudflare.config.ts",
+    // The standalone <a4-sheet> build (pnpm build:element).
+    "vite.element.config.ts"
   ],
   "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
   "ignore": [

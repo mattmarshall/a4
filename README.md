@@ -38,11 +38,12 @@ pnpm dev          # http://localhost:5173
 | `pnpm gen:element-types` | Regenerate `types/a4-sheet.d.ts` from the attribute table (commit the result) |
 | `pnpm format` | Format TypeScript and JSON with Biome |
 | `pnpm build` | Production build to `.cloudflare/output`, with `/` and `/why` prerendered |
+| `pnpm build:element` | The standalone `<a4-sheet>` module, `dist/element/a4-sheet.js` (no framework) |
 | `pnpm check:bundle` | After a build, fail if the home page's first load contains plugin code or a model library |
 | `pnpm start` | Serve the production build locally in workerd |
 | `pnpm proto` | Lint `proto/` and regenerate the protobuf code in `lib/gen/` (commit the result) |
 | `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation, or `proto/` breaks compatibility with `main` (also runs in CI) |
-| `pnpm check` | lint, test, typecheck, proto:check, build, and check:bundle |
+| `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `pnpm run deploy` | Deploy the Worker to Cloudflare (see below). Use `run`: bare `pnpm deploy` is a built-in pnpm command |
 
@@ -154,7 +155,7 @@ other control is one click away.
   Pica, Elite, and Dense presets derive their grids from characters-per-inch
   and lines-per-inch. The screen scales everything by one `--mm` factor, and
   print uses true millimeters.
-- **Editor** (`lib/render/element/a4-sheet.ts`): the `<a4-sheet>` custom element
+- **Editor** (`lib/render/element/`): the `<a4-sheet>` custom element
   (see below). A transparent `<textarea>` sits in its shadow root over the
   page, painted on a canvas from the grid model. Text uses IBM Plex Mono
   (0.6 em advance, so a glyph is exactly one cell), plus
@@ -198,10 +199,24 @@ both edit the same text.
 | `zoom` | CSS px per millimeter, or `fit` (the default) |
 | `grid`, `label` | Show the cell grid. Accessible name for the text input. |
 
+`pnpm build:element` writes that module, `dist/element/a4-sheet.js`, which
+exports `defineA4Sheet` and `A4SheetElement`. `defineA4Sheet(name)` registers
+the sheet under another tag too; each extra name gets its own subclass.
+
+- **Attributes are requested values.** After the user orbits the camera or
+  `fold()` plays, the `view` and `pose` properties read what is shown, and
+  the attributes keep what was asked for. Setting an attribute always
+  applies, even when it equals the previous value, so setting `tilt` again
+  resets the camera.
 - **Properties and methods**: `value` (setting it fires no event and keeps
   the caret), `selectionStart`, `selectionEnd`, `render` (the rendering in
-  use), `setSelectionRange()`, `focus()`, and `fold()` (the letter-fold
+  use), `view` (`{ tilt, turn }` shown now), `pose` (fold and curl amounts
+  shown now), `setSelectionRange()`, `focus()`, and `fold()` (the letter-fold
   animation, or a toggle under reduced motion).
+- **Text input**: Tab inserts two spaces. Tabs and carriage returns in
+  pasted, dropped, or autocorrected text become two spaces and newlines, in
+  the same undo step as the insertion, and never while an input method is
+  composing.
 - **Model planes**: `setPlane(name, { text, values, label })` stores one value
   in [0, 1] per cell of `text`'s grid, and `lens="model:<name>"` shows it as a
   tint in 3D and Flat. The tint is painted only while the sheet's text equals
@@ -218,8 +233,14 @@ both edit the same text.
   at the preset's cell size and margins, whatever its rendering or pose.
 - **Demo**: `/element` shows two elements built from plain HTML markup.
 - **React**: `components/A4Sheet.tsx` wraps the element. It defines it on the
-  client, mirrors props to attributes, sets `value` only when it differs, and
-  forwards events.
+  client, writes each prop's attribute whenever the prop changes (so a reset
+  applies after an orbit), sets `value` only when it differs, and forwards
+  events. Its handle is `{ focus, select, fold }`, and each call waits until
+  the element is defined.
+- **Inside**: the element composes four controllers, `EditorSurface` (the
+  textarea), `FlatView`, `PaperView` (3D, with its renderer lifecycle and
+  pointer input), and `PrintLayer`, and keeps its display state in a pure
+  reducer (`lib/render/element/state.ts`).
 
 ### 3D rendering
 
@@ -227,16 +248,24 @@ The 3D rendering draws the page as a sheet of paper with WebGPU. You can fold
 it into a letter, curl the bottom-right corner, tilt it, turn it, and light it
 from any side, and you can keep editing it.
 
-- **Texture from the model** (`lib/render/paper/texture.ts`): the page is painted
+- **Texture from the model** (`lib/render/paint/`): the page is painted
   from A4's own grid (cells, rows, lens colors, rulers, gauge, caret,
   selection), one character per cell, so positions match the flat rendering
-  exactly. The browser can't run shaders over DOM pixels, and Chrome's
+  exactly. Each layer is a function over a `Paint2D` context and a
+  `PageModel` (rows, line kinds, lens styles, plane), so the sheet paints
+  without running the whole analysis. Colors come from
+  `lib/render/palette.ts`, which the element's CSS also uses. The browser can't run shaders over DOM pixels, and Chrome's
   experimental HTML-in-Canvas API maps hit testing with a single flat matrix,
   which can't follow a folded sheet.
 - **Deformations** (`lib/render/paper/deform.ts`): two folds with rounded creases at
   99 mm and 198 mm (the letter fold), and a cylinder curl from the corner.
   Each is an isometry, so the paper never stretches, and tests check that.
-  The WGSL in `lib/render/paper/shader.ts` mirrors the TypeScript.
+  The paper is deformed only here, on the CPU, when the pose changes: each
+  vertex's position, normal, and crease are uploaded, and the shader only
+  transforms them.
+- **Only what changed**: the texture is repainted when the content changes
+  (text, lens, plane, selection, grid, preset). Orbiting rewrites the camera
+  uniforms and folding the vertices, without repainting the text.
 - **Shading** (`lib/render/paper/renderer.ts`):
   - Diffuse light plus a soft highlight.
   - Paper grain and darker creases.
@@ -245,8 +274,9 @@ from any side, and you can keep editing it.
     don't double-darken.
   - 4× MSAA.
 - **One GPU device** (`lib/render/paper/gpu.ts`) is shared by every sheet on the
-  page. Zoom works in 3D too: at a fixed zoom, an untilted sheet spans the
-  same CSS width as the flat rendering.
+  page, from the `GpuProvider` in `A4SheetElement.gpu` (an embedder can set
+  its own). Zoom works in 3D too: at a fixed zoom, an untilted sheet spans
+  the same CSS width as the flat rendering.
 - **Editing**: the real textarea stays mounted but invisible, and keeps focus.
   A click on the sheet becomes a ray, which hits the nearest triangle of the
   CPU copy of the deformed mesh. The hit gives a paper position in millimeters,
@@ -255,7 +285,9 @@ from any side, and you can keep editing it.
   same as in Flat, and the caret stays put when you switch renderings. Drags
   on the desk turn the camera, and clicks on the back of the paper do nothing.
 - **Without WebGPU** the element falls back to Flat and reports it with
-  `a4-render`. The workbench then disables 3D and says why.
+  `a4-render`. The workbench then disables 3D and says why. A lost GPU
+  device recreates 3D once; a second loss falls back to Flat. The console
+  says why a sheet renders flat.
 
 ## Models and the sheet tensor
 

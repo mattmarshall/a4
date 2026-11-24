@@ -1,17 +1,23 @@
 /**
  * WebGPU renderer for the paper view: a deformable A4 mesh textured with the
  * page, lit by a directional light, with a planar shadow on the desk.
- * Browser-only. Picking uses the same deformation on the CPU (pick.ts).
+ * Browser-only.
+ *
+ * The paper is deformed on the CPU when the pose changes (deform.ts) and its
+ * vertices uploaded; picking reads the same vertices. A new view only
+ * rewrites the uniforms, and a new page only the texture.
  */
 
 import { pixelRatio, PIXEL_RATIO_CAP } from "../../page/index.ts";
 import { camera, rayFromNdc, type Camera } from "./camera.ts";
-import { buildMesh, deformMesh, type PaperMesh, type Pose } from "./deform.ts";
+import { buildMesh, deformAttributes, FLAT, type PaperMesh, type Pose, VERTEX_FLOATS } from "./deform.ts";
 import { raycast, type PaperHit } from "./pick.ts";
-import { getGpuDevice, WebGpuUnavailableError } from "./gpu.ts";
+import { WebGpuUnavailableError, type GpuProvider } from "./gpu.ts";
 import { PAPER_WGSL } from "./shader.ts";
+import { lightDirection, packUniforms, UNIFORM_FLOATS } from "./uniforms.ts";
 
-export { WebGpuUnavailableError };
+/** How much the paper's shadow darkens the desk. */
+const SHADOW = 0.22;
 
 export interface View {
   tilt: number;
@@ -35,7 +41,10 @@ export class PaperRenderer {
   readonly #context: GPUCanvasContext;
   readonly #format: GPUTextureFormat;
   readonly #mesh: PaperMesh;
-  readonly #vertexBuffer: GPUBuffer;
+  /** Each vertex's uv: fixed. */
+  readonly #uvBuffer: GPUBuffer;
+  /** Each vertex's deformed position, normal, and crease: rewritten when the pose changes. */
+  readonly #shapeBuffer: GPUBuffer;
   readonly #indexBuffer: GPUBuffer;
   readonly #uniforms: GPUBuffer;
   readonly #sampler: GPUSampler;
@@ -46,12 +55,12 @@ export class PaperRenderer {
   #bindGroup: GPUBindGroup | null = null;
   #msaa: GPUTexture | null = null;
   #depth: GPUTexture | null = null;
-  #pose: Pose = { foldBottom: 0, foldTop: 0, curl: 0 };
+  /** The vertices `#shapeBuffer` holds, for picking. */
+  #shape: Float32Array;
   #view: View = { tilt: 0, yaw: 0, lightAzimuth: 225, lightElevation: 55 };
   #desk: [number, number, number] = [0.91, 0.9, 0.87];
   #camera: Camera | null = null;
   #zoom: number | null = null;
-  #positions: Float32Array | null = null;
 
   private constructor(
     canvas: HTMLCanvasElement,
@@ -65,24 +74,40 @@ export class PaperRenderer {
     this.#format = format;
     this.#mesh = buildMesh();
 
-    this.#vertexBuffer = device.createBuffer({
+    this.#uvBuffer = device.createBuffer({
       size: this.#mesh.uvs.byteLength,
       usage: BUFFER.VERTEX | BUFFER.COPY_DST,
     });
-    device.queue.writeBuffer(this.#vertexBuffer, 0, this.#mesh.uvs);
+    device.queue.writeBuffer(this.#uvBuffer, 0, this.#mesh.uvs);
+    this.#shape = deformAttributes(this.#mesh, FLAT);
+    this.#shapeBuffer = device.createBuffer({
+      size: this.#shape.byteLength,
+      usage: BUFFER.VERTEX | BUFFER.COPY_DST,
+    });
+    device.queue.writeBuffer(this.#shapeBuffer, 0, this.#shape);
     this.#indexBuffer = device.createBuffer({
       size: this.#mesh.indices.byteLength,
       usage: BUFFER.INDEX | BUFFER.COPY_DST,
     });
     device.queue.writeBuffer(this.#indexBuffer, 0, this.#mesh.indices);
-    this.#uniforms = device.createBuffer({ size: 128, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
+    this.#uniforms = device.createBuffer({ size: UNIFORM_FLOATS * 4, usage: BUFFER.UNIFORM | BUFFER.COPY_DST });
     this.#sampler = device.createSampler({ magFilter: "linear", minFilter: "linear" });
 
     const module = device.createShaderModule({ code: PAPER_WGSL });
     const vertex = (entryPoint: string): GPUVertexState => ({
       module,
       entryPoint,
-      buffers: [{ arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }] }],
+      buffers: [
+        { arrayStride: 8, attributes: [{ shaderLocation: 0, offset: 0, format: "float32x2" }] },
+        {
+          arrayStride: VERTEX_FLOATS * 4,
+          attributes: [
+            { shaderLocation: 1, offset: 0, format: "float32x3" },
+            { shaderLocation: 2, offset: 12, format: "float32x3" },
+            { shaderLocation: 3, offset: 24, format: "float32" },
+          ],
+        },
+      ],
     });
     const layout = device.createBindGroupLayout({
       entries: [
@@ -123,18 +148,25 @@ export class PaperRenderer {
     this.#bindGroupLayout = layout;
   }
 
-  static async create(canvas: HTMLCanvasElement): Promise<PaperRenderer> {
-    const device = await getGpuDevice();
+  static async create(canvas: HTMLCanvasElement, gpu: GpuProvider): Promise<PaperRenderer> {
+    const device = await gpu.device();
     const context = canvas.getContext("webgpu") as GPUCanvasContext | null;
     if (!context) throw new WebGpuUnavailableError("Couldn’t create a WebGPU canvas context.");
-    const format = navigator.gpu.getPreferredCanvasFormat();
+    const format = gpu.canvasFormat();
     context.configure({ device, format, alphaMode: "opaque" });
-    return new PaperRenderer(canvas, device, context, format);
+    const renderer = new PaperRenderer(canvas, device, context, format);
+    gpu.onLost(device, renderer.#markLost);
+    return renderer;
   }
+
+  #markLost: () => void = () => {};
+  readonly #lost = new Promise<void>((resolve) => {
+    this.#markLost = resolve;
+  });
 
   /** Settles when the GPU device behind this renderer is lost. */
   get lost(): Promise<unknown> {
-    return this.#device.lost;
+    return this.#lost;
   }
 
   /** Upload a freshly painted page canvas as the paper texture. */
@@ -159,9 +191,10 @@ export class PaperRenderer {
     this.#device.queue.copyExternalImageToTexture({ source }, { texture: this.#pageTexture }, [width, height]);
   }
 
+  /** Deform the paper to `pose` and upload its vertices. */
   setPose(pose: Pose): void {
-    this.#pose = pose;
-    this.#positions = null;
+    this.#shape = deformAttributes(this.#mesh, pose);
+    this.#device.queue.writeBuffer(this.#shapeBuffer, 0, this.#shape);
   }
 
   setView(view: View): void {
@@ -177,12 +210,12 @@ export class PaperRenderer {
     this.#desk = rgb;
   }
 
-  /** Match the canvas backing store to its CSS size × devicePixelRatio. */
-  resize(): void {
+  /** Match the canvas backing store to its CSS size × devicePixelRatio. Returns whether it changed. */
+  resize(): boolean {
     const dpr = pixelRatio(window.devicePixelRatio, PIXEL_RATIO_CAP.gpu);
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
     const h = Math.max(1, Math.round(this.canvas.clientHeight * dpr));
-    if (this.canvas.width === w && this.canvas.height === h && this.#msaa) return;
+    if (this.canvas.width === w && this.canvas.height === h && this.#msaa) return false;
     this.canvas.width = w;
     this.canvas.height = h;
     this.#msaa?.destroy();
@@ -199,12 +232,7 @@ export class PaperRenderer {
       sampleCount: SAMPLES,
       usage: TEXTURE.RENDER_ATTACHMENT,
     });
-  }
-
-  #lightDirection(): [number, number, number] {
-    const az = (this.#view.lightAzimuth * Math.PI) / 180;
-    const el = (this.#view.lightElevation * Math.PI) / 180;
-    return [Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)];
+    return true;
   }
 
   render(): void {
@@ -217,12 +245,13 @@ export class PaperRenderer {
       pxPerMm: this.#zoom,
       cssHeight: this.canvas.clientHeight,
     });
-    const data = new Float32Array(32);
-    data.set(this.#camera.viewProj, 0);
-    data.set([...this.#camera.eye, 1], 16);
-    data.set([...this.#lightDirection(), 0], 20);
-    data.set([this.#pose.foldBottom, this.#pose.foldTop, this.#pose.curl, 0.22], 24);
-    data.set([...this.#desk, 1], 28);
+    const data = packUniforms({
+      viewProj: this.#camera.viewProj,
+      eye: this.#camera.eye,
+      light: lightDirection(this.#view.lightAzimuth, this.#view.lightElevation),
+      shadow: SHADOW,
+      desk: this.#desk,
+    });
     this.#device.queue.writeBuffer(this.#uniforms, 0, data);
 
     const encoder = this.#device.createCommandEncoder();
@@ -244,7 +273,8 @@ export class PaperRenderer {
       },
     });
     pass.setBindGroup(0, this.#bindGroup);
-    pass.setVertexBuffer(0, this.#vertexBuffer);
+    pass.setVertexBuffer(0, this.#uvBuffer);
+    pass.setVertexBuffer(1, this.#shapeBuffer);
     pass.setIndexBuffer(this.#indexBuffer, "uint32");
     pass.setPipeline(this.#shadowPipeline);
     pass.drawIndexed(this.#mesh.indices.length);
@@ -260,19 +290,19 @@ export class PaperRenderer {
     const rect = this.canvas.getBoundingClientRect();
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
-    this.#positions ??= deformMesh(this.#mesh, this.#pose);
     const { origin, dir } = rayFromNdc(this.#camera, ndcX, ndcY);
-    return raycast(this.#mesh, this.#positions, origin, dir);
+    return raycast(this.#mesh, this.#shape, origin, dir, VERTEX_FLOATS);
   }
 
   destroy(): void {
     this.#pageTexture?.destroy();
     this.#msaa?.destroy();
     this.#depth?.destroy();
-    this.#vertexBuffer.destroy();
+    this.#uvBuffer.destroy();
+    this.#shapeBuffer.destroy();
     this.#indexBuffer.destroy();
     this.#uniforms.destroy();
     this.#context.unconfigure();
-    // The device is shared across sheets (gpu.ts); it is not destroyed here.
+    // The device belongs to the GPU provider (shared across sheets); it is not destroyed here.
   }
 }

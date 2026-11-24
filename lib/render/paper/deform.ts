@@ -5,7 +5,9 @@
  * (0–297). World coordinates put the desk at height 0, X right, Y up, Z toward
  * the viewer, with the sheet centered on the origin.
  *
- * This file is mirrored by the WGSL in `shader.ts`; keep the two in step.
+ * This is the only copy of the deformation: when the pose changes, the
+ * renderer deforms every vertex here (`deformAttributes`) and uploads the
+ * result, and picking uses the same positions. The shader only transforms.
  */
 
 import { PAPER_H, PAPER_W } from "../../page/index.ts";
@@ -13,14 +15,14 @@ import { PAPER_H, PAPER_W } from "../../page/index.ts";
 /** Letter-fold hinges (thirds) and their crease radii in mm. */
 export const HINGE_TOP = 99;
 export const HINGE_BOTTOM = 198;
-export const CREASE_TOP = 3;
-export const CREASE_BOTTOM = 1.5;
+const CREASE_TOP = 3;
+const CREASE_BOTTOM = 1.5;
 
 /** Corner curl: cylinder radius, direction toward the bottom-right corner, depth at amount 1. */
-export const CURL_RADIUS = 16;
+const CURL_RADIUS = 16;
 const curlLen = Math.hypot(1, 1.25);
 export const CURL_DIR: readonly [number, number] = [1 / curlLen, 1.25 / curlLen];
-export const CURL_MAX_DEPTH = 125;
+const CURL_MAX_DEPTH = 125;
 
 export interface Pose {
   /** Bottom third folded up: 0 flat … 1 folded over. */
@@ -46,7 +48,7 @@ export function curlLinePoint(amount: number): [number, number] {
  * around a rounded crease of radius `r` by angle `alpha`. Returns the new
  * (along, height) and whether the point lies on the crease arc.
  */
-export function bend(d: number, h: number, alpha: number, r: number): [number, number, boolean] {
+function bend(d: number, h: number, alpha: number, r: number): [number, number, boolean] {
   const arcLen = r * alpha;
   const a = Math.min(d, arcLen);
   const phi = r > 0 ? a / r : 0;
@@ -163,6 +165,50 @@ export function deformMesh(mesh: PaperMesh, pose: Pose): Float32Array {
     out[j] = world[0];
     out[j + 1] = world[1];
     out[j + 2] = world[2];
+  }
+  return out;
+}
+
+/** Floats per vertex in `deformAttributes`: position (3), normal (3), crease (1). */
+export const VERTEX_FLOATS = 7;
+
+/** Step in uv for the finite differences that give each vertex's normal. */
+const NORMAL_STEP = 0.0015;
+
+/**
+ * Every vertex of `mesh` under `pose`, interleaved for the GPU: world
+ * position, unit normal of the printed side (+Y on flat paper), and crease
+ * factor. Normals come from central differences of the deformation, so they
+ * follow the paper wherever it bends.
+ */
+export function deformAttributes(mesh: PaperMesh, pose: Pose): Float32Array {
+  const count = mesh.uvs.length / 2;
+  const out = new Float32Array(count * VERTEX_FLOATS);
+  const e = NORMAL_STEP;
+  const at = (u: number, v: number) => deform(u * PAPER_W, v * PAPER_H, pose).world;
+  for (let i = 0; i < count; i++) {
+    const u = mesh.uvs[i * 2] ?? 0;
+    const v = mesh.uvs[i * 2 + 1] ?? 0;
+    const { world, crease } = deform(u * PAPER_W, v * PAPER_H, pose);
+    const u1 = at(u + e, v);
+    const u0 = at(u - e, v);
+    const v1 = at(u, v + e);
+    const v0 = at(u, v - e);
+    const du: Vec3 = [u1[0] - u0[0], u1[1] - u0[1], u1[2] - u0[2]];
+    const dv: Vec3 = [v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2]];
+    // dv × du faces the printed side.
+    const nx = dv[1] * du[2] - dv[2] * du[1];
+    const ny = dv[2] * du[0] - dv[0] * du[2];
+    const nz = dv[0] * du[1] - dv[1] * du[0];
+    const len = Math.hypot(nx, ny, nz) || 1;
+    const o = i * VERTEX_FLOATS;
+    out[o] = world[0];
+    out[o + 1] = world[1];
+    out[o + 2] = world[2];
+    out[o + 3] = nx / len;
+    out[o + 4] = ny / len;
+    out[o + 5] = nz / len;
+    out[o + 6] = crease;
   }
   return out;
 }

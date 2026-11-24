@@ -19,11 +19,16 @@ export interface Analysis {
   readonly assessment: Assessment;
 }
 
-export function analyze(text: string, spec: PageSpec, config: AnalysisConfig = DEFAULT_CONFIG): Analysis {
-  const layout: Layout = {
+/** The text's rows and line kinds on `spec`: all a painter needs, without the metrics. */
+export function pageLayout(text: string, spec: PageSpec, config: AnalysisConfig = DEFAULT_CONFIG): Layout {
+  return {
     rows: layoutRows(text, spec.cols),
     lineKinds: classifyLines(text.split("\n"), config.classify, spec.cols),
   };
+}
+
+export function analyze(text: string, spec: PageSpec, config: AnalysisConfig = DEFAULT_CONFIG): Analysis {
+  const layout = pageLayout(text, spec, config);
   const metrics = measure(layout, text, spec);
   return { layout, metrics, assessment: assess(metrics, config) };
 }

@@ -160,10 +160,7 @@ export function Workbench() {
 
   function selectLaterUnit(pair: FindingResult) {
     const later = pair.spans[pair.spans.length - 1];
-    const el = handles[target].current?.element();
-    if (!el || !later) return;
-    el.focus();
-    el.setSelectionRange(later.start, later.end);
+    if (later) handles[target].current?.select(later.start, later.end);
   }
 
   // --- Page commands ---------------------------------------------------------

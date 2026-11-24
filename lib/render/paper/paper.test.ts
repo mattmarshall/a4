@@ -258,26 +258,40 @@ test("camera zoom: an untilted sheet spans 210 × pxPerMm CSS px", async () => {
   }
 });
 
-test("print rows: page rows only, positioned on the grid", async () => {
-  const { printRows } = await import("./texture.ts");
-  const text = `${"x".repeat(170)}\n${Array.from({ length: 70 }, (_, i) => `line ${i}`).join("\n")}`;
-  const rows = layoutRows(text, T.cols);
-  const out = printRows(rows, text, T);
-  assert.equal(out.length, T.rows);
-  assert.deepEqual(
-    out.slice(0, 3).map((r) => r.text.length),
-    [80, 80, 10],
-  );
-  assert.ok(Math.abs(out[1].topMm - (T.marginY + T.cellH)) < 1e-9);
+test("the uploaded vertices: the same positions as picking, with unit printed-side normals", async () => {
+  const { deformAttributes, VERTEX_FLOATS } = await import("./deform.ts");
+  const mesh = buildMesh(24, 40);
+  for (const [label, pose] of Object.entries(POSES)) {
+    const attrs = deformAttributes(mesh, pose);
+    const positions = deformMesh(mesh, pose);
+    assert.equal(attrs.length, (positions.length / 3) * VERTEX_FLOATS);
+    for (let i = 0; i < positions.length / 3; i++) {
+      const o = i * VERTEX_FLOATS;
+      for (let c = 0; c < 3; c++) {
+        assert.ok(Math.abs((attrs[o + c] ?? 0) - (positions[i * 3 + c] ?? 0)) < 1e-4, `${label} vertex ${i}`);
+      }
+      const n = Math.hypot(attrs[o + 3] ?? 0, attrs[o + 4] ?? 0, attrs[o + 5] ?? 0);
+      assert.ok(Math.abs(n - 1) < 1e-5, `${label} normal ${i} has length ${n}`);
+    }
+  }
 });
 
-test("model lens tint: none at 0, proportional, strongest at 1, clamped", async () => {
-  const { heatFill, HEAT_MAX_ALPHA } = await import("./texture.ts");
-  assert.equal(heatFill(0), null);
-  assert.equal(heatFill(-1), null);
-  assert.equal(heatFill(Number.NaN), null);
-  const alpha = (fill: string | null) => Number(fill?.match(/, ([\d.]+)\)$/)?.[1]);
-  assert.equal(alpha(heatFill(1)), HEAT_MAX_ALPHA);
-  assert.equal(alpha(heatFill(2)), HEAT_MAX_ALPHA);
-  assert.ok(Math.abs(alpha(heatFill(0.5)) - HEAT_MAX_ALPHA / 2) < 1e-4);
+test("normals: up on flat paper, down on a panel folded over, and creases shade", async () => {
+  const { deformAttributes, VERTEX_FLOATS } = await import("./deform.ts");
+  const mesh = buildMesh(24, 40);
+  const vertex = (attrs: Float32Array, u: number, v: number) => {
+    const i = Math.round(v * mesh.ny) * (mesh.nx + 1) + Math.round(u * mesh.nx);
+    const o = i * VERTEX_FLOATS;
+    return { normalY: attrs[o + 4] ?? 0, crease: attrs[o + 6] ?? 0 };
+  };
+  const flat = deformAttributes(mesh, FLAT);
+  for (let i = 0; i < flat.length; i += VERTEX_FLOATS) {
+    assert.ok(Math.abs((flat[i + 4] ?? 0) - 1) < 1e-6);
+    assert.equal(flat[i + 6], 0);
+  }
+  const folded = deformAttributes(mesh, { foldBottom: 1, foldTop: 0, curl: 0 });
+  assert.ok(vertex(folded, 0.5, 0.95).normalY < -0.99, "the bottom third, folded over, faces the desk");
+  assert.ok(vertex(folded, 0.5, 0.3).normalY > 0.99, "the top stays face up");
+  const creased = [...Array(mesh.ny + 1).keys()].some((j) => vertex(folded, 0.5, j / mesh.ny).crease === 1);
+  assert.ok(creased, "vertices on the crease arc are shaded");
 });

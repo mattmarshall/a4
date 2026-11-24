@@ -94,3 +94,55 @@ other.
 The element contract only gains `view` and `pose` and the always-apply
 behavior. Existing pages and embeds keep working. Reverting is a revert of
 the commits.
+
+## Implementation Notes
+
+Where the code differs from the decisions above, and why:
+
+- **Normalization doesn't use `setRangeText` first.** In Chrome,
+  `setRangeText` after an insertion leaves nothing to undo, so the
+  "Normalizing keeps undo" scenario failed with it. The editor instead cancels
+  an insertion (`beforeinput`: drop, autocorrect, and other insertions) whose
+  text has tabs or carriage returns, and inserts the cleaned text with
+  `execCommand("insertText")`. Setting the selection first, even to itself,
+  makes that its own undo step, as a native drop or paste is. Paste works the
+  same way, and Tab still merges with typing. `setRangeText` on the changed
+  range (`normalizeEdit`, tested) remains as the fallback for an insertion
+  that can't be canceled. Composition is never touched: `compositionend`
+  cleans what the input method left.
+- **The palette comes first.** `lib/render/palette.ts` is created here, and
+  `PAINT_THEME` and the shadow CSS (`element/style.ts`) both read it;
+  refactor-styles still writes it into the app's CSS. The textarea's selection
+  now uses the painter's alpha (0.28, was 0.25), so the two can't differ.
+- **Change tracking compares inputs.** `PaperView` keeps what it last showed
+  (content key, pose, view, zoom, desk color, canvas size) and redoes only the
+  parts whose inputs differ, so callers don't set flags. The content key is
+  the model, selection, grid, font, and texture density. `FlatView` skips a
+  repaint when its model and settings are unchanged; the selection never
+  repaints it, since the textarea draws its own.
+- **The renderer lifecycle is its own tested class** (`paper/lifecycle.ts`),
+  with the creation token, recreate-once after a lost device, and the reason
+  3D is unavailable, which the element logs once with `console.info`.
+- **`GpuProvider`** is `{ device(), onLost(device, listener), canvasFormat() }`,
+  injected through the static `A4SheetElement.gpu` (the browser's by default),
+  so subclasses and embedders can supply their own.
+- **Uniforms without the pose.** With the paper deformed on the CPU, the
+  shader no longer reads the pose: the block is the view-projection, eye,
+  light, and desk (shadow strength in `desk.a`), 28 floats.
+- **CPU deformation.** `deformAttributes` writes each vertex's position,
+  normal (central differences with the step the shader used), and crease;
+  picking reads the same buffer with a stride. `Deformed.crease` stays,
+  because shading uses it. A fold frame takes about 2 ms for 11,023 vertices.
+- **Compare keeps one camera.** `SheetStage` still holds one view for both
+  sheets, so they turn together as before; orbiting one sheet no longer
+  repaints either texture.
+- **The page model** comes from `pageLayout` (rows and line kinds) and
+  `segmentsFor`, which now takes only the layout; the Repetition lens counts
+  its own terms.
+- **The React wrapper** writes each attribute whose prop value differs from
+  what it last wrote (`components/sheet-sync.ts`, tested with the plane diff).
+- **The print layer** is refreshed when the browser is idle, and at once on
+  `beforeprint` or the print media query.
+- **The standalone build** is `vite.element.config.ts`
+  (`pnpm build:element`, `dist/element/a4-sheet.js`), part of `pnpm check`
+  but not deployed.

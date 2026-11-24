@@ -5,10 +5,10 @@
  */
 
 import { assertNever, LENS_IDS, type LensId } from "../page/index.ts";
-import type { Analysis } from "./analyze.ts";
 import type { LineKind } from "./classify.ts";
+import type { Layout } from "./metrics.ts";
 import { isSyntaxAt } from "./syntax.ts";
-import { normalizeTerm, TERM } from "./terms.ts";
+import { normalizeTerm, TERM, termStats } from "./terms.ts";
 import { tokenPieces } from "./tokens.ts";
 
 const LENS_COPY: Record<LensId, { readonly name: string; readonly hint: string }> = {
@@ -67,10 +67,12 @@ export function heatLevel(count: number, maxCount: number): HeatLevel {
   return HEAT_LEVELS[Math.min(4, Math.max(1, Math.ceil(ratio * 4)))] ?? 4;
 }
 
-function repetitionSegments(text: string, analysis: Analysis): Segment[] {
+function repetitionSegments(text: string): Segment[] {
   const out: Segment[] = [];
-  const { repeatedTerms, termCounts } = analysis.metrics;
-  const maxCount = repeatedTerms[0]?.count ?? 0;
+  const { termCounts } = termStats(text);
+  // Most frequent first: the top count, if it repeats, is the page maximum.
+  const top = termCounts[0]?.count ?? 0;
+  const maxCount = top > 1 ? top : 0;
   const counts = new Map(termCounts.map((t) => [t.term, t.count]));
   let cursor = 0;
   for (const m of text.matchAll(TERM)) {
@@ -93,11 +95,11 @@ export const KIND_LABEL: Record<Exclude<LineKind, "blank">, string> = {
   heading: "Headings",
 };
 
-function structureSegments(text: string, analysis: Analysis): Segment[] {
+function structureSegments(text: string, layout: Layout): Segment[] {
   const out: Segment[] = [];
   const lines = text.split("\n");
   lines.forEach((line, i) => {
-    const kind = analysis.layout.lineKinds[i] ?? "blank";
+    const kind = layout.lineKinds[i] ?? "blank";
     push(out, line, kind === "blank" ? undefined : kind);
     if (i < lines.length - 1) push(out, "\n", undefined);
   });
@@ -118,16 +120,20 @@ function tokenSegments(text: string): Segment[] {
   return out;
 }
 
-export function segmentsFor(lens: LensId, text: string, analysis: Analysis): Segment[] {
+/**
+ * The lens's segments for `text`. Takes the layout (an `Analysis` is one), not
+ * the whole analysis, so a painter can call it without the metrics.
+ */
+export function segmentsFor(lens: LensId, text: string, source: { readonly layout: Layout }): Segment[] {
   switch (lens) {
     case "ink":
       return [{ text }];
     case "syntax":
       return syntaxSegments(text);
     case "repetition":
-      return repetitionSegments(text, analysis);
+      return repetitionSegments(text);
     case "structure":
-      return structureSegments(text, analysis);
+      return structureSegments(text, source.layout);
     case "tokens":
       return tokenSegments(text);
     default:

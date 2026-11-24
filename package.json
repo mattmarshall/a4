@@ -38,6 +38,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "build:element": "vite build -c vite.element.config.ts",
     "start": "vite preview",
     "test": "node --test 'lib/**/*.test.ts' 'components/**/*.test.ts'",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.core.json",
@@ -52,7 +53,7 @@
     "gen:element-types": "node scripts/gen-element-types.ts",
     "proto": "buf lint && buf generate --clean",
     "proto:check": "buf lint && node scripts/check-proto.ts && node scripts/check-proto-breaking.ts",
-    "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm proto:check && pnpm build && pnpm check:bundle",
+    "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm proto:check && pnpm build && pnpm check:bundle && pnpm build:element",
     "check:bundle": "node scripts/check-bundle.ts",
     "deploy": "vinext-cloudflare deploy"
   },

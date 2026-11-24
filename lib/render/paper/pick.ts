@@ -18,15 +18,23 @@ export interface PaperHit {
 /**
  * Nearest intersection of a ray with the deformed mesh. Returns null when the
  * ray misses the sheet or the nearest surface hit is the back of the paper.
+ * `positions` holds each vertex's world position first, every `stride` floats
+ * (3 for `deformMesh`, `VERTEX_FLOATS` for `deformAttributes`).
  */
-export function raycast(mesh: PaperMesh, positions: Float32Array, origin: Vec3, dir: Vec3): PaperHit | null {
+export function raycast(
+  mesh: PaperMesh,
+  positions: Float32Array,
+  origin: Vec3,
+  dir: Vec3,
+  stride = 3,
+): PaperHit | null {
   const { indices, uvs } = mesh;
   let best = Infinity;
   let hit: { tri: number; u: number; v: number; front: boolean } | null = null;
   for (let k = 0; k < indices.length; k += 3) {
-    const ia = indices[k] * 3;
-    const ib = indices[k + 1] * 3;
-    const ic = indices[k + 2] * 3;
+    const ia = indices[k] * stride;
+    const ib = indices[k + 1] * stride;
+    const ic = indices[k + 2] * stride;
     const e1x = positions[ib] - positions[ia];
     const e1y = positions[ib + 1] - positions[ia + 1];
     const e1z = positions[ib + 2] - positions[ia + 2];
