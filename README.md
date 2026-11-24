@@ -715,6 +715,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-24-refactor-lib-layout` (structure only, with no spec changes)
 - `2026-11-24-refactor-model-plugins` (structure and contracts, with no spec
   changes)
+- `2026-11-24-refactor-sheet-element`
 
 ```bash
 openspec list --specs
