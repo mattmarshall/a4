@@ -582,6 +582,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-23-add-semantic-overlaps`
 - `2026-11-23-add-workspace-focus`
 - `2026-11-23-add-folder-pages`
+- `2026-11-23-fix-review-bugs`
 
 ```bash
 openspec list --specs
