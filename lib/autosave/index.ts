@@ -18,4 +18,5 @@ export {
   MIGRATED_KEY,
   STALE_DRAFT_MS,
   type Recovery,
+  type RecoverOptions,
 } from "./bootstrap.ts";

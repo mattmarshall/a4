@@ -197,9 +197,9 @@ so the folded letter is the page the agent gets.
 - **Page lint:** a CLI that runs the same analysis over context files in CI.
 - **Exact token counts:** optional, model-specific tokenizers loaded on
   demand.
-- **More storage backends:** a user-chosen folder (File System Access API)
-  or a server. Either would implement the `PageStore` contract and pass the
-  shared contract tests.
+- **A server backend:** it would implement the `PageStore` contract and pass
+  the shared contract tests. (A user-chosen folder shipped: see the README's
+  Folders section.)
 - **Share links:** needs a page-format decision first; the project default is
   protobuf.
 - **Assisted rewrites:** opt-in suggestions that turn a dump into a narrative

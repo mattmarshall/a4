@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
-import type { PageName, PageSummary, TrashEntry, TrashId } from "@/lib/store";
-import type { Slot, StorageInfo } from "./useLibrary";
+import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import type { FolderFile } from "@/lib/folder/scan";
+import { PAGE_ROWS } from "@/lib/folder/scan";
+import type { FilePath, PageName, PageSummary, TrashEntry, TrashId } from "@/lib/store";
+import type { FolderView, Slot, StorageInfo } from "./useLibrary";
 
 export function relativeTime(ms: number, now: number = Date.now()): string {
   const s = Math.round((now - ms) / 1000);
@@ -76,6 +78,17 @@ export function LibraryPanel({
   onPurge,
   onExportAll,
   onImport,
+  folder,
+  openFiles,
+  saveRequest,
+  onOpenFolder,
+  onReconnect,
+  onCloseFolder,
+  onOpenFile,
+  onDuplicateFile,
+  onNewFile,
+  onSaveToFolder,
+  onCancelSave,
 }: {
   pages: PageSummary[];
   trash: TrashEntry[];
@@ -92,6 +105,18 @@ export function LibraryPanel({
   onPurge: (ids: TrashId[]) => void;
   onExportAll: () => void;
   onImport: (file: File) => void;
+  folder: FolderView;
+  openFiles: Record<Slot, FilePath | null>;
+  /** "Save to folder…" was chosen for this library page. */
+  saveRequest: { name: string } | null;
+  onOpenFolder: () => void;
+  onReconnect: () => void;
+  onCloseFolder: () => void;
+  onOpenFile: (path: FilePath, slot: Slot) => void;
+  onDuplicateFile: (path: FilePath) => void;
+  onNewFile: (path: string) => Promise<string | null>;
+  onSaveToFolder: (path: string) => Promise<string | null>;
+  onCancelSave: () => void;
 }) {
   const [query, setQuery] = useState("");
   const [renaming, setRenaming] = useState<PageName | null>(null);
@@ -176,6 +201,23 @@ export function LibraryPanel({
         })}
         {visible.length === 0 ? <li className="lib-empty">{query ? "No pages match." : "No pages yet."}</li> : null}
       </ul>
+
+      <FolderSection
+        folder={folder}
+        query={query}
+        open={openFiles}
+        compare={compare}
+        activeSlot={activeSlot}
+        saveRequest={saveRequest}
+        onOpenFolder={onOpenFolder}
+        onReconnect={onReconnect}
+        onCloseFolder={onCloseFolder}
+        onOpenFile={onOpenFile}
+        onDuplicateFile={onDuplicateFile}
+        onNewFile={onNewFile}
+        onSaveToFolder={onSaveToFolder}
+        onCancelSave={onCancelSave}
+      />
 
       <div className="lib-transfer">
         <button
@@ -278,5 +320,310 @@ export function LibraryPanel({
         )}
       </footer>
     </aside>
+  );
+}
+
+const REASON: Record<NonNullable<FolderFile["unreadable"]>, string> = {
+  "too-large": "too large to open (over 1 MiB)",
+  "not-utf8": "not UTF-8 text",
+};
+
+/** A path field for creating a file in the folder. */
+function PathForm({
+  label,
+  initial,
+  submit,
+  onSubmit,
+  onCancel,
+}: {
+  label: string;
+  initial: string;
+  submit: string;
+  onSubmit: (path: string) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function send(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const message = await onSubmit(value);
+    setBusy(false);
+    if (message) setError(message);
+  }
+  return (
+    <form className="lib-path-form" onSubmit={(e) => void send(e)}>
+      <label className="lib-path-label">
+        {label}
+        <input
+          autoFocus
+          className="lib-input"
+          value={value}
+          placeholder="AGENTS.md"
+          spellCheck={false}
+          onChange={(e) => {
+            setValue(e.target.value);
+            setError(null);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") onCancel();
+          }}
+        />
+      </label>
+      {error ? <span className="lib-error">{error}</span> : null}
+      <div className="lib-path-actions">
+        <button type="submit" className="btn btn-outline" disabled={busy || !value.trim()}>
+          {submit}
+        </button>
+        <button type="button" className="btn" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function FileRow({
+  file,
+  slot,
+  compare,
+  activeSlot,
+  onOpen,
+  onDuplicate,
+}: {
+  file: FolderFile;
+  slot: Slot | null;
+  compare: boolean;
+  activeSlot: Slot;
+  onOpen: (path: FilePath, slot: Slot) => void;
+  onDuplicate: (path: FilePath) => void;
+}) {
+  const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
+  if (file.unreadable) {
+    return (
+      <li className="lib-item lib-file" data-unreadable="">
+        <div className="lib-open" aria-disabled="true" title={`Can’t open: ${REASON[file.unreadable]}`}>
+          <span className="lib-name lib-path">{file.path}</span>
+          <span className="lib-meta">{REASON[file.unreadable]}</span>
+        </div>
+      </li>
+    );
+  }
+  return (
+    <li className="lib-item lib-file" data-open={slot ?? undefined}>
+      <button
+        type="button"
+        className="lib-open"
+        onClick={() => onOpen(file.path, compare ? activeSlot : "a")}
+        title={compare ? `Open in ${activeSlot.toUpperCase()}` : "Open"}
+      >
+        <span className="lib-name lib-path">{file.path}</span>
+        <span className="lib-meta">
+          {relativeTime(file.modifiedAt)} · {formatSize(file.size)}
+          {file.rows !== null ? (
+            <>
+              {" · "}
+              <span className="lib-rows" data-over={over ? "" : undefined}>
+                {file.rows} of {PAGE_ROWS} rows{over ? `, ${over} over` : ""}
+              </span>
+            </>
+          ) : null}
+        </span>
+        {slot ? <span className="lib-badge">{compare ? slot.toUpperCase() : "open"}</span> : null}
+      </button>
+      <div className="lib-actions">
+        {compare ? (
+          <button type="button" onClick={() => onOpen(file.path, activeSlot === "a" ? "b" : "a")}>
+            Open in {activeSlot === "a" ? "B" : "A"}
+          </button>
+        ) : null}
+        <button type="button" onClick={() => onDuplicate(file.path)} title="Copy into a new library page">
+          Duplicate to library
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function FolderSection({
+  folder,
+  query,
+  open,
+  compare,
+  activeSlot,
+  saveRequest,
+  onOpenFolder,
+  onReconnect,
+  onCloseFolder,
+  onOpenFile,
+  onDuplicateFile,
+  onNewFile,
+  onSaveToFolder,
+  onCancelSave,
+}: {
+  folder: FolderView;
+  query: string;
+  open: Record<Slot, FilePath | null>;
+  compare: boolean;
+  activeSlot: Slot;
+  saveRequest: { name: string } | null;
+  onOpenFolder: () => void;
+  onReconnect: () => void;
+  onCloseFolder: () => void;
+  onOpenFile: (path: FilePath, slot: Slot) => void;
+  onDuplicateFile: (path: FilePath) => void;
+  onNewFile: (path: string) => Promise<string | null>;
+  onSaveToFolder: (path: string) => Promise<string | null>;
+  onCancelSave: () => void;
+}) {
+  const [creating, setCreating] = useState(false);
+  const [showOther, setShowOther] = useState(false);
+  const { state } = folder;
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLocaleLowerCase("en-US");
+    return q ? folder.files.filter((f) => f.path.toLocaleLowerCase("en-US").includes(q)) : folder.files;
+  }, [folder.files, query]);
+  const context = visible.filter((f) => f.group === "context");
+  const other = visible.filter((f) => f.group === "other");
+  const slotOf = (path: FilePath): Slot | null => (open.a === path ? "a" : open.b === path ? "b" : null);
+  const row = (f: FolderFile) => (
+    <FileRow
+      key={f.path}
+      file={f}
+      slot={slotOf(f.path)}
+      compare={compare}
+      activeSlot={activeSlot}
+      onOpen={onOpenFile}
+      onDuplicate={onDuplicateFile}
+    />
+  );
+
+  if (state.status === "unsupported") {
+    return (
+      <section className="lib-folder" aria-label="Folder">
+        <p className="lib-note">Opening a folder needs Chrome or Edge. Your pages here work as before.</p>
+      </section>
+    );
+  }
+
+  if (state.status === "none") {
+    return (
+      <section className="lib-folder" aria-label="Folder">
+        <button type="button" className="btn btn-outline lib-folder-open" onClick={onOpenFolder}>
+          Open folder…
+        </button>
+        <p className="lib-note">
+          Edit a repository’s AGENTS.md, CLAUDE.md, and skill files in place. Files stay on this device.
+        </p>
+      </section>
+    );
+  }
+
+  if (state.status === "connecting") {
+    return (
+      <section className="lib-folder" aria-label="Folder">
+        <p className="lib-note">Connecting to “{state.name ?? "the folder"}”…</p>
+      </section>
+    );
+  }
+
+  if (state.status === "reconnect") {
+    return (
+      <section className="lib-folder" aria-label={`Folder ${state.name}`}>
+        <div className="lib-head">
+          <h2 className="lib-folder-name">{state.name}</h2>
+        </div>
+        <p className="lib-note">The browser needs your permission again for A4 to edit this folder.</p>
+        <div className="lib-path-actions">
+          <button type="button" className="btn btn-outline" onClick={onReconnect}>
+            Reconnect
+          </button>
+          <button type="button" className="btn" onClick={onCloseFolder}>
+            Forget
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  if (state.status === "not-found") {
+    return (
+      <section className="lib-folder" aria-label="Folder not found">
+        <p className="lib-note">
+          <strong>Folder not found.</strong> {state.name ? `“${state.name}” was moved or deleted.` : "The remembered folder is gone."}
+        </p>
+        <div className="lib-path-actions">
+          <button type="button" className="btn btn-outline" onClick={onOpenFolder}>
+            Open folder…
+          </button>
+          <button type="button" className="btn" onClick={onCloseFolder}>
+            Forget
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="lib-folder" aria-label={`Folder ${state.name}`}>
+      <div className="lib-head">
+        <h2 className="lib-folder-name" title={state.name}>
+          {state.name} <span className="lib-count">{folder.files.length}</span>
+        </h2>
+        <span className="lib-folder-tools">
+          <button type="button" className="btn" onClick={() => setCreating((c) => !c)} aria-expanded={creating}>
+            + New file
+          </button>
+          <button type="button" className="btn" onClick={onCloseFolder} title="Save open files and close the folder">
+            Close
+          </button>
+        </span>
+      </div>
+
+      {saveRequest ? (
+        <PathForm
+          key={`save:${saveRequest.name}`}
+          label={`Save “${saveRequest.name}” to ${state.name} as`}
+          initial={`${saveRequest.name}.md`}
+          submit="Save to folder"
+          onSubmit={onSaveToFolder}
+          onCancel={onCancelSave}
+        />
+      ) : creating ? (
+        <PathForm
+          label={`New file in ${state.name}`}
+          initial="AGENTS.md"
+          submit="Create"
+          onSubmit={async (path) => {
+            const error = await onNewFile(path);
+            if (!error) setCreating(false);
+            return error;
+          }}
+          onCancel={() => setCreating(false)}
+        />
+      ) : null}
+
+      {folder.scanning && folder.files.length === 0 ? <p className="lib-note">Scanning…</p> : null}
+      {folder.partial ? <p className="lib-note">The folder is very large: the list stops after 20,000 entries.</p> : null}
+
+      <h3 className="lib-group">Context files</h3>
+      <ul className="lib-list">
+        {context.map(row)}
+        {context.length === 0 && !folder.scanning ? (
+          <li className="lib-empty">{query ? "No context files match." : "No context files found."}</li>
+        ) : null}
+      </ul>
+
+      {other.length > 0 ? (
+        <>
+          <button type="button" className="lib-trash-toggle" aria-expanded={showOther} onClick={() => setShowOther((v) => !v)}>
+            {showOther ? "▾" : "▸"} Other Markdown ({other.length})
+          </button>
+          {showOther ? <ul className="lib-list">{other.map(row)}</ul> : null}
+        </>
+      ) : null}
+    </section>
   );
 }

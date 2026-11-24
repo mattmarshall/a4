@@ -14,10 +14,11 @@ import { forgetApiKey, hasApiKey, setApiKey } from "@/lib/models/fit/key";
 import { grantConsent } from "@/lib/models/consent";
 import type { ModelHost, TransformResult } from "@/lib/models/host";
 import type { PageSpec } from "@/lib/page-spec";
+import type { PageRef } from "@/lib/store";
 
 type Phase =
   | { kind: "idle" }
-  | { kind: "confirm"; name: string; text: string }
+  | { kind: "confirm"; name: string; ref: PageRef | null; text: string }
   | { kind: "running"; name: string; attempt: number; characters: number; note: string | null }
   | { kind: "failed"; message: string };
 
@@ -28,11 +29,11 @@ export function FitToPage({
   onResult,
 }: {
   /** The page Fit to page would rewrite (the active sheet). */
-  page: { name: string | null; text: string };
+  page: { name: string | null; ref?: PageRef | null; text: string };
   spec: PageSpec;
   host: () => Promise<ModelHost>;
   /** Save the result beside the source; resolves once it's open. */
-  onResult: (sourceName: string, result: TransformResult) => Promise<void>;
+  onResult: (sourceName: string, result: TransformResult, sourceRef: PageRef | null) => Promise<void>;
 }) {
   const [keySet, setKeySet] = useState(false);
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -65,10 +66,10 @@ export function FitToPage({
 
   function ask() {
     if (!page.name || !page.text.trim()) return;
-    setPhase({ kind: "confirm", name: page.name, text: page.text });
+    setPhase({ kind: "confirm", name: page.name, ref: page.ref ?? null, text: page.text });
   }
 
-  async function send(name: string, text: string) {
+  async function send(name: string, text: string, ref: PageRef | null) {
     // The only place a consent token is minted: for exactly this text.
     const consent = grantConsent(FIT_TO_PAGE_ID, text);
     const controller = new AbortController();
@@ -88,7 +89,7 @@ export function FitToPage({
               : p,
           ),
       });
-      await onResult(name, result);
+      await onResult(name, result, ref);
       setPhase({ kind: "idle" });
     } catch (error) {
       const code = (error as { code?: string }).code;
@@ -175,7 +176,7 @@ export function FitToPage({
             method="dialog"
             onSubmit={(e) => {
               e.preventDefault();
-              void send(phase.name, phase.text);
+              void send(phase.name, phase.text, phase.ref);
             }}
           >
             <h2 id="consent-title">Send this page to Anthropic?</h2>

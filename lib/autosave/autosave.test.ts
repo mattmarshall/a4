@@ -5,41 +5,14 @@ import { parsePageName } from "../store/names.ts";
 import type { PageStore, Revision, WriteResult } from "../store/types.ts";
 import { ensureFirstPage, migrateLegacySlots, recoverDrafts, STALE_DRAFT_MS } from "./bootstrap.ts";
 import { Journal } from "./journal.ts";
-import { PageSession, type Scheduler, type SessionEvent } from "./session.ts";
+import { PageSession, type SessionEvent } from "./session.ts";
+import { FakeScheduler } from "./testing/fake-scheduler.ts";
+import { sheetFiles } from "../folder/faithful.ts";
+import { fileCopyName, parseFilePath, type FilePath } from "../store/refs.ts";
+import { FolderPageFiles } from "../store/folder.ts";
+import { asDirectoryHandle, FakeDirectoryHandle } from "../store/testing/fake-opfs.ts";
 
 const n = parsePageName;
-
-/** Manual clock: timers fire only when `advance` passes their due time. */
-class FakeScheduler implements Scheduler {
-  now = 0;
-  #id = 0;
-  #timers = new Map<number, { at: number; fn: () => void }>();
-  setTimeout(fn: () => void, ms: number): unknown {
-    const id = ++this.#id;
-    this.#timers.set(id, { at: this.now + ms, fn });
-    return id;
-  }
-  clearTimeout(handle: unknown): void {
-    this.#timers.delete(handle as number);
-  }
-  async advance(ms: number): Promise<void> {
-    const end = this.now + ms;
-    for (;;) {
-      const due = [...this.#timers.entries()].filter(([, t]) => t.at <= end).sort((a, b) => a[1].at - b[1].at)[0];
-      if (!due) break;
-      this.#timers.delete(due[0]);
-      this.now = due[1].at;
-      due[1].fn();
-      await settle();
-    }
-    this.now = end;
-    await settle();
-  }
-}
-
-async function settle() {
-  for (let i = 0; i < 20; i++) await new Promise((r) => setImmediate(r));
-}
 
 /** Wraps a store to count writes and inject failures. */
 class FlakyStore implements PageStore {
@@ -248,4 +221,109 @@ test("an empty library gets a Welcome page; a non-empty one does not", async () 
   assert.equal(await ensureFirstPage(store, "hello"), "Welcome");
   assert.equal((await store.read(n("Welcome"))).text, "hello");
   assert.equal(await ensureFirstPage(store, "hello"), null);
+});
+
+// ---------------------------------------------------------------------------
+// Folder files: copies go to the library, and files are never recreated.
+
+async function folderSetup(raw = "# Agents\r\n\tRule one\r\n") {
+  const root = new FakeDirectoryHandle("a4");
+  root.put("AGENTS.md", raw);
+  const files = sheetFiles(new FolderPageFiles(asDirectoryHandle(root), { id: "f1", locks: null }));
+  const library = new MemoryPageStore();
+  const kv = new MemoryKeyValue();
+  const journal = new Journal<FilePath>(kv, "tab1", { prefix: "a4:folder:f1:" });
+  const scheduler = new FakeScheduler();
+  const events: SessionEvent<FilePath>[] = [];
+  const path = parseFilePath("AGENTS.md");
+  const session = new PageSession<FilePath>({
+    store: files,
+    journal,
+    scheduler,
+    copies: library,
+    copyName: fileCopyName,
+    page: await files.read(path),
+    onEvent: (e) => events.push(e),
+  });
+  return { root, files, library, kv, journal, scheduler, events, path, session };
+}
+
+test("a folder file saves faithfully through the session", async () => {
+  const { root, session, scheduler } = await folderSetup();
+  assert.equal(session.text, "# Agents\n  Rule one");
+  session.update("# Agents\n  Rule one\nRule two");
+  await scheduler.advance(600);
+  assert.equal(root.fileAt("AGENTS.md")!.text, "# Agents\r\n\tRule one\r\nRule two\r\n");
+  assert.equal(session.status, "saved");
+});
+
+test("a conflict on a folder file makes a library copy and leaves the file unchanged", async () => {
+  const { root, session, library, events, journal, path } = await folderSetup();
+  root.fileAt("AGENTS.md")!.setContent("checked out\n");
+  session.update("typed in A4");
+  await session.flush();
+  assert.equal(root.fileAt("AGENTS.md")!.text, "checked out\n");
+  const conflict = events.find((e) => e.type === "conflict") as { copy: string; moved: boolean; original: string };
+  assert.ok(conflict);
+  assert.equal(conflict.original, "AGENTS.md");
+  assert.equal(conflict.moved, true);
+  assert.match(conflict.copy, /^AGENTS\.md \(conflict \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\)$/);
+  assert.equal((await library.read(n(conflict.copy))).text, "typed in A4");
+  assert.equal(session.stopped, true);
+  assert.equal(journal.get(path), null);
+  assert.equal(root.children.size, 1);
+});
+
+test("a folder file deleted on disk is not recreated; its text goes to the library", async () => {
+  const { root, session, library, events } = await folderSetup();
+  root.remove("AGENTS.md");
+  session.update("keep this");
+  await session.flush();
+  assert.equal(root.fileAt("AGENTS.md"), undefined);
+  const recreated = events.find((e) => e.type === "recreated") as { name: string; moved: boolean };
+  assert.ok(recreated);
+  assert.equal(recreated.moved, true);
+  assert.match(recreated.name, /^AGENTS\.md \(recovered /);
+  assert.equal((await library.read(n(recreated.name))).text, "keep this");
+});
+
+test("a crashed folder draft is written to the file when the file is unchanged", async () => {
+  const { root, files, library, kv, path } = await folderSetup("v1\n");
+  const page = await files.read(path);
+  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "v1\nunsaved", page.revision);
+  const report = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
+    copies: library,
+    copyName: fileCopyName,
+  });
+  assert.deepEqual(report, [{ kind: "applied", page: "AGENTS.md", savedAs: "AGENTS.md" }]);
+  assert.equal(root.fileAt("AGENTS.md")!.text, "v1\nunsaved\n");
+  assert.deepEqual(await library.list(), []);
+});
+
+test("a crashed folder draft becomes a library copy when the file changed", async () => {
+  const { root, files, library, kv, path } = await folderSetup("v1\n");
+  const page = await files.read(path);
+  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "crashed edits", page.revision);
+  root.fileAt("AGENTS.md")!.setContent("changed later\n");
+  const [r] = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
+    copies: library,
+    copyName: fileCopyName,
+  });
+  assert.equal(r.kind, "copied");
+  assert.match(r.savedAs ?? "", /^AGENTS\.md \(recovered /);
+  assert.equal((await library.read(n(r.savedAs ?? ""))).text, "crashed edits");
+  assert.equal(root.fileAt("AGENTS.md")!.text, "changed later\n");
+});
+
+test("a crashed draft of a deleted folder file goes to the library, not the folder", async () => {
+  const { root, files, library, kv, path } = await folderSetup("v1\n");
+  new Journal<FilePath>(kv, "dead-tab", { prefix: "a4:folder:f1:" }).set(path, "orphan", null);
+  root.remove("AGENTS.md");
+  const [r] = await recoverDrafts(files, new Journal<FilePath>(kv, "new-tab", { prefix: "a4:folder:f1:" }), new Set(), Date.now(), {
+    copies: library,
+    copyName: fileCopyName,
+  });
+  assert.equal(r.kind, "recreated");
+  assert.equal(root.fileAt("AGENTS.md"), undefined);
+  assert.equal((await library.read(n(r.savedAs ?? ""))).text, "orphan");
 });

@@ -1,12 +1,18 @@
 /**
  * The page storage contract.
  *
- * Every backend (OPFS, key-value, future server or folder backends) implements
- * `PageStore` and must pass the shared contract suite in
- * `lib/store/testing/contract.ts`. Application code depends only on this file.
+ * Two levels:
+ * - `PageFiles<Id>`: the core every backend implements (list, read, create,
+ *   write). The folder backend implements only this, keyed by `FilePath`.
+ * - `PageStore`: a library backend (OPFS, key-value, memory), keyed by
+ *   `PageName`, adding rename, trash, restore, and purge.
  *
- * Identity is the page name: a validated, branded string that doubles as the
- * file stem (`<name>.md`). A page's stored content is exactly its text.
+ * Backends must pass the shared suites in `lib/store/testing/contract.ts`.
+ * Application code depends only on this file.
+ *
+ * In the library, identity is the page name: a validated, branded string that
+ * doubles as the file stem (`<name>.md`). A page's stored content is exactly
+ * its text.
  */
 
 declare const pageNameBrand: unique symbol;
@@ -22,22 +28,22 @@ export type Revision = string & { readonly [revisionBrand]: true };
 /** Identifier of a page in the trash. */
 export type TrashId = string & { readonly [trashIdBrand]: true };
 
-export type StoreKind = "opfs" | "local-storage" | "memory";
+export type StoreKind = "opfs" | "local-storage" | "memory" | "folder";
 
-export interface PageSummary {
-  readonly name: PageName;
+export interface PageSummary<Id extends string = PageName> {
+  readonly name: Id;
   /** UTF-8 size in bytes. */
   readonly size: number;
   /** Epoch milliseconds of the last write. */
   readonly modifiedAt: number;
 }
 
-export interface Page extends PageSummary {
+export interface Page<Id extends string = PageName> extends PageSummary<Id> {
   readonly text: string;
   readonly revision: Revision;
 }
 
-export interface WriteResult extends PageSummary {
+export interface WriteResult<Id extends string = PageName> extends PageSummary<Id> {
   readonly revision: Revision;
 }
 
@@ -50,23 +56,30 @@ export interface TrashEntry {
   readonly trashedAt: number;
 }
 
-export interface PageStore {
+/** The core every backend implements, keyed by `Id`. */
+export interface PageFiles<Id extends string = PageName> {
   readonly kind: StoreKind;
   /** False when pages will not survive a reload (in-memory). */
   readonly durable: boolean;
 
   /** All pages, in no particular order. */
-  list(): Promise<PageSummary[]>;
+  list(): Promise<PageSummary<Id>[]>;
   /** @throws PageNotFoundError */
-  read(name: PageName): Promise<Page>;
-  /** @throws PageExistsError (ignoring case), InvalidPageNameError */
-  create(name: PageName, text: string): Promise<WriteResult>;
+  read(name: Id): Promise<Page<Id>>;
+  /** @throws PageExistsError, InvalidPageNameError */
+  create(name: Id, text: string): Promise<WriteResult<Id>>;
   /**
    * Replace a page's text. With `expected`, fails unless the stored content
    * still has that revision.
    * @throws PageNotFoundError, PageConflictError
    */
-  write(name: PageName, text: string, expected?: Revision | null): Promise<WriteResult>;
+  write(name: Id, text: string, expected?: Revision | null): Promise<WriteResult<Id>>;
+}
+
+/** A library backend: the core, keyed by page name, plus library operations. */
+export interface PageStore extends PageFiles<PageName> {
+  /** @throws PageExistsError (ignoring case), InvalidPageNameError */
+  create(name: PageName, text: string): Promise<WriteResult>;
   /**
    * Rename a page, keeping its text. Renaming to a case variant of the same
    * name is allowed.
@@ -85,7 +98,7 @@ export interface PageStore {
 // ---------------------------------------------------------------------------
 // Typed errors
 
-export type PageStoreErrorCode = "not-found" | "exists" | "invalid-name" | "conflict" | "unavailable";
+export type PageStoreErrorCode = "not-found" | "exists" | "invalid-name" | "conflict" | "unavailable" | "unreadable";
 
 export class PageStoreError extends Error {
   readonly code: PageStoreErrorCode;
@@ -135,6 +148,19 @@ export class PageConflictError extends PageStoreError {
 export class StoreUnavailableError extends PageStoreError {
   constructor(message: string) {
     super("unavailable", message);
+  }
+}
+
+/** Why a folder file can't be opened as a page. */
+export type UnreadableReason = "too-large" | "not-utf8";
+
+export class FileUnreadableError extends PageStoreError {
+  readonly page: string;
+  readonly reason: UnreadableReason;
+  constructor(page: string, reason: UnreadableReason) {
+    super("unreadable", reason === "too-large" ? `“${page}” is too large to open.` : `“${page}” isn’t UTF-8 text.`);
+    this.page = page;
+    this.reason = reason;
   }
 }
 

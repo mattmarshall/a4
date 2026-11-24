@@ -16,7 +16,7 @@ import {
 } from "@/lib/page-spec";
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
 import { KEYS, readKey, writeKey } from "@/lib/storage";
-import type { PageName } from "@/lib/store";
+import { baseName, copyNameFor, decodeRef, encodeRef, libraryRef, sameRef, type PageName, type PageRef } from "@/lib/store";
 import { FLAT, type Pose } from "@/lib/paper/deform";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
@@ -129,6 +129,8 @@ export function Workbench() {
   const [showGrid, setShowGrid] = useState(false);
   const [mode, setMode] = useState<Mode>("single");
   const [showLibrary, setShowLibrary] = useState(true);
+  /** "Save to folder…" was chosen: the Pages panel asks for a path. */
+  const [saveRequest, setSaveRequest] = useState<{ name: string; slot: Slot } | null>(null);
   const [settingsReady, setSettingsReady] = useState(false);
   const [active, setActive] = useState<Slot>("a");
   const [render, setRender] = useState<Render>("3d");
@@ -354,14 +356,16 @@ export function Workbench() {
   })();
 
   // Fit to page: the result opens as B, beside its source as A.
-  async function openFitResult(sourceName: string, result: TransformResult) {
+  async function openFitResult(sourceName: string, result: TransformResult, sourceRef: PageRef | null = null) {
     setMode("compare");
     setZoom({ kind: "fit" });
-    if (lib.slotA.name !== sourceName) {
-      if (lib.slotB.name === sourceName) await lib.swapSlots();
-      else await lib.openInSlot("a", sourceName as PageName);
+    const ref = sourceRef ?? libraryRef(sourceName as PageName);
+    if (!sameRef(lib.slotA.ref, ref)) {
+      if (sameRef(lib.slotB.ref, ref)) await lib.swapSlots();
+      else await lib.openInSlot("a", ref);
     }
-    const name = await lib.createPage(`${sourceName} (fit)`, result.text, "b");
+    // Copies of folder files go to the library, named after the path.
+    const name = await lib.createPage(copyNameFor(ref, " (fit)"), result.text, "b");
     setActive("b");
     if (!name) return;
     notify(
@@ -395,8 +399,8 @@ export function Workbench() {
   }
 
   function clearPage() {
-    if (!targetSlot.name || targetSlot.text === "") return;
-    if (!window.confirm(`Clear all text on “${targetSlot.name}”?`)) return;
+    if (!targetSlot.label || targetSlot.text === "") return;
+    if (!window.confirm(`Clear all text on “${targetSlot.label}”?`)) return;
     lib.edit(target, "");
     (target === "a" ? sheetA : sheetB).current?.focus();
   }
@@ -404,7 +408,7 @@ export function Workbench() {
   async function copyText() {
     try {
       await navigator.clipboard.writeText(targetSlot.text);
-      notify(`Copied “${targetSlot.name}” (${targetSlot.text.length.toLocaleString("en-US")} characters)`);
+      notify(`Copied “${targetSlot.label}” (${targetSlot.text.length.toLocaleString("en-US")} characters)`);
     } catch {
       notify("Copy failed: clipboard access was blocked", "warn");
     }
@@ -422,7 +426,8 @@ export function Workbench() {
   }
 
   function downloadText() {
-    saveFile(new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" }), `${slugFromText(targetSlot.name ?? "")}.md`);
+    const fileName = targetSlot.ref?.kind === "file" ? baseName(targetSlot.ref.path) : `${slugFromText(targetSlot.name ?? "")}.md`;
+    saveFile(new Blob([targetSlot.text], { type: "text/markdown;charset=utf-8" }), fileName);
   }
 
   async function exportAll() {
@@ -471,22 +476,39 @@ export function Workbench() {
 
   function slotPicker(slot: Slot) {
     const state = slot === "a" ? lib.slotA : lib.slotB;
+    const folderState = lib.folder.state;
+    const files = folderState.status === "connected" ? lib.folder.files.filter((f) => !f.unreadable) : [];
     return (
       <select
         className="select slot-select"
         aria-label={`Page in slot ${slot.toUpperCase()}`}
-        value={state.name ?? ""}
-        onChange={(e) => void lib.openInSlot(slot, e.target.value as PageName)}
+        value={encodeRef(state.ref)}
+        onChange={(e) => {
+          const ref = decodeRef(e.target.value);
+          if (ref) lib.openInSlot(slot, ref).catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
+        }}
       >
-        {lib.pages.map((p) => (
-          <option key={p.name} value={p.name}>
-            {p.name}
-          </option>
-        ))}
+        <optgroup label="Library">
+          {lib.pages.map((p) => (
+            <option key={p.name} value={encodeRef(libraryRef(p.name))}>
+              {p.name}
+            </option>
+          ))}
+        </optgroup>
+        {files.length ? (
+          <optgroup label={folderState.status === "connected" ? folderState.name : "Folder"}>
+            {files.map((f) => (
+              <option key={f.path} value={encodeRef({ kind: "file", path: f.path })}>
+                {f.path}
+              </option>
+            ))}
+          </optgroup>
+        ) : null}
       </select>
     );
   }
 
+  const folderName = lib.folder.state.status === "connected" || lib.folder.state.status === "reconnect" ? lib.folder.state.name : "Folder";
   const targetAnalysis = target === "a" ? analysisA : analysisB;
   const legendShown = Boolean(modelLens) || lens !== "ink";
   const sheetsStyle = { "--a4-3d-height": `${stageHeight}px` } as CSSProperties;
@@ -512,7 +534,16 @@ export function Workbench() {
             </button>
 
             <div className="doc-title">
-              <PageNameField name={targetSlot.name} onRename={(input) => lib.renamePage(targetSlot.name!, input)} />
+              {targetSlot.ref?.kind === "file" ? (
+                <span className="file-title" title={`${folderName} / ${targetSlot.ref.path}`}>
+                  <span className="file-folder">{folderName}</span>
+                  <span className="file-path" aria-label="File path">
+                    {targetSlot.ref.path}
+                  </span>
+                </span>
+              ) : (
+                <PageNameField name={targetSlot.name} onRename={(input) => lib.renamePage(targetSlot.name!, input)} />
+              )}
               <SaveStatusPill status={targetSlot.status} />
             </div>
 
@@ -604,9 +635,21 @@ export function Workbench() {
                   <MenuItem close={close} onSelect={() => window.print()}>
                     <strong>Print</strong>
                   </MenuItem>
+                  {lib.folder.state.status === "connected" && targetSlot.ref?.kind === "library" ? (
+                    <MenuItem
+                      close={close}
+                      onSelect={() => {
+                        setSaveRequest({ name: targetSlot.name ?? "Untitled", slot: target });
+                        setShowLibrary(true);
+                      }}
+                    >
+                      <strong>Save to folder…</strong>
+                      <span>Write this page to a new file in {lib.folder.state.name}</span>
+                    </MenuItem>
+                  ) : null}
                   <div className="menu-sep" />
                   <MenuItem close={close} onSelect={clearPage}>
-                    <strong>Clear “{targetSlot.name ?? "page"}”</strong>
+                    <strong>Clear “{targetSlot.label ?? "page"}”</strong>
                     <span>Erase this page’s text (autosaved)</span>
                   </MenuItem>
                 </>
@@ -730,6 +773,37 @@ export function Workbench() {
             onPurge={(ids) => void lib.purgePages(ids)}
             onExportAll={() => void exportAll()}
             onImport={(file) => void importFile(file)}
+            folder={lib.folder}
+            openFiles={{
+              a: lib.slotA.ref?.kind === "file" ? lib.slotA.ref.path : null,
+              b: mode === "compare" && lib.slotB.ref?.kind === "file" ? lib.slotB.ref.path : null,
+            }}
+            saveRequest={saveRequest}
+            onOpenFolder={() => void lib.openFolder()}
+            onReconnect={() => void lib.reconnectFolder()}
+            onCloseFolder={() => void lib.closeFolder()}
+            onOpenFile={(path, slot) => {
+              setActive(slot);
+              lib
+                .openInSlot(slot, { kind: "file", path })
+                .then(() => {
+                  if (window.innerWidth < 1100) setShowLibrary(false);
+                })
+                .catch((error) => notify(error instanceof Error ? error.message : String(error), "warn"));
+            }}
+            onDuplicateFile={(path) => {
+              void lib.duplicatePage({ kind: "file", path }).then((name) => {
+                if (name) notify(`Copied “${path}” into the library as “${name}”.`);
+              });
+            }}
+            onNewFile={(path) => lib.createFile(path, "", target)}
+            onSaveToFolder={async (path) => {
+              if (!saveRequest) return null;
+              const error = await lib.saveToFolder(path, saveRequest.slot);
+              if (!error) setSaveRequest(null);
+              return error;
+            }}
+            onCancelSave={() => setSaveRequest(null)}
           />
         ) : null}
 
@@ -858,7 +932,7 @@ export function Workbench() {
                 compressB={compressB}
                 onSwap={() => void lib.swapSlots()}
                 onCopyAToB={() => {
-                  if (lib.slotA.name) void lib.duplicatePage(lib.slotA.name, "b");
+                  if (lib.slotA.ref) void lib.duplicatePage(lib.slotA.ref, "b");
                 }}
               />
             ) : (
@@ -872,7 +946,7 @@ export function Workbench() {
               onSelectPair={selectLaterUnit}
               fit={
                 <FitToPage
-                  page={{ name: targetSlot.name, text: targetSlot.text }}
+                  page={{ name: targetSlot.label, ref: targetSlot.ref, text: targetSlot.text }}
                   spec={spec}
                   host={models.host}
                   onResult={openFitResult}

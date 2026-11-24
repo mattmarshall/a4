@@ -393,18 +393,23 @@ the page text, so a file can be handed to an agent as is.
     trash/<page name>.<deleted-at>.md
 ```
 
-- **Typed store** (`lib/store/`): every backend implements the `PageStore`
-  contract in `lib/store/types.ts`. That contract covers list, read, create,
-  write, rename, trash, restore, and purge. It uses validated `PageName`
-  values, content-hash `Revision`s for conflict detection, and typed errors.
-  The backends are:
+- **Typed store** (`lib/store/`): the contracts in `lib/store/types.ts` use
+  content-hash `Revision`s for conflict detection and typed errors.
+  - **Core** (`PageFiles`): list, read, create, and write. Every backend
+    implements it.
+  - **Library** (`PageStore`): adds rename, trash, restore, and purge, keyed
+    by validated `PageName` values.
+
+  The library backends are:
   - `OpfsPageStore`, the default.
   - `KeyValuePageStore` over `localStorage`, used where OPFS writable files
     are unavailable. Its pages move into OPFS once OPFS is available.
   - `MemoryPageStore`.
 
-  A new backend must pass the shared suite in
-  `lib/store/testing/contract.ts`.
+  `FolderPageFiles` implements only the core, for a folder you open (see
+  [Folders](#folders)). New backends must pass the shared suites in
+  `lib/store/testing/contract.ts`: `pageFilesContract` for the core, and
+  `pageStoreContract` for a library backend.
 - **Autosave** (`lib/autosave/`):
   - Every edit is journaled to `localStorage` synchronously, per tab and
     page.
@@ -442,6 +447,65 @@ the page text, so a file can be handed to an agent as is.
   (`lib/fixtures/`).
 - **Upgrading**: text from the earlier single-page version (`a4:text:a` and
   `a4:text:b`) is imported as pages on first load. The old keys are kept.
+
+## Folders
+
+Open a folder, such as a repository, to edit its agent context files in place
+as A4 pages. This needs a browser with a folder picker: Chrome or Edge. In
+Safari and Firefox, the Pages panel says so, and the library works as before.
+
+- **Opening:** choose **Open folder…** below the library list, and allow A4
+  to edit the folder. A4 shows one folder at a time and remembers it.
+  **Close** saves open files and forgets the folder; files are never changed
+  by closing.
+- **What's listed:**
+  - **Context files**, at any depth: `AGENTS.md`, `CLAUDE.md`,
+    `CLAUDE.local.md`, `GEMINI.md`, `SKILL.md`, Markdown in
+    `.claude/agents/` and `.claude/commands/`,
+    `.github/copilot-instructions.md`, `.github/instructions/*.instructions.md`,
+    and `.cursor/rules/*.mdc`. Each shows its rows on the 80 × 60 Terminal
+    grid, in red when it runs over 60.
+  - **Other Markdown**, in a collapsed group.
+  - **Skipped:** `.git`, `node_modules`, `dist`, `build`, `out`, `target`,
+    `vendor`, `.next`, `.venv`, and other dot-folders (except `.claude`,
+    `.github`, `.cursor`, and `.agents`). The scan stops after 20,000
+    entries. Files over 1 MiB, and files that aren't UTF-8 text, are listed
+    with the reason and don't open.
+
+  The search box filters folder files by path.
+- **Editing:** a file opens like any page, with the same metrics, lenses, 3D,
+  copy, download, print, and Compare. The header shows the folder and the
+  path; files can't be renamed or deleted from A4.
+- **Faithful saves:** edits save to the file with the library's autosave
+  timing. Lines you didn't touch keep their exact bytes: tabs, CRLF line
+  endings, a byte-order mark, and the final newline. On the sheet, tabs show
+  as two spaces; an edited line is saved as you see it. A file longer than
+  one page is never cut short. Opening a file without editing it never
+  writes it. (`lib/folder/faithful.ts` diffs the file's lines against the
+  sheet's and keeps every matched line.)
+- **Changes made elsewhere:** while the tab is visible, A4 checks the open
+  files every second. A file changed by an editor, an agent, or
+  `git checkout` reloads if you have no unsaved edits. If you do, A4 never
+  overwrites the file: your version is saved as a library page,
+  "AGENTS.md (conflict …)", and opens in its place.
+- **Copies go to the library**, never the folder: conflict copies, edits to a
+  file deleted on disk ("(recovered …)"), recovered drafts that no longer
+  apply, Fit to page results, and **Duplicate to library**. They're named
+  after the path, with `/` shown as `›`.
+- **Creating files:** **+ New file** in the folder section creates a file at
+  a path you give (`.md` or `.mdc`), and **Page → Save to folder…** writes the
+  open library page to a new path. Neither overwrites an existing file or
+  writes outside the folder.
+- **After a reload:** the folder reconnects by itself when the browser keeps
+  the permission (Chrome's "Allow on every visit"). Otherwise the folder
+  section shows **Reconnect**, and the files you had open reopen once you
+  allow it. A moved or deleted folder shows **Folder not found**.
+- **Privacy:** files are read and written on this device; nothing about them
+  is uploaded. Fit to page still asks before each call.
+- **Under the hood:** the folder's handle is kept in IndexedDB (`a4` →
+  `folders`), and its drafts in `localStorage` under `a4:folder:<id>:`.
+  While Chrome saves a file, a temporary `<file>.crswap` appears next to it
+  for a moment.
 
 ## Deploy to a4.marsh.build
 

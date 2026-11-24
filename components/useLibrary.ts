@@ -1,11 +1,15 @@
 "use client";
 
 /**
- * useLibrary: the page library and the open pages (slots A and B).
+ * useLibrary: the page library, the open folder, and the open pages (slots A
+ * and B).
  *
  * Owns the PageStore, one PageSession per open slot, startup recovery and
- * migration, cross-tab refresh (BroadcastChannel), and flush-on-hide. UI code
- * talks to pages only through the actions returned here.
+ * migration, cross-tab refresh (BroadcastChannel), and flush-on-hide. A slot
+ * holds a page reference: a library page, or a file in the open folder. File
+ * sessions read and write sheet text through the faithful adapter, and their
+ * copies (conflicts, deleted files) go to the library. UI code talks to pages
+ * only through the actions returned here.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -15,32 +19,57 @@ import {
   migrateLegacySlots,
   PageSession,
   recoverDrafts,
+  realScheduler,
   type Recovery,
   type SaveStatus,
   type SessionEvent,
 } from "@/lib/autosave";
 import { buildLibraryArchive, type LibraryArchive } from "@/lib/export";
+import { FolderConnection, IdbHandleStore, type ConnectedFolder, type FolderState } from "@/lib/folder/connection";
+import { scanFolder, type FolderFile } from "@/lib/folder/scan";
+import { FileWatcher } from "@/lib/folder/watch";
 import { importZip, type ImportReport } from "@/lib/import";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
 import { browserKeyValue, KEYS, readKey, writeKey } from "@/lib/storage";
 import {
   availableName,
+  copyNameFor,
+  decodeRef,
+  encodeRef,
+  fileCopyName,
+  FileUnreadableError,
+  fileRef,
+  folderPickerSupported,
   isStoreError,
+  libraryRef,
   openPageStore,
+  parseFilePath,
   parsePageName,
+  refLabel,
+  sameRef,
+  type FilePath,
   type KeyValue,
   type PageName,
+  type PageRef,
   type PageStore,
   type PageSummary,
   type StoreKind,
   type TrashEntry,
   type TrashId,
+  type UnreadableReason,
 } from "@/lib/store";
+import { layoutRows, rowsUsed } from "@/lib/text";
+import { PRESETS } from "@/lib/page-spec";
 
 export type Slot = "a" | "b";
 
 export interface SlotState {
+  /** What is open: a library page or a folder file. */
+  ref: PageRef | null;
+  /** The library page's name; null for a file. */
   name: PageName | null;
+  /** The page name or the file path, for display. */
+  label: string | null;
   text: string;
   status: SaveStatus;
 }
@@ -51,27 +80,45 @@ export interface StorageInfo {
   persistent: boolean | null;
 }
 
+export interface FolderView {
+  state: FolderState;
+  files: FolderFile[];
+  partial: boolean;
+  scanning: boolean;
+}
+
 export type Notify = (message: string, tone?: "info" | "warn") => void;
 
-const EMPTY_SLOT: SlotState = { name: null, text: "", status: "saved" };
+const EMPTY_SLOT: SlotState = { ref: null, name: null, label: null, text: "", status: "saved" };
 const CHANNEL = "a4-pages";
 const SKIP_MIGRATION = [WELCOME, INCIDENT_JSON, INCIDENT_NARRATIVE, ...TEMPLATES.map((t) => t.text)];
+const SLOTS = ["a", "b"] as const;
+
+type AnySession = PageSession<PageName> | PageSession<FilePath>;
+interface OpenPage {
+  ref: PageRef;
+  session: AnySession;
+}
 
 interface Boot {
   store: PageStore;
   journal: Journal;
   kv: KeyValue;
+  tabId: string;
   recoveries: Recovery[];
   migrated: PageName[];
   movedFromFallback: number;
   persistent: boolean | null;
 }
 
-/** Hold a Web Lock for this tab's lifetime; return the ids of all live tabs. */
-async function holdTabLock(tabId: string): Promise<Set<string> | null> {
+function refPatch(ref: PageRef | null): Pick<SlotState, "ref" | "name" | "label"> {
+  return { ref, name: ref?.kind === "library" ? ref.name : null, label: ref ? refLabel(ref) : null };
+}
+
+/** The ids of all live tabs (from Web Locks), or null when unknown. */
+async function liveTabs(): Promise<Set<string> | null> {
   const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
   if (!locks) return null;
-  void locks.request(`a4:tab:${tabId}`, () => new Promise<void>(() => {}));
   try {
     const snapshot = await locks.query();
     const names = [...(snapshot.held ?? []), ...(snapshot.pending ?? [])].map((l) => l.name ?? "");
@@ -79,6 +126,14 @@ async function holdTabLock(tabId: string): Promise<Set<string> | null> {
   } catch {
     return null;
   }
+}
+
+/** Hold a Web Lock for this tab's lifetime; return the ids of all live tabs. */
+async function holdTabLock(tabId: string): Promise<Set<string> | null> {
+  const locks = typeof navigator !== "undefined" ? navigator.locks : undefined;
+  if (!locks) return null;
+  void locks.request(`a4:tab:${tabId}`, () => new Promise<void>(() => {}));
+  return liveTabs();
 }
 
 let bootPromise: Promise<Boot> | null = null;
@@ -104,7 +159,7 @@ function boot(): Promise<Boot> {
     } catch {
       persistent = null;
     }
-    return { store, journal, kv, recoveries, migrated, movedFromFallback, persistent };
+    return { store, journal, kv, tabId, recoveries, migrated, movedFromFallback, persistent };
   })();
   return bootPromise;
 }
@@ -117,6 +172,12 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+function errorName(error: unknown): string | undefined {
+  return typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
+}
+
+const TERMINAL_COLS = PRESETS.terminal.cols;
+
 export function useLibrary(notify: Notify) {
   const [ready, setReady] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
@@ -125,16 +186,32 @@ export function useLibrary(notify: Notify) {
   const [slotA, setSlotA] = useState<SlotState>(EMPTY_SLOT);
   const [slotB, setSlotB] = useState<SlotState>(EMPTY_SLOT);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
+  const [folderState, setFolderState] = useState<FolderState>({ status: "none" });
+  const [folderFiles, setFolderFiles] = useState<FolderFile[]>([]);
+  const [folderPartial, setFolderPartial] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   const bootRef = useRef<Boot | null>(null);
-  const sessions = useRef<Record<Slot, PageSession | null>>({ a: null, b: null });
+  const sessions = useRef<Record<Slot, OpenPage | null>>({ a: null, b: null });
+  const latestText = useRef<Record<Slot, string>>({ a: "", b: "" });
   const channel = useRef<BroadcastChannel | null>(null);
   const askedPersist = useRef(false);
+  const connectionRef = useRef<FolderConnection | null>(null);
+  const watcherRef = useRef<FileWatcher | null>(null);
+  /** File slots remembered from the last visit, waiting for the folder to connect. */
+  const pendingFiles = useRef<Record<Slot, { ref: PageRef; fallback: PageRef | null } | null>>({ a: null, b: null });
+  /** Files that failed to open, kept across rescans until they change on disk. */
+  const unreadable = useRef(new Map<string, { reason: UnreadableReason; modifiedAt: number }>());
   const notifyRef = useRef(notify);
   notifyRef.current = notify;
 
   const setSlot = useCallback((slot: Slot, patch: Partial<SlotState>) => {
     (slot === "a" ? setSlotA : setSlotB)((s) => ({ ...s, ...patch }));
+  }, []);
+
+  const connected = useCallback((): ConnectedFolder | null => {
+    const state = connectionRef.current?.state;
+    return state?.status === "connected" ? state.folder : null;
   }, []);
 
   const broadcast = useCallback((name: string) => {
@@ -155,95 +232,284 @@ export function useLibrary(notify: Notify) {
     return sorted;
   }, []);
 
-  const remember = useCallback((slot: Slot, name: PageName | null) => {
-    writeKey(slot === "a" ? KEYS.openA : KEYS.openB, name ?? "");
+  const rescan = useCallback(async () => {
+    const folder = connected();
+    if (!folder) return [] as FolderFile[];
+    setScanning(true);
+    try {
+      const scan = await scanFolder(folder.handle);
+      if (connected() !== folder) return [] as FolderFile[];
+      const files = scan.files.map((f) => {
+        const known = unreadable.current.get(f.path);
+        if (!known || f.unreadable) return f;
+        if (known.modifiedAt !== f.modifiedAt) {
+          unreadable.current.delete(f.path);
+          return f;
+        }
+        return { ...f, unreadable: known.reason, rows: null };
+      });
+      setFolderFiles(files);
+      setFolderPartial(scan.partial);
+      return files;
+    } catch (error) {
+      if (errorName(error) === "NotFoundError" || errorName(error) === "NotAllowedError") {
+        await connectionRef.current?.restore();
+      } else {
+        notifyRef.current(`Couldn’t list the folder: ${errorMessage(error)}`, "warn");
+      }
+      return [] as FolderFile[];
+    } finally {
+      setScanning(false);
+    }
+  }, [connected]);
+
+  const remember = useCallback((slot: Slot, ref: PageRef | null) => {
+    writeKey(slot === "a" ? KEYS.openA : KEYS.openB, encodeRef(ref));
   }, []);
 
+  /** Re-point the file watcher at whatever files the slots hold now. */
+  const rewatch = useCallback(() => {
+    const watcher = watcherRef.current;
+    if (!watcher) return;
+    for (const slot of SLOTS) {
+      const open = sessions.current[slot];
+      if (open?.ref.kind === "file") watcher.watch(slot, open.ref.path, open.session as PageSession<FilePath>);
+      else watcher.unwatch(slot);
+    }
+  }, []);
+
+  // Assigned below; session events need to open copies.
+  const openRef = useRef<(slot: Slot, target: PageRef | PageName | null, options?: { remember?: boolean }) => Promise<void>>(
+    async () => {},
+  );
+
+  /** A file session stopped and its text is now a library page: open that page in the slot. */
+  const followCopy = useCallback(async (slot: Slot, copy: PageName) => {
+    const typed = latestText.current[slot];
+    await openRef.current(slot, libraryRef(copy));
+    const open = sessions.current[slot];
+    if (open && open.session.text !== typed) {
+      (open.session as PageSession<PageName>).update(typed);
+      setSlot(slot, { text: typed, status: open.session.status });
+    }
+  }, [setSlot]);
+
   const onSessionEvent = useCallback(
-    (slot: Slot, event: SessionEvent) => {
+    (slot: Slot, ref: PageRef, event: SessionEvent<string>) => {
       switch (event.type) {
         case "status":
           setSlot(slot, { status: event.status });
           break;
         case "saved":
-          setPages((list) =>
-            byRecent(
-              list.map((p) =>
-                p.name === event.result.name ? { ...p, size: event.result.size, modifiedAt: event.result.modifiedAt } : p,
+          if (ref.kind === "library") {
+            setPages((list) =>
+              byRecent(
+                list.map((p) =>
+                  p.name === event.result.name ? { ...p, size: event.result.size, modifiedAt: event.result.modifiedAt } : p,
+                ),
               ),
-            ),
-          );
-          broadcast(event.result.name);
+            );
+            broadcast(event.result.name);
+          } else {
+            const text = sessions.current[slot]?.session.text ?? "";
+            const rows = rowsUsed(layoutRows(text, TERMINAL_COLS));
+            setFolderFiles((files) =>
+              files.map((f) =>
+                f.path === ref.path
+                  ? { ...f, size: event.result.size, modifiedAt: event.result.modifiedAt, rows: f.group === "context" ? rows : f.rows }
+                  : f,
+              ),
+            );
+          }
           break;
         case "conflict":
-          setSlot(slot, { name: event.copy });
-          remember(slot, event.copy);
-          notifyRef.current(
-            `“${event.original}” was changed in another tab. Your version was saved as “${event.copy}”.`,
-            "warn",
-          );
-          void refresh();
+          if (event.moved) {
+            notifyRef.current(
+              `“${event.original}” changed on disk, so your version was saved in the library as “${event.copy}”. The file was not changed.`,
+              "warn",
+            );
+            void refresh().then(() => followCopy(slot, event.copy));
+          } else {
+            setSlot(slot, refPatch(libraryRef(event.copy)));
+            const open = sessions.current[slot];
+            if (open) open.ref = libraryRef(event.copy);
+            remember(slot, libraryRef(event.copy));
+            notifyRef.current(
+              `“${event.original}” was changed in another tab. Your version was saved as “${event.copy}”.`,
+              "warn",
+            );
+            void refresh();
+          }
           broadcast("");
           break;
         case "recreated":
-          setSlot(slot, { name: event.name });
-          remember(slot, event.name);
-          notifyRef.current(`“${event.original}” was deleted elsewhere, so your edits were saved as “${event.name}”.`, "warn");
-          void refresh();
+          if (event.moved) {
+            notifyRef.current(
+              `“${event.original}” was deleted on disk, so your edits were saved in the library as “${event.name}”.`,
+              "warn",
+            );
+            void refresh().then(() => followCopy(slot, event.name));
+          } else {
+            setSlot(slot, refPatch(libraryRef(event.name)));
+            const open = sessions.current[slot];
+            if (open) open.ref = libraryRef(event.name);
+            remember(slot, libraryRef(event.name));
+            notifyRef.current(`“${event.original}” was deleted elsewhere, so your edits were saved as “${event.name}”.`, "warn");
+            void refresh();
+          }
           broadcast("");
           break;
         case "error":
           break;
       }
     },
-    [broadcast, refresh, remember, setSlot],
+    [broadcast, followCopy, refresh, remember, setSlot],
   );
 
-  /** Open `name` in `slot`, saving whatever was open there first. */
+  /** Open a page or file in `slot`, saving whatever was open there first. */
   const openInSlot = useCallback(
-    async (slot: Slot, name: PageName | null): Promise<void> => {
+    async (slot: Slot, target: PageRef | PageName | null, options: { remember?: boolean } = {}): Promise<void> => {
       const b = bootRef.current;
       if (!b) return;
+      const ref: PageRef | null = typeof target === "string" ? libraryRef(target) : target;
+      const keep = options.remember ?? true;
       const other: Slot = slot === "a" ? "b" : "a";
       const current = sessions.current[slot];
-      if (name && current?.name === name) return;
-      if (name && sessions.current[other]?.name === name) {
+      if (ref && current && sameRef(current.ref, ref)) return;
+      if (ref && sessions.current[other] && sameRef(sessions.current[other]!.ref, ref)) {
         // A page can be open in one slot only: exchange the two slots.
         sessions.current[slot] = sessions.current[other];
         sessions.current[other] = current;
-        for (const s of ["a", "b"] as const) {
-          const session = sessions.current[s];
-          setSlot(s, session ? { name: session.name, text: session.text, status: session.status } : EMPTY_SLOT);
-          remember(s, session?.name ?? null);
+        for (const s of SLOTS) {
+          const open = sessions.current[s];
+          latestText.current[s] = open?.session.text ?? "";
+          setSlot(s, open ? { ...refPatch(open.ref), text: open.session.text, status: open.session.status } : EMPTY_SLOT);
+          remember(s, open?.ref ?? null);
         }
+        rewatch();
         return;
       }
-      if (current) await current.dispose();
-      sessions.current[slot] = null;
-      if (!name) {
+
+      // Read first, so a file that can't be opened leaves the slot as it was.
+      let session: AnySession | null = null;
+      let text = "";
+      if (ref?.kind === "library") {
+        const page = await b.store.read(ref.name);
+        text = page.text;
+        const s: PageSession<PageName> = new PageSession<PageName>({
+          store: b.store,
+          journal: b.journal,
+          page,
+          onEvent: (e) => {
+            const at = SLOTS.find((x) => sessions.current[x]?.session === s);
+            if (at) onSessionEvent(at, sessions.current[at]!.ref, e);
+          },
+        });
+        session = s;
+      } else if (ref?.kind === "file") {
+        const folder = connected();
+        if (!folder) throw new Error("Connect the folder to open its files.");
+        let page: Awaited<ReturnType<typeof folder.sheet.read>>;
+        try {
+          page = await folder.sheet.read(ref.path);
+        } catch (error) {
+          // Show why in the list, so the file reads as one that can't open.
+          if (error instanceof FileUnreadableError) {
+            const reason = error.reason;
+            setFolderFiles((files) =>
+              files.map((f) => {
+                if (f.path !== ref.path) return f;
+                unreadable.current.set(f.path, { reason, modifiedAt: f.modifiedAt });
+                return { ...f, unreadable: reason, rows: null };
+              }),
+            );
+          }
+          throw error;
+        }
+        text = page.text;
+        const s: PageSession<FilePath> = new PageSession<FilePath>({
+          store: folder.sheet,
+          journal: folder.journal,
+          page,
+          copies: b.store,
+          copyName: fileCopyName,
+          onEvent: (e) => {
+            const at = SLOTS.find((x) => sessions.current[x]?.session === s);
+            if (at) onSessionEvent(at, sessions.current[at]!.ref, e);
+          },
+        });
+        session = s;
+      }
+
+      if (current) await current.session.dispose();
+      watcherRef.current?.unwatch(slot);
+      sessions.current[slot] = ref && session ? { ref, session } : null;
+      latestText.current[slot] = text;
+      if (!ref || !session) {
         setSlot(slot, EMPTY_SLOT);
-        remember(slot, null);
+        if (keep) remember(slot, null);
         return;
       }
-      const page = await b.store.read(name);
-      // Events go to whichever slot holds the session now, so swaps need no rebinding.
-      const session: PageSession = new PageSession({
-        store: b.store,
-        journal: b.journal,
-        page,
-        onEvent: (e) => {
-          const at = (["a", "b"] as const).find((s) => sessions.current[s] === session);
-          if (at) onSessionEvent(at, e);
+      if (ref.kind === "file") watcherRef.current?.watch(slot, ref.path, session as PageSession<FilePath>);
+      setSlot(slot, { ...refPatch(ref), text, status: "saved" });
+      if (keep) remember(slot, ref);
+    },
+    [connected, onSessionEvent, remember, rewatch, setSlot],
+  );
+  openRef.current = openInSlot;
+
+  /** After the folder connects: recover its drafts, list it, and reopen remembered files. */
+  const onConnected = useCallback(
+    async (folder: ConnectedFolder) => {
+      const b = bootRef.current;
+      if (!b) return;
+      watcherRef.current?.stop();
+      watcherRef.current = new FileWatcher({
+        folder,
+        scheduler: realScheduler,
+        isVisible: () => typeof document === "undefined" || document.visibilityState === "visible",
+        onReloaded: (key, page) => {
+          const slot = key as Slot;
+          latestText.current[slot] = page.text;
+          setSlot(slot, { text: page.text });
+          notifyRef.current(`“${page.name}” changed on disk and was reloaded.`);
         },
       });
-      sessions.current[slot] = session;
-      setSlot(slot, { name: page.name, text: page.text, status: "saved" });
-      remember(slot, page.name);
+      try {
+        const recovered = (await connectionRef.current?.recover(b.store, await liveTabs())) ?? [];
+        const shown = recovered.filter((r) => r.kind !== "discarded");
+        if (shown.length) {
+          await refresh();
+          notifyRef.current(
+            `Recovered unsaved edits to ${shown
+              .map((r) => (r.kind === "applied" ? `“${r.page}”` : `“${r.page}” (saved in the library as “${r.savedAs}”)`))
+              .join(", ")}.`,
+            "warn",
+          );
+        }
+      } catch (error) {
+        notifyRef.current(`Couldn’t recover drafts for “${folder.name}”: ${errorMessage(error)}`, "warn");
+      }
+      await rescan();
+      for (const slot of SLOTS) {
+        const pending = pendingFiles.current[slot];
+        if (!pending) continue;
+        pendingFiles.current[slot] = null;
+        const open = sessions.current[slot];
+        const untouched = pending.fallback ? !!open && sameRef(open.ref, pending.fallback) : !open;
+        if (!untouched) continue;
+        try {
+          await openInSlot(slot, pending.ref);
+        } catch (error) {
+          if (!isStoreError(error, "not-found")) notifyRef.current(errorMessage(error), "warn");
+        }
+      }
+      rewatch();
     },
-    [onSessionEvent, remember, setSlot],
+    [openInSlot, refresh, rescan, rewatch, setSlot],
   );
 
-  // Boot: open the store, recover, migrate, open the last pages.
+  // Boot: open the store, recover, migrate, open the last pages, reconnect the folder.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -254,10 +520,16 @@ export function useLibrary(notify: Notify) {
         setStorage({ kind: b.store.kind, durable: b.store.durable, persistent: b.persistent });
         const list = await refresh();
         const names = new Set(list.map((p) => p.name as string));
-        const savedA = readKey(KEYS.openA);
-        const first =
-          savedA && names.has(savedA) ? (savedA as PageName) : (list.find((p) => p.name === "Welcome")?.name ?? list[0]?.name ?? null);
-        await openInSlot("a", first);
+        const fallback = list.find((p) => p.name === "Welcome")?.name ?? list[0]?.name ?? null;
+        const savedA = decodeRef(readKey(KEYS.openA));
+        const savedB = decodeRef(readKey(KEYS.openB));
+        if (savedA?.kind === "file") {
+          pendingFiles.current.a = { ref: savedA, fallback: fallback ? libraryRef(fallback) : null };
+          await openInSlot("a", fallback, { remember: false });
+        } else {
+          await openInSlot("a", savedA && names.has(savedA.name) ? savedA.name : fallback);
+        }
+        if (savedB?.kind === "file") pendingFiles.current.b = { ref: savedB, fallback: null };
         setReady(true);
         const recovered = b.recoveries.filter((r) => r.kind !== "discarded");
         if (recovered.length) {
@@ -269,6 +541,18 @@ export function useLibrary(notify: Notify) {
         if (b.migrated.length) notifyRef.current(`Imported ${b.migrated.length} page(s) from the previous version.`);
         if (b.movedFromFallback) notifyRef.current(`Moved ${b.movedFromFallback} page(s) into the file system store.`);
         if (!b.store.durable) notifyRef.current("This browser can’t store pages. Work will be lost on reload.", "warn");
+
+        const connection = new FolderConnection({
+          kv: b.kv,
+          handles: new IdbHandleStore(),
+          tabId: b.tabId,
+          supported: folderPickerSupported(),
+        });
+        connectionRef.current = connection;
+        connection.subscribe(setFolderState);
+        setFolderState(connection.state);
+        const state = await connection.restore();
+        if (!cancelled && state.status === "connected") await onConnected(state.folder);
       } catch (error) {
         if (!cancelled) setFailure(errorMessage(error));
       }
@@ -276,7 +560,7 @@ export function useLibrary(notify: Notify) {
     return () => {
       cancelled = true;
     };
-  }, [openInSlot, refresh]);
+  }, [onConnected, openInSlot, refresh]);
 
   // Cross-tab refresh.
   useEffect(() => {
@@ -289,12 +573,15 @@ export function useLibrary(notify: Notify) {
       const name = typeof event.data === "string" ? event.data : "";
       await refresh();
       if (!name) return;
-      for (const slot of ["a", "b"] as const) {
-        const s = sessions.current[slot];
-        if (!s || s.name !== name) continue;
+      for (const slot of SLOTS) {
+        const open = sessions.current[slot];
+        if (!open || open.ref.kind !== "library" || open.ref.name !== name) continue;
         try {
-          const page = await b.store.read(s.name);
-          if (s.adoptRemote(page)) setSlot(slot, { text: page.text });
+          const page = await b.store.read(open.ref.name);
+          if ((open.session as PageSession<PageName>).adoptRemote(page)) {
+            latestText.current[slot] = page.text;
+            setSlot(slot, { text: page.text });
+          }
         } catch {
           // Deleted elsewhere: the session recreates it on the next save.
         }
@@ -307,29 +594,38 @@ export function useLibrary(notify: Notify) {
   }, [refresh, setSlot]);
 
   const flushAll = useCallback(async () => {
-    await Promise.all((["a", "b"] as const).map((slot) => sessions.current[slot]?.flush()));
+    await Promise.all(SLOTS.map((slot) => sessions.current[slot]?.session.flush()));
   }, []);
 
-  // Save when the tab is hidden or closed (the journal covers what can't finish).
+  // Save when the tab is hidden or closed (the journal covers what can't finish);
+  // list the folder again when the tab comes back.
   useEffect(() => {
-    const onHide = () => {
+    const onVisibility = () => {
       if (document.visibilityState === "hidden") void flushAll();
+      else if (connected()) {
+        // Back from an editor or a terminal: check the open files now, then the list.
+        void watcherRef.current?.tick();
+        void rescan();
+      }
     };
     const onPageHide = () => void flushAll();
-    document.addEventListener("visibilitychange", onHide);
+    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", onPageHide);
     return () => {
-      document.removeEventListener("visibilitychange", onHide);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [flushAll]);
+  }, [connected, flushAll, rescan]);
+
+  useEffect(() => () => watcherRef.current?.stop(), []);
 
   const edit = useCallback(
     (slot: Slot, text: string) => {
-      const s = sessions.current[slot];
-      if (!s) return;
-      s.update(text);
-      setSlot(slot, { text, status: s.status });
+      const open = sessions.current[slot];
+      if (!open) return;
+      latestText.current[slot] = text;
+      open.session.update(text);
+      setSlot(slot, { text, status: open.session.status });
       if (!askedPersist.current && typeof navigator !== "undefined" && navigator.storage?.persist) {
         askedPersist.current = true;
         navigator.storage
@@ -355,7 +651,9 @@ export function useLibrary(notify: Notify) {
     [broadcast, openInSlot, refresh],
   );
 
-  /** Rename a page. Returns an error message, or null on success. */
+  const slotOf = useCallback((ref: PageRef): Slot | undefined => SLOTS.find((s) => sameRef(sessions.current[s]?.ref ?? null, ref)), []);
+
+  /** Rename a library page. Returns an error message, or null on success. */
   const renamePage = useCallback(
     async (from: PageName, input: string): Promise<string | null> => {
       const b = bootRef.current;
@@ -363,11 +661,13 @@ export function useLibrary(notify: Notify) {
       try {
         const to = parsePageName(input);
         if (to === from) return null;
-        const slot = (["a", "b"] as const).find((s) => sessions.current[s]?.name === from);
+        const slot = slotOf(libraryRef(from));
         if (slot) {
-          const result = await sessions.current[slot]!.rename(to);
-          setSlot(slot, { name: result.name });
-          remember(slot, result.name);
+          const open = sessions.current[slot]!;
+          const result = await (open.session as PageSession<PageName>).rename(to);
+          open.ref = libraryRef(result.name);
+          setSlot(slot, refPatch(open.ref));
+          remember(slot, open.ref);
         } else {
           await b.store.rename(from, to);
         }
@@ -378,33 +678,43 @@ export function useLibrary(notify: Notify) {
         return errorMessage(error);
       }
     },
-    [broadcast, refresh, remember, setSlot],
+    [broadcast, refresh, remember, setSlot, slotOf],
   );
 
+  /** Copy a page or file into a new library page. */
   const duplicatePage = useCallback(
-    async (name: PageName, slot?: Slot): Promise<PageName | null> => {
+    async (target: PageRef | PageName, slot?: Slot): Promise<PageName | null> => {
       const b = bootRef.current;
       if (!b) return null;
-      const open = (["a", "b"] as const).find((s) => sessions.current[s]?.name === name);
-      if (open) await sessions.current[open]!.flush();
-      const page = await b.store.read(name);
-      const copy = await availableName(b.store, `${name} copy`);
-      await b.store.create(copy, page.text);
+      const ref = typeof target === "string" ? libraryRef(target) : target;
+      const open = slotOf(ref);
+      if (open) await sessions.current[open]!.session.flush();
+      let text: string;
+      if (ref.kind === "library") {
+        text = (await b.store.read(ref.name)).text;
+      } else {
+        const folder = connected();
+        if (!folder) return null;
+        text = (await folder.sheet.read(ref.path)).text;
+      }
+      const copy = await availableName(b.store, copyNameFor(ref, " copy"));
+      await b.store.create(copy, text);
       await refresh();
       broadcast("");
       if (slot) await openInSlot(slot, copy);
       return copy;
     },
-    [broadcast, openInSlot, refresh],
+    [broadcast, connected, openInSlot, refresh, slotOf],
   );
 
   const trashPage = useCallback(
     async (name: PageName) => {
       const b = bootRef.current;
       if (!b) return;
-      const openSlots = (["a", "b"] as const).filter((s) => sessions.current[s]?.name === name);
+      const ref = libraryRef(name);
+      const openSlots = SLOTS.filter((s) => sameRef(sessions.current[s]?.ref ?? null, ref));
       for (const slot of openSlots) {
-        await sessions.current[slot]!.dispose();
+        await sessions.current[slot]!.session.dispose();
         sessions.current[slot] = null;
       }
       await b.store.trash(name);
@@ -412,8 +722,8 @@ export function useLibrary(notify: Notify) {
       broadcast("");
       notifyRef.current(`Moved “${name}” to the trash.`);
       for (const slot of openSlots) {
-        const other = sessions.current[slot === "a" ? "b" : "a"]?.name;
-        const next = list.find((p) => p.name !== other)?.name ?? null;
+        const other = sessions.current[slot === "a" ? "b" : "a"]?.ref;
+        const next = list.find((p) => !(other?.kind === "library" && other.name === p.name))?.name ?? null;
         if (next) await openInSlot(slot, next);
         else if (slot === "a") await createPage("Untitled", "", "a");
         else setSlot("b", EMPTY_SLOT);
@@ -455,30 +765,45 @@ export function useLibrary(notify: Notify) {
   const ensureSlotB = useCallback(async () => {
     if (sessions.current.b) return;
     const list = await refresh();
-    const a = sessions.current.a?.name;
-    const saved = readKey(KEYS.openB);
+    const a = sessions.current.a?.ref ?? null;
+    const saved = decodeRef(readKey(KEYS.openB));
+    const pending = pendingFiles.current.b;
+    const wanted = saved ?? pending?.ref ?? null;
+    if (wanted?.kind === "file" && connected() && !sameRef(wanted, a)) {
+      try {
+        pendingFiles.current.b = null;
+        await openInSlot("b", wanted);
+        return;
+      } catch {
+        // The file is gone or unreadable: fall back to a library page.
+      }
+    }
+    const notA = (p: PageSummary) => !(a?.kind === "library" && a.name === p.name);
     const pick =
-      list.find((p) => p.name === saved && p.name !== a)?.name ?? list.find((p) => p.name !== a)?.name ?? null;
+      (wanted?.kind === "library" ? list.find((p) => p.name === wanted.name && notA(p))?.name : undefined) ??
+      list.find(notA)?.name ??
+      null;
     if (pick) await openInSlot("b", pick);
     else await createPage("Untitled", "", "b");
-  }, [createPage, openInSlot, refresh]);
+  }, [connected, createPage, openInSlot, refresh]);
 
   const closeSlotB = useCallback(async () => {
-    const s = sessions.current.b;
-    if (!s) return;
-    await s.dispose();
+    const open = sessions.current.b;
+    if (!open) return;
+    await open.session.dispose();
     sessions.current.b = null;
+    watcherRef.current?.unwatch("b");
     setSlotB(EMPTY_SLOT);
   }, []);
 
   const swapSlots = useCallback(async () => {
-    const a = sessions.current.a?.name;
-    const b = sessions.current.b?.name;
+    const a = sessions.current.a?.ref;
+    const b = sessions.current.b?.ref;
     if (!a || !b) return;
     await openInSlot("a", b);
   }, [openInSlot]);
 
-  /** Save pending edits, then zip every page (not the trash). */
+  /** Save pending edits, then zip every library page (not the trash, not folder files). */
   const exportAll = useCallback(async (): Promise<LibraryArchive | null> => {
     const b = bootRef.current;
     if (!b) return null;
@@ -502,6 +827,123 @@ export function useLibrary(notify: Notify) {
     [broadcast, refresh],
   );
 
+  // -------------------------------------------------------------------------
+  // The folder
+
+  /** Close open files (after saving), and forget the folder. */
+  const disconnect = useCallback(async () => {
+    const b = bootRef.current;
+    const connection = connectionRef.current;
+    if (!b || !connection) return;
+    const fileSlots = SLOTS.filter((s) => sessions.current[s]?.ref.kind === "file");
+    for (const slot of fileSlots) {
+      await sessions.current[slot]!.session.dispose();
+      sessions.current[slot] = null;
+    }
+    watcherRef.current?.stop();
+    watcherRef.current = null;
+    pendingFiles.current = { a: null, b: null };
+    const copies = await connection.forget(b.store, await liveTabs());
+    setFolderFiles([]);
+    setFolderPartial(false);
+    unreadable.current.clear();
+    const list = await refresh();
+    if (copies.length) notifyRef.current(`Saved leftover edits in the library: ${copies.map((c) => `“${c}”`).join(", ")}.`, "warn");
+    for (const slot of fileSlots) {
+      const other = sessions.current[slot === "a" ? "b" : "a"]?.ref;
+      const next = list.find((p) => !(other?.kind === "library" && other.name === p.name))?.name ?? null;
+      if (next) await openInSlot(slot, next);
+      else if (slot === "a") await createPage("Untitled", "", "a");
+      else setSlot("b", EMPTY_SLOT);
+    }
+  }, [createPage, openInSlot, refresh, setSlot]);
+
+  /** Ask for a folder, and open it (replacing the open one). */
+  const openFolder = useCallback(async () => {
+    const connection = connectionRef.current;
+    if (!connection) return;
+    const picker = (window as unknown as {
+      showDirectoryPicker?: (options?: { mode?: "read" | "readwrite"; id?: string }) => Promise<FileSystemDirectoryHandle>;
+    }).showDirectoryPicker;
+    if (!picker) return;
+    let handle: FileSystemDirectoryHandle;
+    const asked = Date.now();
+    try {
+      handle = await picker({ mode: "readwrite", id: "a4-folder" });
+    } catch (error) {
+      if (errorName(error) === "AbortError") {
+        // A cancel takes a person longer than this: the browser refused to show the picker.
+        if (Date.now() - asked < 250) {
+          notifyRef.current("This browser didn’t show a folder picker. Open A4 in Chrome or Edge to edit a folder.", "warn");
+        }
+        return;
+      }
+      notifyRef.current(`Couldn’t open that folder: ${errorMessage(error)} Try the repository folder itself.`, "warn");
+      return;
+    }
+    if (connection.state.status !== "none" && connection.state.status !== "unsupported") await disconnect();
+    try {
+      const state = await connection.open(handle);
+      if (state.status === "connected") await onConnected(state.folder);
+    } catch (error) {
+      notifyRef.current(`Couldn’t open that folder: ${errorMessage(error)}`, "warn");
+    }
+  }, [disconnect, onConnected]);
+
+  const reconnectFolder = useCallback(async () => {
+    const connection = connectionRef.current;
+    if (!connection) return;
+    try {
+      const state = await connection.reconnect();
+      if (state.status === "connected") await onConnected(state.folder);
+      else if (state.status === "reconnect") notifyRef.current(`A4 still doesn’t have access to “${state.name}”.`, "warn");
+    } catch (error) {
+      notifyRef.current(`Couldn’t reconnect: ${errorMessage(error)}`, "warn");
+    }
+  }, [onConnected]);
+
+  /**
+   * Create a file in the folder and open it in `slot`. Never overwrites.
+   * Returns an error message, or null on success.
+   */
+  const createFile = useCallback(
+    async (input: string, text: string, slot: Slot): Promise<string | null> => {
+      const folder = connected();
+      if (!folder) return "Open a folder first.";
+      let path: FilePath;
+      try {
+        path = parseFilePath(input.trim());
+      } catch (error) {
+        return errorMessage(error);
+      }
+      try {
+        await folder.sheet.create(path, text);
+      } catch (error) {
+        if (isStoreError(error, "exists")) return `“${path}” already exists in “${folder.name}”.`;
+        return errorMessage(error);
+      }
+      await rescan();
+      await openInSlot(slot, fileRef(path));
+      return null;
+    },
+    [connected, openInSlot, rescan],
+  );
+
+  /** Write the library page open in `slot` to a new file, and open the file there. */
+  const saveToFolder = useCallback(
+    async (input: string, slot: Slot): Promise<string | null> => {
+      const open = sessions.current[slot];
+      if (!open || open.ref.kind !== "library") return "Open a library page first.";
+      await open.session.flush();
+      const error = await createFile(input, open.session.text, slot);
+      if (!error) notifyRef.current(`Saved “${open.ref.name}” to the folder as “${input.trim()}”.`);
+      return error;
+    },
+    [createFile],
+  );
+
+  const folder: FolderView = { state: folderState, files: folderFiles, partial: folderPartial, scanning };
+
   return {
     ready,
     failure,
@@ -510,6 +952,7 @@ export function useLibrary(notify: Notify) {
     slotA,
     slotB,
     storage,
+    folder,
     edit,
     openInSlot,
     createPage,
@@ -524,5 +967,11 @@ export function useLibrary(notify: Notify) {
     flushAll,
     exportAll,
     importArchive,
+    openFolder,
+    reconnectFolder,
+    closeFolder: disconnect,
+    rescanFolder: rescan,
+    createFile,
+    saveToFolder,
   };
 }

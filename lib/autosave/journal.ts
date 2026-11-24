@@ -14,15 +14,16 @@
 import type { KeyValue } from "../store/key-value.ts";
 import type { PageName, Revision } from "../store/types.ts";
 
-export interface Draft {
+export interface Draft<Id extends string = PageName> {
   tabId: string;
-  name: PageName;
+  name: Id;
   text: string;
   base: Revision | null;
   at: number;
 }
 
-export class Journal {
+/** Generic over the page identifier: page names, or file paths for a folder. */
+export class Journal<Id extends string = PageName> {
   readonly tabId: string;
   readonly #kv: KeyValue;
   readonly #now: () => number;
@@ -42,7 +43,7 @@ export class Journal {
   }
 
   /** Record a draft for this tab. Returns false if storage refused it. */
-  set(name: PageName, text: string, base: Revision | null): boolean {
+  set(name: Id, text: string, base: Revision | null): boolean {
     const key = `${this.tabId}:${name}`;
     try {
       this.#kv.set(this.#text + key, text);
@@ -54,15 +55,15 @@ export class Journal {
     }
   }
 
-  get(name: PageName): Draft | null {
+  get(name: Id): Draft<Id> | null {
     return this.#read(this.tabId, name);
   }
 
-  clear(name: PageName): void {
+  clear(name: Id): void {
     this.clearFor(this.tabId, name);
   }
 
-  clearFor(tabId: string, name: PageName): void {
+  clearFor(tabId: string, name: Id): void {
     const key = `${tabId}:${name}`;
     try {
       this.#kv.remove(this.#text + key);
@@ -74,26 +75,26 @@ export class Journal {
   }
 
   /** Every draft in storage, from every tab. */
-  all(): Draft[] {
+  all(): Draft<Id>[] {
     let keys: string[];
     try {
       keys = this.#kv.keys();
     } catch {
       return [];
     }
-    const out: Draft[] = [];
+    const out: Draft<Id>[] = [];
     for (const key of keys) {
       if (!key.startsWith(this.#text)) continue;
       const rest = key.slice(this.#text.length);
       const colon = rest.indexOf(":");
       if (colon <= 0) continue;
-      const draft = this.#read(rest.slice(0, colon), rest.slice(colon + 1) as PageName);
+      const draft = this.#read(rest.slice(0, colon), rest.slice(colon + 1) as Id);
       if (draft) out.push(draft);
     }
     return out;
   }
 
-  #read(tabId: string, name: PageName): Draft | null {
+  #read(tabId: string, name: Id): Draft<Id> | null {
     const key = `${tabId}:${name}`;
     try {
       const text = this.#kv.get(this.#text + key);

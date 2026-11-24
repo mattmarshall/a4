@@ -7,12 +7,17 @@
  * - Saves pass the expected revision. On conflict the local text is saved as a
  *   "(conflict …)" copy and the session follows the copy; if the page was
  *   deleted it is recreated; other failures retry with backoff (1 s → 30 s).
+ * - With a separate `copies` store (a folder file's session uses the
+ *   library), conflict copies and text whose page is gone go there instead:
+ *   the session saves the copy, stops, and reports it with `moved: true`, so
+ *   the workbench can open the copy. A folder file is never recreated.
  */
 
 import { availableName, stamp } from "../store/names.ts";
 import {
   isStoreError,
   type Page,
+  type PageFiles,
   type PageName,
   type PageStore,
   type Revision,
@@ -22,11 +27,12 @@ import type { Journal } from "./journal.ts";
 
 export type SaveStatus = "saved" | "unsaved" | "saving" | "error";
 
-export type SessionEvent =
+export type SessionEvent<Id extends string = PageName> =
   | { type: "status"; status: SaveStatus }
-  | { type: "saved"; result: WriteResult }
-  | { type: "conflict"; original: PageName; copy: PageName }
-  | { type: "recreated"; original: PageName; name: PageName }
+  | { type: "saved"; result: WriteResult<Id> }
+  /** `moved`: the copy is in the `copies` store and this session has stopped. */
+  | { type: "conflict"; original: Id; copy: PageName; moved: boolean }
+  | { type: "recreated"; original: Id; name: PageName; moved: boolean }
   | { type: "error"; error: unknown; retryInMs: number };
 
 export interface Scheduler {
@@ -44,25 +50,31 @@ export const MAX_WAIT_MS = 4000;
 export const RETRY_BASE_MS = 1000;
 export const RETRY_MAX_MS = 30000;
 
-export interface PageSessionOptions {
-  store: PageStore;
-  journal: Journal;
-  page: Page;
+export interface PageSessionOptions<Id extends string = PageName> {
+  store: PageFiles<Id>;
+  journal: Journal<Id>;
+  page: Page<Id>;
+  /** Where copies go when it isn't `store` (the library, for a folder file). */
+  copies?: PageStore;
+  /** The desired name of a copy: the page's identifier plus `suffix`. */
+  copyName?: (id: Id, suffix: string) => string;
   scheduler?: Scheduler;
   debounceMs?: number;
   maxWaitMs?: number;
-  onEvent?: (event: SessionEvent) => void;
+  onEvent?: (event: SessionEvent<Id>) => void;
 }
 
-export class PageSession {
-  readonly #store: PageStore;
-  readonly #journal: Journal;
+export class PageSession<Id extends string = PageName> {
+  readonly #store: PageFiles<Id>;
+  readonly #journal: Journal<Id>;
+  readonly #copies: PageStore | null;
+  readonly #copyName: (id: Id, suffix: string) => string;
   readonly #scheduler: Scheduler;
   readonly #debounceMs: number;
   readonly #maxWaitMs: number;
-  readonly #onEvent: (event: SessionEvent) => void;
+  readonly #onEvent: (event: SessionEvent<Id>) => void;
 
-  #name: PageName;
+  #name: Id;
   #text: string;
   #savedText: string;
   #revision: Revision;
@@ -74,9 +86,11 @@ export class PageSession {
   #saving: Promise<void> | null = null;
   #disposed = false;
 
-  constructor(options: PageSessionOptions) {
+  constructor(options: PageSessionOptions<Id>) {
     this.#store = options.store;
     this.#journal = options.journal;
+    this.#copies = options.copies && options.copies !== (options.store as unknown) ? options.copies : null;
+    this.#copyName = options.copyName ?? ((id, suffix) => `${id}${suffix}`);
     this.#scheduler = options.scheduler ?? realScheduler;
     this.#debounceMs = options.debounceMs ?? DEBOUNCE_MS;
     this.#maxWaitMs = options.maxWaitMs ?? MAX_WAIT_MS;
@@ -87,8 +101,12 @@ export class PageSession {
     this.#revision = options.page.revision;
   }
 
-  get name(): PageName {
+  get name(): Id {
     return this.#name;
+  }
+  /** True once the session has stopped, after `dispose` or a move to `copies`. */
+  get stopped(): boolean {
+    return this.#disposed;
   }
   get text(): string {
     return this.#text;
@@ -150,6 +168,7 @@ export class PageSession {
         await this.#saving;
         continue;
       }
+      if (this.#disposed) return;
       this.#clearTimers();
       if (!this.dirty) {
         this.#setStatus("saved");
@@ -173,32 +192,57 @@ export class PageSession {
       this.#onEvent({ type: "saved", result });
     } catch (error) {
       if (isStoreError(error, "conflict")) {
-        await this.#relocate(`${name} (conflict ${stamp()})`, (copy) => ({ type: "conflict", original: name, copy }));
+        await this.#relocate(this.#copyName(name, ` (conflict ${stamp()})`), (copy, moved) => ({
+          type: "conflict",
+          original: name,
+          copy,
+          moved,
+        }));
       } else if (isStoreError(error, "not-found")) {
-        await this.#relocate(name, (created) => ({ type: "recreated", original: name, name: created }));
+        // A page missing from its own store is recreated under its name; a
+        // folder file is never recreated: its text goes to the library.
+        const desired = this.#copies ? this.#copyName(name, ` (recovered ${stamp()})`) : this.#copyName(name, "");
+        await this.#relocate(desired, (created, moved) => ({ type: "recreated", original: name, name: created, moved }));
       } else {
         this.#fail(error);
       }
     }
   }
 
-  /** Save the current text as a new page and make the session follow it. */
-  async #relocate(desired: string, event: (name: PageName) => SessionEvent): Promise<void> {
+  /**
+   * Save the current text as a new page. In the same store, the session
+   * follows it; in a separate `copies` store, the session stops.
+   */
+  async #relocate(desired: string, event: (name: PageName, moved: boolean) => SessionEvent<Id>): Promise<void> {
     const previous = this.#name;
     const text = this.#text;
     try {
-      const target = await availableName(this.#store, desired);
-      const result = await this.#store.create(target, text);
+      if (this.#copies) {
+        const target = await availableName(this.#copies, desired);
+        const result = await this.#copies.create(target, text);
+        this.#journal.clear(previous);
+        this.#savedText = text;
+        this.#attempt = 0;
+        this.#disposed = true;
+        this.#clearTimers();
+        this.#setStatus("saved");
+        this.#onEvent(event(result.name, true));
+        return;
+      }
+      // Without separate copies, identifiers are page names (a library store).
+      const store = this.#store as unknown as PageStore;
+      const target = await availableName(store, desired);
+      const result = await store.create(target, text);
       this.#journal.clear(previous);
-      this.#name = result.name;
-      this.#accept(result, text);
-      this.#onEvent(event(result.name));
+      this.#name = result.name as string as Id;
+      this.#accept(result as unknown as WriteResult<Id>, text);
+      this.#onEvent(event(result.name, false));
     } catch (error) {
       this.#fail(error);
     }
   }
 
-  #accept(result: WriteResult, savedText: string) {
+  #accept(result: WriteResult<Id>, savedText: string) {
     this.#revision = result.revision;
     this.#savedText = savedText;
     this.#attempt = 0;
@@ -230,21 +274,23 @@ export class PageSession {
    * Another tab saved this page. Adopt its text when this tab has no unsaved
    * edits; otherwise keep ours (the next save will detect the conflict).
    */
-  adoptRemote(page: Page): boolean {
-    if (this.dirty || this.#saving || page.name !== this.#name) return false;
+  adoptRemote(page: Page<Id>): boolean {
+    if (this.#disposed || this.dirty || this.#saving || page.name !== this.#name) return false;
     this.#text = page.text;
     this.#savedText = page.text;
     this.#revision = page.revision;
     return true;
   }
 
-  /** Rename the page (after saving pending edits). */
+  /** Rename the page (after saving pending edits). Library pages only. */
   async rename(to: PageName): Promise<WriteResult> {
     await this.flush();
+    const store = this.#store as unknown as PageStore;
+    if (typeof store.rename !== "function") throw new Error("This page can’t be renamed.");
     const from = this.#name;
-    const result = await this.#store.rename(from, to);
+    const result = await store.rename(from as string as PageName, to);
     this.#journal.clear(from);
-    this.#name = result.name;
+    this.#name = result.name as string as Id;
     if (this.dirty) this.#journal.set(this.#name, this.#text, this.#revision);
     return result;
   }

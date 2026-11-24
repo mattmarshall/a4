@@ -57,10 +57,10 @@ test("OPFS layout: a4/pages/<name>.md holds exactly the page text", async () => 
   const root = new FakeDirectoryHandle();
   const store = await OpfsPageStore.open({ root: asDirectoryHandle(root), locks: null });
   await store.create(parsePageName("Brief"), "Purpose: brief the agent.\n");
-  assert.equal(root.fileAt("a4/pages/Brief.md")?.data.text, "Purpose: brief the agent.\n");
+  assert.equal(root.fileAt("a4/pages/Brief.md")?.text, "Purpose: brief the agent.\n");
   const entry = await store.trash(parsePageName("Brief"));
   assert.equal(root.fileAt("a4/pages/Brief.md"), undefined);
-  assert.equal(root.fileAt(`a4/trash/${entry.id}.md`)?.data.text, "Purpose: brief the agent.\n");
+  assert.equal(root.fileAt(`a4/trash/${entry.id}.md`)?.text, "Purpose: brief the agent.\n");
 });
 
 test("OPFS ignores non-page files such as swap files", async () => {

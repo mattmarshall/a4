@@ -5,17 +5,24 @@
 
 import type { KeyValue } from "../store/key-value.ts";
 import { availableName, nameFromText, parsePageName, stamp } from "../store/names.ts";
-import { isStoreError, type PageName, type PageStore } from "../store/types.ts";
+import { isStoreError, type PageFiles, type PageName, type PageStore } from "../store/types.ts";
 import type { Journal } from "./journal.ts";
 
 export type RecoveryKind = "applied" | "copied" | "recreated" | "discarded";
 
-export interface Recovery {
+export interface Recovery<Id extends string = PageName> {
   kind: RecoveryKind;
   /** The page the draft belonged to. */
-  page: PageName;
-  /** Where the draft now lives (same as `page` when applied). */
-  savedAs: PageName | null;
+  page: Id;
+  /** Where the draft now lives: the page itself when applied, else a library page. */
+  savedAs: string | null;
+}
+
+export interface RecoverOptions<Id extends string> {
+  /** Where copies go when it isn't `store` (the library, for a folder). */
+  copies?: PageStore;
+  /** The desired name of a copy: the page's identifier plus `suffix`. */
+  copyName?: (id: Id, suffix: string) => string;
 }
 
 /** Drafts younger than this are left alone when tab liveness is unknown. */
@@ -25,17 +32,26 @@ export const STALE_DRAFT_MS = 60_000;
  * Recover drafts from other tabs. `liveTabs` is the set of tab ids that are
  * still open (from Web Locks), or null when liveness can't be determined.
  */
-export async function recoverDrafts(
-  store: PageStore,
-  journal: Journal,
+export async function recoverDrafts<Id extends string = PageName>(
+  store: PageFiles<Id>,
+  journal: Journal<Id>,
   liveTabs: ReadonlySet<string> | null,
   now: number = Date.now(),
-): Promise<Recovery[]> {
-  const out: Recovery[] = [];
+  options: RecoverOptions<Id> = {},
+): Promise<Recovery<Id>[]> {
+  const out: Recovery<Id>[] = [];
+  // Without separate copies, identifiers are page names (a library store).
+  const copies = options.copies ?? (store as unknown as PageStore);
+  const copyName = options.copyName ?? ((id: Id, suffix: string) => `${id}${suffix}`);
+  const saveCopy = async (draft: { name: Id; text: string; at: number }) => {
+    const name = await availableName(copies, copyName(draft.name, ` (recovered ${stamp(new Date(draft.at || now))})`));
+    await copies.create(name, draft.text);
+    return name;
+  };
   for (const draft of journal.all()) {
     if (draft.tabId === journal.tabId) continue;
     if (liveTabs ? liveTabs.has(draft.tabId) : now - draft.at < STALE_DRAFT_MS) continue;
-    let recovery: Recovery;
+    let recovery: Recovery<Id>;
     try {
       const page = await store.read(draft.name);
       if (page.text === draft.text) {
@@ -44,15 +60,18 @@ export async function recoverDrafts(
         await store.write(draft.name, draft.text, draft.base);
         recovery = { kind: "applied", page: draft.name, savedAs: draft.name };
       } else {
-        const name = await availableName(store, `${draft.name} (recovered ${stamp(new Date(draft.at || now))})`);
-        await store.create(name, draft.text);
-        recovery = { kind: "copied", page: draft.name, savedAs: name };
+        recovery = { kind: "copied", page: draft.name, savedAs: await saveCopy(draft) };
       }
     } catch (error) {
-      if (!isStoreError(error, "not-found")) throw error;
-      const name = await availableName(store, draft.name);
-      await store.create(name, draft.text);
-      recovery = { kind: "recreated", page: draft.name, savedAs: name };
+      if (options.copies && (isStoreError(error, "not-found") || isStoreError(error, "unreadable") || isStoreError(error, "conflict"))) {
+        // A folder file that is gone or unreadable is never recreated.
+        recovery = { kind: "recreated", page: draft.name, savedAs: await saveCopy(draft) };
+      } else {
+        if (!isStoreError(error, "not-found")) throw error;
+        const name = await availableName(copies, copyName(draft.name, ""));
+        await copies.create(name, draft.text);
+        recovery = { kind: "recreated", page: draft.name, savedAs: name };
+      }
     }
     journal.clearFor(draft.tabId, draft.name);
     out.push(recovery);

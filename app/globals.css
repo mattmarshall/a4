@@ -862,6 +862,154 @@ select {
   justify-self: start;
 }
 
+/* The open folder, below the library list. */
+.lib-folder {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.lib-head .lib-folder-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.lib-head .lib-folder-name::before {
+  content: "▤ ";
+  color: var(--faint);
+}
+
+.lib-folder-tools {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+}
+
+.lib-folder-tools .btn {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.lib-folder-open {
+  justify-self: start;
+}
+
+.lib-note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.lib-group {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+}
+
+.lib-path {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.lib-file[data-unreadable] .lib-path {
+  color: var(--muted);
+}
+
+.lib-file[data-unreadable] .lib-open {
+  cursor: default;
+}
+
+.lib-rows[data-over] {
+  color: var(--crit);
+  font-weight: 600;
+}
+
+.lib-path-form {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.lib-path-label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lib-path-label .lib-input {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+}
+
+.lib-path-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* The header for a folder file: folder name and path, not editable. */
+.file-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.file-folder {
+  flex: none;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.file-folder::after {
+  content: " /";
+  color: var(--faint);
+}
+
+.file-path {
+  min-width: 0;
+  max-width: clamp(140px, 18vw, 320px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink);
+}
+
+/* Medium windows keep the top bar one row: the path alone, narrower. */
+@media (max-width: 1359px) {
+  .file-folder {
+    display: none;
+  }
+
+  .file-path {
+    max-width: clamp(110px, 12vw, 180px);
+  }
+}
+
 .lib-foot {
   margin-top: auto;
   padding-top: 10px;

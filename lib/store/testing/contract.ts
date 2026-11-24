@@ -1,14 +1,19 @@
 /**
- * The `PageStore` contract suite. Every backend must pass it unchanged:
+ * The storage contract suites. Backends must pass them unchanged:
  *
- *   pageStoreContract("my backend", async () => new MyPageStore(...));
+ *   pageFilesContract("folder", async () => makeFolder(), (stem) => parseFilePath(`${stem}.md`));
+ *   pageStoreContract("my library backend", async () => new MyPageStore(...));
+ *
+ * `pageFilesContract` covers the core every backend implements; `id` turns a
+ * test stem into the backend's identifier. `pageStoreContract` runs the core
+ * suite with page names, then the library operations.
  */
 
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { parsePageName } from "../names.ts";
 import { revisionOf } from "../revision.ts";
-import { isStoreError, type PageName, type PageStore, type Revision } from "../types.ts";
+import { isStoreError, type PageFiles, type PageName, type PageStore, type Revision } from "../types.ts";
 
 const n = (s: string) => parsePageName(s);
 
@@ -19,28 +24,87 @@ async function rejectsWith(promise: Promise<unknown>, code: Parameters<typeof is
   });
 }
 
-export function pageStoreContract(label: string, makeStore: () => Promise<PageStore>): void {
-  describe(`PageStore contract: ${label}`, () => {
+export function pageFilesContract<Id extends string>(
+  label: string,
+  makeStore: () => Promise<PageFiles<Id>>,
+  id: (stem: string) => Id,
+): void {
+  describe(`PageFiles contract: ${label}`, () => {
     test("starts empty", async () => {
       const store = await makeStore();
       assert.deepEqual(await store.list(), []);
-      assert.deepEqual(await store.listTrash(), []);
     });
 
     test("create, list, and read round-trip text exactly", async () => {
       const store = await makeStore();
       const texts = ["Purpose: brief the agent.\n", "", "Unicode — “quotes”, café, 漢字\n\n  indented\n"];
       for (const [i, text] of texts.entries()) {
-        const created = await store.create(n(`Page ${i}`), text);
+        const created = await store.create(id(`Page ${i}`), text);
         assert.equal(created.revision, revisionOf(text));
-        const page = await store.read(n(`Page ${i}`));
+        const page = await store.read(id(`Page ${i}`));
         assert.equal(page.text, text);
         assert.equal(page.revision, revisionOf(text));
         assert.equal(page.size, new TextEncoder().encode(text).length);
       }
       const names = (await store.list()).map((p) => p.name).sort();
-      assert.deepEqual(names, ["Page 0", "Page 1", "Page 2"]);
+      assert.deepEqual(names, [id("Page 0"), id("Page 1"), id("Page 2")].sort());
     });
+
+    test("create refuses an existing page and changes nothing", async () => {
+      const store = await makeStore();
+      await store.create(id("Brief"), "one");
+      await rejectsWith(store.create(id("Brief"), "two"), "exists");
+      assert.equal((await store.read(id("Brief"))).text, "one");
+    });
+
+    test("reading or writing a missing page fails with not-found", async () => {
+      const store = await makeStore();
+      await rejectsWith(store.read(id("Nope")), "not-found");
+      await rejectsWith(store.write(id("Nope"), "x"), "not-found");
+    });
+
+    test("write replaces text and returns the new revision", async () => {
+      const store = await makeStore();
+      const first = await store.create(id("Brief"), "v1");
+      const second = await store.write(id("Brief"), "v2", first.revision);
+      assert.equal(second.revision, revisionOf("v2"));
+      assert.equal((await store.read(id("Brief"))).text, "v2");
+      assert.ok(second.modifiedAt >= first.modifiedAt);
+    });
+
+    test("a stale expected revision is a conflict and changes nothing", async () => {
+      const store = await makeStore();
+      const first = await store.create(id("Brief"), "v1");
+      await store.write(id("Brief"), "v2 from another tab");
+      await rejectsWith(store.write(id("Brief"), "v2 from this tab", first.revision), "conflict");
+      assert.equal((await store.read(id("Brief"))).text, "v2 from another tab");
+    });
+
+    test("identical content is not a conflict", async () => {
+      const store = await makeStore();
+      await store.create(id("Brief"), "v1");
+      await store.write(id("Brief"), "same");
+      const ok = await store.write(id("Brief"), "next", revisionOf("same") as Revision);
+      assert.equal(ok.revision, revisionOf("next"));
+    });
+
+    test("holds an arbitrary number of pages", async () => {
+      const store = await makeStore();
+      for (let i = 0; i < 60; i++) await store.create(id(`Page ${i}`), `text ${i}`);
+      assert.equal((await store.list()).length, 60);
+      assert.equal((await store.read(id("Page 42"))).text, "text 42");
+    });
+  });
+}
+
+export function pageStoreContract(label: string, makeStore: () => Promise<PageStore>): void {
+  pageFilesContract(label, makeStore, n);
+  describe(`PageStore contract: ${label}`, () => {
+    test("starts with an empty trash", async () => {
+      const store = await makeStore();
+      assert.deepEqual(await store.listTrash(), []);
+    });
+
 
     test("names are unique ignoring case", async () => {
       const store = await makeStore();
@@ -53,37 +117,6 @@ export function pageStoreContract(label: string, makeStore: () => Promise<PageSt
       const store = await makeStore();
       await rejectsWith(store.create("a/b" as PageName, "x"), "invalid-name");
       await rejectsWith(store.create(".hidden" as PageName, "x"), "invalid-name");
-    });
-
-    test("reading or writing a missing page fails with not-found", async () => {
-      const store = await makeStore();
-      await rejectsWith(store.read(n("Nope")), "not-found");
-      await rejectsWith(store.write(n("Nope"), "x"), "not-found");
-    });
-
-    test("write replaces text and returns the new revision", async () => {
-      const store = await makeStore();
-      const first = await store.create(n("Brief"), "v1");
-      const second = await store.write(n("Brief"), "v2", first.revision);
-      assert.equal(second.revision, revisionOf("v2"));
-      assert.equal((await store.read(n("Brief"))).text, "v2");
-      assert.ok(second.modifiedAt >= first.modifiedAt);
-    });
-
-    test("a stale expected revision is a conflict and changes nothing", async () => {
-      const store = await makeStore();
-      const first = await store.create(n("Brief"), "v1");
-      await store.write(n("Brief"), "v2 from another tab");
-      await rejectsWith(store.write(n("Brief"), "v2 from this tab", first.revision), "conflict");
-      assert.equal((await store.read(n("Brief"))).text, "v2 from another tab");
-    });
-
-    test("identical content is not a conflict", async () => {
-      const store = await makeStore();
-      await store.create(n("Brief"), "v1");
-      await store.write(n("Brief"), "same");
-      const ok = await store.write(n("Brief"), "next", revisionOf("same") as Revision);
-      assert.equal(ok.revision, revisionOf("next"));
     });
 
     test("rename moves the text; clashes and missing pages are rejected", async () => {
@@ -143,13 +176,6 @@ export function pageStoreContract(label: string, makeStore: () => Promise<PageSt
       assert.equal(restored.name, "Brief 2");
       assert.equal((await store.read(n("Brief 2"))).text, "first");
       assert.equal((await store.read(n("Brief"))).text, "third");
-    });
-
-    test("holds an arbitrary number of pages", async () => {
-      const store = await makeStore();
-      for (let i = 0; i < 60; i++) await store.create(n(`Page ${i}`), `text ${i}`);
-      assert.equal((await store.list()).length, 60);
-      assert.equal((await store.read(n("Page 42"))).text, "text 42");
     });
   });
 }
