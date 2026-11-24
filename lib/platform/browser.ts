@@ -4,7 +4,7 @@ import { browserChannel } from "./channel.ts";
 import { systemClock } from "./clock.ts";
 import { browserStorage } from "./device-storage.ts";
 import { IdbHandleStore } from "./handle-store.ts";
-import type { Platform } from "./index.ts";
+import type { Platform } from "./platform.ts";
 import { browserKeyValue } from "./key-value.ts";
 import { browserLocks } from "./locks.ts";
 import { randomId } from "./random-id.ts";

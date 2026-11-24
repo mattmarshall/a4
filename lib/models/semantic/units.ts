@@ -4,7 +4,8 @@
  * text so scores map back to cells.
  */
 
-import { classifyLines, type LineKind } from "../../analyze.ts";
+import { classifyLines, DEFAULT_CONFIG, type LineKind } from "../../analysis/index.ts";
+import { PRESETS } from "../../page/index.ts";
 
 /** Units with fewer non-whitespace characters than this are skipped. */
 export const MIN_UNIT_INK = 12;
@@ -42,10 +43,10 @@ function push(units: Unit[], text: string, start: number, end: number, kind: Uni
   units.push({ start, end, text: collapse(slice), kind });
 }
 
-/** Split normalized page text into units, in reading order. */
-export function extractUnits(text: string): Unit[] {
+/** Split normalized page text into units, in reading order; `cols` is the page width headings must fit. */
+export function extractUnits(text: string, cols: number = PRESETS.terminal.cols): Unit[] {
   const lines = text.split("\n");
-  const kinds = classifyLines(lines);
+  const kinds = classifyLines(lines, DEFAULT_CONFIG.classify, cols);
   const starts: number[] = [];
   let offset = 0;
   for (const line of lines) {

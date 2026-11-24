@@ -6,7 +6,7 @@
 
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { PageSpecSchema, SheetSchema, type PageSpec as PageSpecMessage, type Sheet } from "../gen/a4/v1/sheet_pb.js";
-import type { PageSpec } from "../page-spec.ts";
+import type { PageSpec } from "../page/index.ts";
 import { encodeGrid, firstDifferingRow } from "./codec.ts";
 
 /** A sheet record that is malformed or whose grid doesn't match its text. */

@@ -3,7 +3,7 @@
  * connect. Meanwhile the slot shows a library page (the fallback), or nothing.
  */
 
-import { sameRef, type PageRef } from "../store/refs.ts";
+import { sameRef, type PageRef } from "../persist/store/refs.ts";
 
 export type Slot = "a" | "b";
 

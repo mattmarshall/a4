@@ -40,7 +40,7 @@
     "build": "vite build",
     "start": "vite preview",
     "test": "node --test 'lib/**/*.test.ts' 'components/**/*.test.ts'",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.core.json",
     "lint": "pnpm lint:code && pnpm lint:deps && pnpm lint:unused && pnpm lint:css && pnpm lint:casts && pnpm lint:element-types",
     "lint:code": "biome check .",
     "lint:deps": "depcruise app components lib scripts types",

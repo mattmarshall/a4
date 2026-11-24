@@ -1,0 +1,8181 @@
+{
+  "texts": {
+    "welcome": {
+      "chars": 1602,
+      "ink": 1283,
+      "syntaxChars": 5,
+      "syntax": 0.003897116134060795,
+      "repetition": 0.23985239852398524,
+      "repeatedTerms": [
+        "page:8",
+        "shows:5",
+        "context:4",
+        "tokens:4",
+        "agent:4",
+        "repetition:2",
+        "invisible:2",
+        "narrative:2",
+        "something:2",
+        "carries:2",
+        "roughly:2",
+        "syntax:2",
+        "cells:2",
+        "every:2",
+        "right:2",
+        "sheet:2",
+        "cell:2",
+        "keep:2",
+        "know:2",
+        "side:2"
+      ],
+      "termCounts": [
+        "action:1",
+        "agent:4",
+        "already:1",
+        "bar:1",
+        "bloat:1",
+        "borrows:1",
+        "browser:1",
+        "busy:1",
+        "carries:2",
+        "cell:2",
+        "cells:2",
+        "character:1",
+        "chunk:1",
+        "columns:1",
+        "compare:1",
+        "connect:1",
+        "context:4",
+        "count:1",
+        "end:1",
+        "every:2",
+        "exactly:1",
+        "facts:1",
+        "fields:1",
+        "file:1",
+        "fill:1",
+        "fit:1",
+        "give:1",
+        "grid:1",
+        "half:1",
+        "hand:1",
+        "idea:1",
+        "ink:1",
+        "instinct:1",
+        "invisible:2",
+        "itself:1",
+        "json:1",
+        "keep:2",
+        "know:2",
+        "large:1",
+        "lenses:1",
+        "logs:1",
+        "long:1",
+        "looks:1",
+        "margin:1",
+        "meaning:1",
+        "memo:1",
+        "model:1",
+        "much:1",
+        "narrative:2",
+        "next:1",
+        "noisy:1",
+        "nothing:1",
+        "once:1",
+        "overflows:1",
+        "page:8",
+        "pages:1",
+        "paper:1",
+        "paste:1",
+        "payloads:1",
+        "plan:1",
+        "points:1",
+        "pouring:1",
+        "prose:1",
+        "purpose:1",
+        "quantized:1",
+        "reads:1",
+        "repetition:2",
+        "restating:1",
+        "rewrite:1",
+        "right:2",
+        "roughly:2",
+        "row:1",
+        "rows:1",
+        "rule:1",
+        "saves:1",
+        "scaffolding:1",
+        "schemas:1",
+        "sentences:1",
+        "serve:1",
+        "share:1",
+        "shared:1",
+        "sheet:2",
+        "shows:5",
+        "side:2",
+        "sidebar:1",
+        "single:1",
+        "something:2",
+        "split:1",
+        "stack:1",
+        "start:1",
+        "state:1",
+        "stops:1",
+        "structure:1",
+        "switch:1",
+        "syntax:2",
+        "takes:1",
+        "text:1",
+        "thousand:1",
+        "thumb:1",
+        "tokens:4",
+        "tracks:1",
+        "values:1",
+        "versions:1",
+        "versus:1",
+        "watch:1",
+        "whole:1",
+        "why:1",
+        "windows:1",
+        "write:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 18,
+      "maxIndent": 3,
+      "tokens": 388,
+      "charsPerToken": 4.128865979381444
+    },
+    "incident-json": {
+      "chars": 2819,
+      "ink": 1834,
+      "syntaxChars": 431,
+      "syntax": 0.23500545256270447,
+      "repetition": 0.4363001745200698,
+      "repeatedTerms": [
+        "status:10",
+        "owner:8",
+        "autoscaler:6",
+        "pricing:6",
+        "actor:6",
+        "cache:6",
+        "event:6",
+        "time:6",
+        "ortiz:5",
+        "title:5",
+        "dana:5",
+        "platform:4",
+        "priority:4",
+        "name:4",
+        "checkout:3",
+        "degraded:3",
+        "payments:3",
+        "nodes:3",
+        "open:3",
+        "mitigated:2",
+        "latency:2",
+        "minimum:2",
+        "resized:2",
+        "stale:2",
+        "node:2",
+        "warm:2",
+        "p99:2",
+        "set:2"
+      ],
+      "termCounts": [
+        "acknowledged:1",
+        "action_items:1",
+        "actor:6",
+        "alert:1",
+        "api:1",
+        "autoscaler:6",
+        "back:1",
+        "below:1",
+        "cache:6",
+        "cart:1",
+        "cause:1",
+        "change_id:1",
+        "checkout:3",
+        "chg:1",
+        "confidence:1",
+        "confidence_note:1",
+        "confirm:1",
+        "count:1",
+        "cpu:1",
+        "dana:5",
+        "data_loss:1",
+        "degraded:3",
+        "down:1",
+        "error_rate_peak:1",
+        "event:6",
+        "falls:1",
+        "false:1",
+        "fired:1",
+        "friday:1",
+        "healthy:1",
+        "hit:1",
+        "impact:1",
+        "inc:1",
+        "incident:1",
+        "latency:2",
+        "log:1",
+        "logs:1",
+        "medium:1",
+        "merge:1",
+        "minimum:2",
+        "missing:1",
+        "mitigated:2",
+        "mitigated_at:1",
+        "name:4",
+        "next_steps:1",
+        "node:2",
+        "nodes:3",
+        "on_call:1",
+        "open:3",
+        "orders_failed:1",
+        "orders_slowed:1",
+        "ortiz:5",
+        "owner:8",
+        "p99:2",
+        "p99_latency_ms_baseline:1",
+        "p99_latency_ms_peak:1",
+        "pagerduty:1",
+        "payments:3",
+        "peak:1",
+        "platform:4",
+        "policy:1",
+        "prices:1",
+        "pricing:6",
+        "priority:4",
+        "proposed:1",
+        "rate:1",
+        "region:1",
+        "removing:1",
+        "resized:2",
+        "restore:1",
+        "retention:1",
+        "root:1",
+        "root_cause:1",
+        "scaled:1",
+        "service:1",
+        "services:1",
+        "set:2",
+        "sev2:1",
+        "severity:1",
+        "signal:1",
+        "spike:1",
+        "sre:1",
+        "stale:2",
+        "started:1",
+        "started_at:1",
+        "status:10",
+        "summary:1",
+        "t14:1",
+        "t15:1",
+        "time:6",
+        "timeline:1",
+        "title:5",
+        "traffic:1",
+        "vendor:1",
+        "warm:2",
+        "west:1"
+      ],
+      "duplicateLines": 11,
+      "indentChars": 726,
+      "maxIndent": 8,
+      "tokens": 1015,
+      "charsPerToken": 2.7773399014778324
+    },
+    "incident-narrative": {
+      "chars": 1580,
+      "ink": 1303,
+      "syntaxChars": 15,
+      "syntax": 0.011511895625479662,
+      "repetition": 0.29603729603729606,
+      "repeatedTerms": [
+        "cache:6",
+        "autoscaler:5",
+        "checkout:5",
+        "pricing:5",
+        "incident:3",
+        "latency:3",
+        "nodes:3",
+        "back:3",
+        "peak:3",
+        "confidence:2",
+        "mitigated:2",
+        "minimum:2",
+        "medium:2",
+        "cause:2",
+        "stale:2",
+        "dana:2",
+        "next:2",
+        "node:2",
+        "owns:2",
+        "rate:2",
+        "root:2",
+        "warm:2",
+        "hit:2"
+      ],
+      "termCounts": [
+        "acknowledged:1",
+        "act:1",
+        "actions:1",
+        "affected:1",
+        "afternoon:1",
+        "agent:1",
+        "alert:1",
+        "almost:1",
+        "api:1",
+        "autoscaler:5",
+        "back:3",
+        "began:1",
+        "brief:1",
+        "cache:6",
+        "call:1",
+        "came:1",
+        "cart:1",
+        "cause:2",
+        "change:1",
+        "checkout:5",
+        "chg:1",
+        "climbed:1",
+        "cluster:1",
+        "cold:1",
+        "confidence:2",
+        "confirm:1",
+        "count:1",
+        "cpu:1",
+        "dana:2",
+        "data:1",
+        "degraded:1",
+        "down:1",
+        "error:1",
+        "every:1",
+        "failed:1",
+        "fall:1",
+        "fell:1",
+        "fired:1",
+        "follow:1",
+        "friday's:1",
+        "fully:1",
+        "happened:1",
+        "hit:2",
+        "impact:1",
+        "inc:1",
+        "incident:3",
+        "item:1",
+        "latency:3",
+        "log:1",
+        "logs:1",
+        "lost:1",
+        "marked:1",
+        "medium:2",
+        "merged:1",
+        "minimum:2",
+        "missing:1",
+        "mitigated:2",
+        "near:1",
+        "never:1",
+        "next:2",
+        "node:2",
+        "nodes:3",
+        "nov:1",
+        "open:1",
+        "orders:1",
+        "ortiz:1",
+        "owns:2",
+        "p99:1",
+        "payments:1",
+        "peak:3",
+        "picking:1",
+        "platform:1",
+        "policy:1",
+        "prevents:1",
+        "prices:1",
+        "pricing:5",
+        "proposed:1",
+        "purpose:1",
+        "rate:2",
+        "rather:1",
+        "read:1",
+        "recovery:1",
+        "removing:1",
+        "repeat:1",
+        "resized:1",
+        "restore:1",
+        "retention:1",
+        "root:2",
+        "scaled:1",
+        "service:1",
+        "sev2:1",
+        "shrank:1",
+        "signal:1",
+        "slowed:1",
+        "spike:1",
+        "sre:1",
+        "stale:2",
+        "through:1",
+        "throughout:1",
+        "traffic:1",
+        "under:1",
+        "utc:1",
+        "vendor:1",
+        "wait:1",
+        "warm:2",
+        "west:1",
+        "work:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 410,
+      "charsPerToken": 3.8536585365853657
+    },
+    "template-situation-brief": {
+      "chars": 960,
+      "ink": 779,
+      "syntaxChars": 6,
+      "syntax": 0.007702182284980745,
+      "repetition": 0.15419501133786848,
+      "repeatedTerms": [
+        "agent:4",
+        "know:3",
+        "next:3",
+        "constraints:2",
+        "situation:2",
+        "brief:2",
+        "value:2",
+        "list:2",
+        "act:2"
+      ],
+      "termCounts": [
+        "act:2",
+        "action:1",
+        "agent:4",
+        "already:1",
+        "answer:1",
+        "bar:1",
+        "brief:2",
+        "budgets:1",
+        "cannot:1",
+        "constraints:2",
+        "context:1",
+        "deadlines:1",
+        "decided:1",
+        "decisions:1",
+        "depends:1",
+        "exceptions:1",
+        "facts:1",
+        "far:1",
+        "fully:1",
+        "goal:1",
+        "happened:1",
+        "involved:1",
+        "items:1",
+        "know:3",
+        "limits:1",
+        "list:2",
+        "look:1",
+        "looks:1",
+        "many:1",
+        "matter:1",
+        "measurable:1",
+        "must:1",
+        "name:1",
+        "names:1",
+        "next:3",
+        "off:1",
+        "once:1",
+        "open:1",
+        "outcome:1",
+        "people:1",
+        "permissions:1",
+        "prefer:1",
+        "purpose:1",
+        "questions:1",
+        "read:1",
+        "reason:1",
+        "relate:1",
+        "reopen:1",
+        "right:1",
+        "sentences:1",
+        "share:1",
+        "shared:1",
+        "single:1",
+        "situation:2",
+        "stated:1",
+        "systems:1",
+        "tempting:1",
+        "things:1",
+        "title:1",
+        "true:1",
+        "value:2",
+        "whom:1",
+        "why:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 243,
+      "charsPerToken": 3.950617283950617
+    },
+    "template-entity-card": {
+      "chars": 729,
+      "ink": 591,
+      "syntaxChars": 8,
+      "syntax": 0.01353637901861252,
+      "repetition": 0.04229607250755287,
+      "repeatedTerms": ["agent:2", "calls:2", "name:2"],
+      "termCounts": [
+        "agent:2",
+        "behaves:1",
+        "breaks:1",
+        "calls:2",
+        "card:1",
+        "changes:1",
+        "check:1",
+        "current:1",
+        "decide:1",
+        "depends:1",
+        "depth:1",
+        "enough:1",
+        "entity:1",
+        "events:1",
+        "exceptions:1",
+        "exists:1",
+        "explain:1",
+        "first:1",
+        "handling:1",
+        "history:1",
+        "human:1",
+        "identity:1",
+        "known:1",
+        "limits:1",
+        "look:1",
+        "matters:1",
+        "name:2",
+        "needs:1",
+        "normal:1",
+        "numbers:1",
+        "owners:1",
+        "owns:1",
+        "past:1",
+        "pattern:1",
+        "purpose:1",
+        "reason:1",
+        "relationship:1",
+        "relationships:1",
+        "safe:1",
+        "sentence:1",
+        "shape:1",
+        "tell:1",
+        "things:1",
+        "three:1",
+        "timings:1",
+        "touching:1",
+        "treat:1",
+        "uses:1",
+        "volumes:1",
+        "why:1",
+        "words:1",
+        "works:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 181,
+      "charsPerToken": 4.027624309392265
+    },
+    "template-handoff": {
+      "chars": 774,
+      "ink": 630,
+      "syntaxChars": 9,
+      "syntax": 0.014285714285714285,
+      "repetition": 0.07799442896935933,
+      "repeatedTerms": ["anything:2", "flight:2", "names:2", "steps:2", "next:2"],
+      "termCounts": [
+        "agent:1",
+        "anything:2",
+        "ask:1",
+        "asking:1",
+        "branches:1",
+        "changed:1",
+        "changes:1",
+        "check:1",
+        "continue:1",
+        "cost:1",
+        "date:1",
+        "dependencies:1",
+        "down:1",
+        "engineer:1",
+        "exact:1",
+        "files:1",
+        "flaky:1",
+        "flight:2",
+        "goal:1",
+        "gotchas:1",
+        "half:1",
+        "handoff:1",
+        "hidden:1",
+        "honest:1",
+        "knows:1",
+        "lives:1",
+        "looks:1",
+        "matter:1",
+        "misleading:1",
+        "name:1",
+        "names:2",
+        "needed:1",
+        "next:2",
+        "order:1",
+        "paragraph:1",
+        "purpose:1",
+        "running:1",
+        "sentence:1",
+        "someone:1",
+        "stands:1",
+        "state:1",
+        "steps:2",
+        "still:1",
+        "things:1",
+        "tickets:1",
+        "time:1",
+        "verified:1",
+        "waiting:1",
+        "why:1",
+        "without:1",
+        "work:1",
+        "workaround:1",
+        "workstream:1",
+        "written:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 191,
+      "charsPerToken": 4.052356020942408
+    },
+    "template-decision-record": {
+      "chars": 706,
+      "ink": 582,
+      "syntaxChars": 4,
+      "syntax": 0.006872852233676976,
+      "repetition": 0.17585301837270342,
+      "repeatedTerms": ["decision:6", "sentence:2", "option:2", "agent:2", "gets:2", "main:2"],
+      "termCounts": [
+        "agent:2",
+        "anticipate:1",
+        "apply:1",
+        "avoid:1",
+        "behind:1",
+        "benefit:1",
+        "cases:1",
+        "choice:1",
+        "conditions:1",
+        "consequences:1",
+        "considered:1",
+        "cost:1",
+        "decided:1",
+        "deciding:1",
+        "decision:6",
+        "describe:1",
+        "doing:1",
+        "easier:1",
+        "explicit:1",
+        "factors:1",
+        "forced:1",
+        "gets:2",
+        "give:1",
+        "harder:1",
+        "include:1",
+        "judgment:1",
+        "main:2",
+        "must:1",
+        "nothing:1",
+        "offs:1",
+        "option:2",
+        "options:1",
+        "order:1",
+        "part:1",
+        "pressure:1",
+        "problem:1",
+        "purpose:1",
+        "reasoning:1",
+        "record:1",
+        "reopened:1",
+        "reuse:1",
+        "revisit:1",
+        "same:1",
+        "sentence:2",
+        "solution:1",
+        "trade:1",
+        "under:1",
+        "weight:1",
+        "why:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 161,
+      "charsPerToken": 4.385093167701863
+    },
+    "template-agent-charter": {
+      "chars": 842,
+      "ink": 680,
+      "syntaxChars": 5,
+      "syntax": 0.007352941176470588,
+      "repetition": 0.08443271767810026,
+      "repeatedTerms": ["agent:5", "must:2", "page:2", "wins:2"],
+      "termCounts": [
+        "agent's:1",
+        "agent:5",
+        "already:1",
+        "answer:1",
+        "answers:1",
+        "ask:1",
+        "behave:1",
+        "boundaries:1",
+        "boundary:1",
+        "charter:1",
+        "come:1",
+        "conflict:1",
+        "context:1",
+        "define:1",
+        "disagree:1",
+        "example:1",
+        "exists:1",
+        "facts:1",
+        "first:1",
+        "give:1",
+        "goals:1",
+        "good:1",
+        "human:1",
+        "information:1",
+        "judged:1",
+        "keep:1",
+        "know:1",
+        "knowledge:1",
+        "long:1",
+        "missing:1",
+        "mission:1",
+        "must:2",
+        "name:1",
+        "need:1",
+        "never:1",
+        "optimizes:1",
+        "outcome:1",
+        "page:2",
+        "purpose:1",
+        "rely:1",
+        "request:1",
+        "responsible:1",
+        "role:1",
+        "sentence:1",
+        "short:1",
+        "sound:1",
+        "source:1",
+        "standing:1",
+        "stuck:1",
+        "style:1",
+        "success:1",
+        "talks:1",
+        "unclear:1",
+        "users:1",
+        "usually:1",
+        "why:1",
+        "wins:2",
+        "works:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 206,
+      "charsPerToken": 4.087378640776699
+    },
+    "pair-incident-a": {
+      "chars": 2819,
+      "ink": 1834,
+      "syntaxChars": 431,
+      "syntax": 0.23500545256270447,
+      "repetition": 0.4363001745200698,
+      "repeatedTerms": [
+        "status:10",
+        "owner:8",
+        "autoscaler:6",
+        "pricing:6",
+        "actor:6",
+        "cache:6",
+        "event:6",
+        "time:6",
+        "ortiz:5",
+        "title:5",
+        "dana:5",
+        "platform:4",
+        "priority:4",
+        "name:4",
+        "checkout:3",
+        "degraded:3",
+        "payments:3",
+        "nodes:3",
+        "open:3",
+        "mitigated:2",
+        "latency:2",
+        "minimum:2",
+        "resized:2",
+        "stale:2",
+        "node:2",
+        "warm:2",
+        "p99:2",
+        "set:2"
+      ],
+      "termCounts": [
+        "acknowledged:1",
+        "action_items:1",
+        "actor:6",
+        "alert:1",
+        "api:1",
+        "autoscaler:6",
+        "back:1",
+        "below:1",
+        "cache:6",
+        "cart:1",
+        "cause:1",
+        "change_id:1",
+        "checkout:3",
+        "chg:1",
+        "confidence:1",
+        "confidence_note:1",
+        "confirm:1",
+        "count:1",
+        "cpu:1",
+        "dana:5",
+        "data_loss:1",
+        "degraded:3",
+        "down:1",
+        "error_rate_peak:1",
+        "event:6",
+        "falls:1",
+        "false:1",
+        "fired:1",
+        "friday:1",
+        "healthy:1",
+        "hit:1",
+        "impact:1",
+        "inc:1",
+        "incident:1",
+        "latency:2",
+        "log:1",
+        "logs:1",
+        "medium:1",
+        "merge:1",
+        "minimum:2",
+        "missing:1",
+        "mitigated:2",
+        "mitigated_at:1",
+        "name:4",
+        "next_steps:1",
+        "node:2",
+        "nodes:3",
+        "on_call:1",
+        "open:3",
+        "orders_failed:1",
+        "orders_slowed:1",
+        "ortiz:5",
+        "owner:8",
+        "p99:2",
+        "p99_latency_ms_baseline:1",
+        "p99_latency_ms_peak:1",
+        "pagerduty:1",
+        "payments:3",
+        "peak:1",
+        "platform:4",
+        "policy:1",
+        "prices:1",
+        "pricing:6",
+        "priority:4",
+        "proposed:1",
+        "rate:1",
+        "region:1",
+        "removing:1",
+        "resized:2",
+        "restore:1",
+        "retention:1",
+        "root:1",
+        "root_cause:1",
+        "scaled:1",
+        "service:1",
+        "services:1",
+        "set:2",
+        "sev2:1",
+        "severity:1",
+        "signal:1",
+        "spike:1",
+        "sre:1",
+        "stale:2",
+        "started:1",
+        "started_at:1",
+        "status:10",
+        "summary:1",
+        "t14:1",
+        "t15:1",
+        "time:6",
+        "timeline:1",
+        "title:5",
+        "traffic:1",
+        "vendor:1",
+        "warm:2",
+        "west:1"
+      ],
+      "duplicateLines": 11,
+      "indentChars": 726,
+      "maxIndent": 8,
+      "tokens": 1015,
+      "charsPerToken": 2.7773399014778324
+    },
+    "pair-incident-b": {
+      "chars": 1580,
+      "ink": 1303,
+      "syntaxChars": 15,
+      "syntax": 0.011511895625479662,
+      "repetition": 0.29603729603729606,
+      "repeatedTerms": [
+        "cache:6",
+        "autoscaler:5",
+        "checkout:5",
+        "pricing:5",
+        "incident:3",
+        "latency:3",
+        "nodes:3",
+        "back:3",
+        "peak:3",
+        "confidence:2",
+        "mitigated:2",
+        "minimum:2",
+        "medium:2",
+        "cause:2",
+        "stale:2",
+        "dana:2",
+        "next:2",
+        "node:2",
+        "owns:2",
+        "rate:2",
+        "root:2",
+        "warm:2",
+        "hit:2"
+      ],
+      "termCounts": [
+        "acknowledged:1",
+        "act:1",
+        "actions:1",
+        "affected:1",
+        "afternoon:1",
+        "agent:1",
+        "alert:1",
+        "almost:1",
+        "api:1",
+        "autoscaler:5",
+        "back:3",
+        "began:1",
+        "brief:1",
+        "cache:6",
+        "call:1",
+        "came:1",
+        "cart:1",
+        "cause:2",
+        "change:1",
+        "checkout:5",
+        "chg:1",
+        "climbed:1",
+        "cluster:1",
+        "cold:1",
+        "confidence:2",
+        "confirm:1",
+        "count:1",
+        "cpu:1",
+        "dana:2",
+        "data:1",
+        "degraded:1",
+        "down:1",
+        "error:1",
+        "every:1",
+        "failed:1",
+        "fall:1",
+        "fell:1",
+        "fired:1",
+        "follow:1",
+        "friday's:1",
+        "fully:1",
+        "happened:1",
+        "hit:2",
+        "impact:1",
+        "inc:1",
+        "incident:3",
+        "item:1",
+        "latency:3",
+        "log:1",
+        "logs:1",
+        "lost:1",
+        "marked:1",
+        "medium:2",
+        "merged:1",
+        "minimum:2",
+        "missing:1",
+        "mitigated:2",
+        "near:1",
+        "never:1",
+        "next:2",
+        "node:2",
+        "nodes:3",
+        "nov:1",
+        "open:1",
+        "orders:1",
+        "ortiz:1",
+        "owns:2",
+        "p99:1",
+        "payments:1",
+        "peak:3",
+        "picking:1",
+        "platform:1",
+        "policy:1",
+        "prevents:1",
+        "prices:1",
+        "pricing:5",
+        "proposed:1",
+        "purpose:1",
+        "rate:2",
+        "rather:1",
+        "read:1",
+        "recovery:1",
+        "removing:1",
+        "repeat:1",
+        "resized:1",
+        "restore:1",
+        "retention:1",
+        "root:2",
+        "scaled:1",
+        "service:1",
+        "sev2:1",
+        "shrank:1",
+        "signal:1",
+        "slowed:1",
+        "spike:1",
+        "sre:1",
+        "stale:2",
+        "through:1",
+        "throughout:1",
+        "traffic:1",
+        "under:1",
+        "utc:1",
+        "vendor:1",
+        "wait:1",
+        "warm:2",
+        "west:1",
+        "work:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 410,
+      "charsPerToken": 3.8536585365853657
+    },
+    "empty": {
+      "chars": 0,
+      "ink": 0,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 0,
+      "charsPerToken": null
+    },
+    "prose": {
+      "chars": 649,
+      "ink": 537,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.10752688172043011,
+      "repeatedTerms": ["earlier:3", "export:3", "since:2", "start:2", "runs:2"],
+      "termCounts": [
+        "agree:1",
+        "asked:1",
+        "back:1",
+        "begins:1",
+        "billing:1",
+        "capacity:1",
+        "change:1",
+        "changing:1",
+        "check:1",
+        "closely:1",
+        "collide:1",
+        "current:1",
+        "data:1",
+        "depends:1",
+        "during:1",
+        "earlier:3",
+        "else:1",
+        "end:1",
+        "export:3",
+        "finance:1",
+        "finishes:1",
+        "first:1",
+        "group:1",
+        "hours:1",
+        "invoices:1",
+        "kept:1",
+        "last:1",
+        "load:1",
+        "long:1",
+        "month:1",
+        "move:1",
+        "moved:1",
+        "nightly:1",
+        "nothing:1",
+        "old:1",
+        "pipeline:1",
+        "platform:1",
+        "region:1",
+        "right:1",
+        "roll:1",
+        "running:1",
+        "runs:2",
+        "safe:1",
+        "schedule:1",
+        "service:1",
+        "since:2",
+        "spring:1",
+        "start:2",
+        "takes:1",
+        "team:1",
+        "three:1",
+        "time:1",
+        "timeouts:1",
+        "timing:1",
+        "twice:1",
+        "warehouse:1",
+        "watch:1",
+        "whether:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 127,
+      "charsPerToken": 5.110236220472441
+    },
+    "half-page": {
+      "chars": 1229,
+      "ink": 1200,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.9666666666666667,
+      "repeatedTerms": ["wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww:30"],
+      "termCounts": ["wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww:30"],
+      "duplicateLines": 29,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 209,
+      "charsPerToken": 5.880382775119617
+    },
+    "overflow": {
+      "chars": 525,
+      "ink": 392,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.9850746268656716,
+      "repeatedTerms": ["line:67"],
+      "termCounts": ["line:67"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 200,
+      "charsPerToken": 2.625
+    },
+    "crowded": {
+      "chars": 809,
+      "ink": 800,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:1",
+        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb:1",
+        "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc:1",
+        "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd:1",
+        "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee:1",
+        "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff:1",
+        "gggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggggg:1",
+        "hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh:1",
+        "iiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiii:1",
+        "jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 129,
+      "charsPerToken": 6.271317829457364
+    },
+    "wall": {
+      "chars": 3159,
+      "ink": 2750,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.025594149908592323,
+      "repeatedTerms": [
+        "expor:3",
+        "soon:3",
+        "eac:3",
+        "ear:3",
+        "invoices:2",
+        "moved1:2",
+        "moved2:2",
+        "moved3:2",
+        "finan:2",
+        "so1:2",
+        "so2:2",
+        "so3:2"
+      ],
+      "termCounts": [
+        "eac:3",
+        "each0:1",
+        "each12:1",
+        "each13:1",
+        "each14:1",
+        "each15:1",
+        "each16:1",
+        "each17:1",
+        "each18:1",
+        "each19:1",
+        "each1:1",
+        "each20:1",
+        "each23:1",
+        "each24:1",
+        "each25:1",
+        "each26:1",
+        "each27:1",
+        "each28:1",
+        "each29:1",
+        "each2:1",
+        "each30:1",
+        "each31:1",
+        "each34:1",
+        "each35:1",
+        "each36:1",
+        "each37:1",
+        "each38:1",
+        "each39:1",
+        "each3:1",
+        "each4:1",
+        "each5:1",
+        "each6:1",
+        "each7:1",
+        "each8:1",
+        "each9:1",
+        "ear:3",
+        "earlier0:1",
+        "earlier10:1",
+        "earlier11:1",
+        "earlier12:1",
+        "earlier13:1",
+        "earlier14:1",
+        "earlier17:1",
+        "earlier18:1",
+        "earlier19:1",
+        "earlier1:1",
+        "earlier20:1",
+        "earlier21:1",
+        "earlier22:1",
+        "earlier23:1",
+        "earlier24:1",
+        "earlier25:1",
+        "earlier28:1",
+        "earlier29:1",
+        "earlier2:1",
+        "earlier30:1",
+        "earlier31:1",
+        "earlier32:1",
+        "earlier33:1",
+        "earlier34:1",
+        "earlier35:1",
+        "earlier36:1",
+        "earlier39:1",
+        "earlier3:1",
+        "earlier4:1",
+        "earlier5:1",
+        "earlier6:1",
+        "earlier7:1",
+        "earlier8:1",
+        "earlier9:1",
+        "expor:3",
+        "export0:1",
+        "export10:1",
+        "export11:1",
+        "export12:1",
+        "export15:1",
+        "export16:1",
+        "export17:1",
+        "export18:1",
+        "export19:1",
+        "export1:1",
+        "export20:1",
+        "export21:1",
+        "export22:1",
+        "export23:1",
+        "export26:1",
+        "export27:1",
+        "export28:1",
+        "export29:1",
+        "export2:1",
+        "export30:1",
+        "export31:1",
+        "export32:1",
+        "export33:1",
+        "export34:1",
+        "export37:1",
+        "export38:1",
+        "export39:1",
+        "export3:1",
+        "export4:1",
+        "export5:1",
+        "export6:1",
+        "export7:1",
+        "export8:1",
+        "export9:1",
+        "finan:2",
+        "finance0:1",
+        "finance10:1",
+        "finance11:1",
+        "finance12:1",
+        "finance13:1",
+        "finance14:1",
+        "finance15:1",
+        "finance16:1",
+        "finance19:1",
+        "finance1:1",
+        "finance20:1",
+        "finance21:1",
+        "finance22:1",
+        "finance23:1",
+        "finance24:1",
+        "finance25:1",
+        "finance26:1",
+        "finance27:1",
+        "finance2:1",
+        "finance30:1",
+        "finance31:1",
+        "finance32:1",
+        "finance33:1",
+        "finance34:1",
+        "finance35:1",
+        "finance36:1",
+        "finance37:1",
+        "finance38:1",
+        "finance3:1",
+        "finance4:1",
+        "finance5:1",
+        "finance6:1",
+        "finance7:1",
+        "finance8:1",
+        "finance9:1",
+        "gets0:1",
+        "gets10:1",
+        "gets11:1",
+        "gets12:1",
+        "gets13:1",
+        "gets14:1",
+        "gets15:1",
+        "gets16:1",
+        "gets17:1",
+        "gets19:1",
+        "gets1:1",
+        "gets20:1",
+        "gets21:1",
+        "gets22:1",
+        "gets23:1",
+        "gets24:1",
+        "gets25:1",
+        "gets26:1",
+        "gets27:1",
+        "gets28:1",
+        "gets2:1",
+        "gets30:1",
+        "gets31:1",
+        "gets32:1",
+        "gets33:1",
+        "gets34:1",
+        "gets35:1",
+        "gets36:1",
+        "gets37:1",
+        "gets38:1",
+        "gets39:1",
+        "gets3:1",
+        "gets4:1",
+        "gets5:1",
+        "gets6:1",
+        "gets7:1",
+        "gets8:1",
+        "gets9:1",
+        "invoices0:1",
+        "invoices10:1",
+        "invoices11:1",
+        "invoices12:1",
+        "invoices13:1",
+        "invoices14:1",
+        "invoices15:1",
+        "invoices16:1",
+        "invoices17:1",
+        "invoices18:1",
+        "invoices1:1",
+        "invoices21:1",
+        "invoices22:1",
+        "invoices23:1",
+        "invoices24:1",
+        "invoices25:1",
+        "invoices26:1",
+        "invoices27:1",
+        "invoices28:1",
+        "invoices29:1",
+        "invoices2:1",
+        "invoices32:1",
+        "invoices33:1",
+        "invoices34:1",
+        "invoices35:1",
+        "invoices36:1",
+        "invoices37:1",
+        "invoices38:1",
+        "invoices39:1",
+        "invoices3:1",
+        "invoices4:1",
+        "invoices5:1",
+        "invoices6:1",
+        "invoices7:1",
+        "invoices8:1",
+        "invoices9:1",
+        "invoices:2",
+        "month0:1",
+        "month10:1",
+        "month13:1",
+        "month14:1",
+        "month15:1",
+        "month16:1",
+        "month17:1",
+        "month18:1",
+        "month19:1",
+        "month1:1",
+        "month20:1",
+        "month21:1",
+        "month24:1",
+        "month25:1",
+        "month26:1",
+        "month27:1",
+        "month28:1",
+        "month29:1",
+        "month2:1",
+        "month30:1",
+        "month31:1",
+        "month32:1",
+        "month35:1",
+        "month36:1",
+        "month37:1",
+        "month38:1",
+        "month39:1",
+        "month3:1",
+        "month4:1",
+        "month5:1",
+        "month6:1",
+        "month7:1",
+        "month8:1",
+        "month9:1",
+        "moved0:1",
+        "moved10:1",
+        "moved11:1",
+        "moved12:1",
+        "moved13:1",
+        "moved16:1",
+        "moved17:1",
+        "moved18:1",
+        "moved19:1",
+        "moved1:2",
+        "moved20:1",
+        "moved21:1",
+        "moved22:1",
+        "moved23:1",
+        "moved24:1",
+        "moved27:1",
+        "moved28:1",
+        "moved29:1",
+        "moved2:2",
+        "moved30:1",
+        "moved31:1",
+        "moved32:1",
+        "moved33:1",
+        "moved34:1",
+        "moved35:1",
+        "moved38:1",
+        "moved39:1",
+        "moved3:2",
+        "moved4:1",
+        "moved5:1",
+        "moved6:1",
+        "moved7:1",
+        "moved8:1",
+        "moved9:1",
+        "so0:1",
+        "so10:1",
+        "so11:1",
+        "so12:1",
+        "so13:1",
+        "so14:1",
+        "so15:1",
+        "so18:1",
+        "so19:1",
+        "so1:2",
+        "so20:1",
+        "so21:1",
+        "so22:1",
+        "so23:1",
+        "so24:1",
+        "so25:1",
+        "so26:1",
+        "so29:1",
+        "so2:2",
+        "so30:1",
+        "so31:1",
+        "so32:1",
+        "so33:1",
+        "so34:1",
+        "so35:1",
+        "so36:1",
+        "so37:1",
+        "so3:2",
+        "so4:1",
+        "so5:1",
+        "so6:1",
+        "so7:1",
+        "so8:1",
+        "so9:1",
+        "soon:3",
+        "sooner0:1",
+        "sooner11:1",
+        "sooner12:1",
+        "sooner13:1",
+        "sooner14:1",
+        "sooner15:1",
+        "sooner16:1",
+        "sooner17:1",
+        "sooner18:1",
+        "sooner19:1",
+        "sooner1:1",
+        "sooner22:1",
+        "sooner23:1",
+        "sooner24:1",
+        "sooner25:1",
+        "sooner26:1",
+        "sooner27:1",
+        "sooner28:1",
+        "sooner29:1",
+        "sooner2:1",
+        "sooner30:1",
+        "sooner33:1",
+        "sooner34:1",
+        "sooner35:1",
+        "sooner36:1",
+        "sooner37:1",
+        "sooner38:1",
+        "sooner39:1",
+        "sooner3:1",
+        "sooner4:1",
+        "sooner5:1",
+        "sooner6:1",
+        "sooner7:1",
+        "sooner8:1",
+        "sooner9:1",
+        "the0:1",
+        "the10:1",
+        "the11:1",
+        "the14:1",
+        "the15:1",
+        "the16:1",
+        "the17:1",
+        "the18:1",
+        "the19:1",
+        "the1:1",
+        "the20:1",
+        "the21:1",
+        "the22:1",
+        "the25:1",
+        "the26:1",
+        "the27:1",
+        "the28:1",
+        "the29:1",
+        "the2:1",
+        "the30:1",
+        "the31:1",
+        "the32:1",
+        "the33:1",
+        "the36:1",
+        "the37:1",
+        "the38:1",
+        "the39:1",
+        "the3:1",
+        "the4:1",
+        "the5:1",
+        "the6:1",
+        "the7:1",
+        "the8:1",
+        "the9:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 837,
+      "charsPerToken": 3.774193548387097
+    },
+    "json-line": {
+      "chars": 24,
+      "ink": 21,
+      "syntaxChars": 10,
+      "syntax": 0.47619047619047616,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": ["true:1"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 12,
+      "charsPerToken": 2
+    },
+    "status-json": {
+      "chars": 259,
+      "ink": 220,
+      "syntaxChars": 100,
+      "syntax": 0.45454545454545453,
+      "repetition": 0.9,
+      "repeatedTerms": ["status:10"],
+      "termCounts": ["status:10"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 119,
+      "charsPerToken": 2.176470588235294
+    },
+    "duplicates": {
+      "chars": 49,
+      "ink": 39,
+      "syntaxChars": 2,
+      "syntax": 0.05128205128205128,
+      "repetition": 0.75,
+      "repeatedTerms": ["line:4", "same:4"],
+      "termCounts": ["line:4", "same:4"],
+      "duplicateLines": 3,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 17,
+      "charsPerToken": 2.8823529411764706
+    },
+    "indents": {
+      "chars": 29,
+      "ink": 5,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [],
+      "duplicateLines": 0,
+      "indentChars": 20,
+      "maxIndent": 8,
+      "tokens": 15,
+      "charsPerToken": 1.9333333333333333
+    },
+    "half-narrative": {
+      "chars": 237,
+      "ink": 197,
+      "syntaxChars": 3,
+      "syntax": 0.015228426395939087,
+      "repetition": 0.12030075187969924,
+      "repeatedTerms": ["minimum:2", "cache:2", "peak:2"],
+      "termCounts": [
+        "add:1",
+        "again:1",
+        "cache:2",
+        "friday:1",
+        "latency:1",
+        "minimum:2",
+        "next:1",
+        "once:1",
+        "open:1",
+        "owner:1",
+        "peak:2",
+        "platform:1",
+        "policy:1",
+        "priority:1",
+        "recovered:1",
+        "resize:1",
+        "resized:1",
+        "status:1",
+        "traffic:1",
+        "warmed:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 53,
+      "charsPerToken": 4.471698113207547
+    },
+    "heading": {
+      "chars": 102,
+      "ink": 86,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [
+        "almost:1",
+        "back:1",
+        "cache:1",
+        "came:1",
+        "checkout:1",
+        "cold:1",
+        "database:1",
+        "every:1",
+        "fell:1",
+        "happened:1",
+        "pricing:1",
+        "through:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 21,
+      "charsPerToken": 4.857142857142857
+    },
+    "overflowing-json": {
+      "chars": 2369,
+      "ink": 1950,
+      "syntaxChars": 1190,
+      "syntax": 0.6102564102564103,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [
+        "k10:1",
+        "k11:1",
+        "k12:1",
+        "k13:1",
+        "k14:1",
+        "k15:1",
+        "k16:1",
+        "k17:1",
+        "k18:1",
+        "k19:1",
+        "k20:1",
+        "k21:1",
+        "k22:1",
+        "k23:1",
+        "k24:1",
+        "k25:1",
+        "k26:1",
+        "k27:1",
+        "k28:1",
+        "k29:1",
+        "k30:1",
+        "k31:1",
+        "k32:1",
+        "k33:1",
+        "k34:1",
+        "k35:1",
+        "k36:1",
+        "k37:1",
+        "k38:1",
+        "k39:1",
+        "k40:1",
+        "k41:1",
+        "k42:1",
+        "k43:1",
+        "k44:1",
+        "k45:1",
+        "k46:1",
+        "k47:1",
+        "k48:1",
+        "k49:1",
+        "k50:1",
+        "k51:1",
+        "k52:1",
+        "k53:1",
+        "k54:1",
+        "k55:1",
+        "k56:1",
+        "k57:1",
+        "k58:1",
+        "k59:1",
+        "k60:1",
+        "k61:1",
+        "k62:1",
+        "k63:1",
+        "k64:1",
+        "k65:1",
+        "k66:1",
+        "k67:1",
+        "k68:1",
+        "k69:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 1399,
+      "charsPerToken": 1.6933523945675482
+    },
+    "noisy-json": {
+      "chars": 553,
+      "ink": 458,
+      "syntaxChars": 204,
+      "syntax": 0.44541484716157204,
+      "repetition": 0.8768115942028986,
+      "repeatedTerms": ["status:12", "owner:12"],
+      "termCounts": ["owner:12", "r10:1", "r11:1", "status:12"],
+      "duplicateLines": 0,
+      "indentChars": 24,
+      "maxIndent": 2,
+      "tokens": 263,
+      "charsPerToken": 2.102661596958175
+    },
+    "light": {
+      "chars": 326,
+      "ink": 272,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.020833333333333332,
+      "repeatedTerms": ["runs:2"],
+      "termCounts": [
+        "again:1",
+        "ask:1",
+        "asked:1",
+        "calling:1",
+        "close:1",
+        "data:1",
+        "depends:1",
+        "downstream:1",
+        "earlier:1",
+        "easy:1",
+        "export:1",
+        "finance:1",
+        "first:1",
+        "group:1",
+        "invoices:1",
+        "load:1",
+        "morning:1",
+        "moved:1",
+        "nothing:1",
+        "old:1",
+        "platform:1",
+        "quarter:1",
+        "rollback:1",
+        "runs:2",
+        "schedule:1",
+        "shifts:1",
+        "three:1",
+        "timeouts:1",
+        "timing:1",
+        "warehouse:1",
+        "watch:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 67,
+      "charsPerToken": 4.865671641791045
+    },
+    "repeated-term": {
+      "chars": 241,
+      "ink": 200,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.9,
+      "repeatedTerms": ["status:28"],
+      "termCounts": ["r10:1", "r11:1", "r12:1", "r13:1", "status:28"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 69,
+      "charsPerToken": 3.4927536231884058
+    },
+    "key-values": {
+      "chars": 37,
+      "ink": 31,
+      "syntaxChars": 3,
+      "syntax": 0.0967741935483871,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": ["brief:1", "draft:1", "name:1", "ops:1", "owner:1", "status:1"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 12,
+      "charsPerToken": 3.0833333333333335
+    },
+    "nested-json": {
+      "chars": 372,
+      "ink": 300,
+      "syntaxChars": 204,
+      "syntax": 0.68,
+      "repetition": 0,
+      "repeatedTerms": [],
+      "termCounts": [],
+      "duplicateLines": 11,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 216,
+      "charsPerToken": 1.7222222222222223
+    },
+    "status-lines": {
+      "chars": 448,
+      "ink": 384,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.984375,
+      "repeatedTerms": ["status:64"],
+      "termCounts": ["status:64"],
+      "duplicateLines": 7,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 72,
+      "charsPerToken": 6.222222222222222
+    },
+    "words": {
+      "chars": 2280,
+      "ink": 1800,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.9977777777777778,
+      "repeatedTerms": ["word:450"],
+      "termCounts": ["word:450"],
+      "duplicateLines": 29,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 510,
+      "charsPerToken": 4.470588235294118
+    },
+    "deep-indent": {
+      "chars": 500,
+      "ink": 280,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.95,
+      "repeatedTerms": ["indent:20", "deep:20", "line:20"],
+      "termCounts": ["deep:20", "indent:20", "line:20"],
+      "duplicateLines": 19,
+      "indentChars": 160,
+      "maxIndent": 8,
+      "tokens": 120,
+      "charsPerToken": 4.166666666666667
+    },
+    "one-sentence": {
+      "chars": 159,
+      "ink": 135,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.6666666666666666,
+      "repeatedTerms": ["explains:3", "sentence:3", "clearly:3", "enough:3", "point:3"],
+      "termCounts": ["clearly:3", "enough:3", "explains:3", "point:3", "sentence:3"],
+      "duplicateLines": 2,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 30,
+      "charsPerToken": 5.3
+    },
+    "long-line": {
+      "chars": 181,
+      "ink": 141,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.6666666666666666,
+      "repeatedTerms": ["going:3", "keeps:3", "edge:3", "grid:3", "line:3", "long:3", "page:3", "past:3"],
+      "termCounts": ["edge:3", "going:3", "grid:3", "keeps:3", "line:3", "long:3", "page:3", "past:3"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 41,
+      "charsPerToken": 4.414634146341464
+    },
+    "one-row-over": {
+      "chars": 477,
+      "ink": 356,
+      "syntaxChars": 0,
+      "syntax": 0,
+      "repetition": 0.9836065573770492,
+      "repeatedTerms": ["line:61"],
+      "termCounts": ["line:61"],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 182,
+      "charsPerToken": 2.620879120879121
+    },
+    "checklist": {
+      "chars": 239,
+      "ink": 203,
+      "syntaxChars": 22,
+      "syntax": 0.10837438423645321,
+      "repetition": 0.14960629921259844,
+      "repeatedTerms": ["tag:3", "release:2", "deploy:2"],
+      "termCounts": [
+        "changelog:1",
+        "changes:1",
+        "check:1",
+        "checklist:1",
+        "com:1",
+        "dashboard:1",
+        "deploy:2",
+        "example:1",
+        "facing:1",
+        "https:1",
+        "origin:1",
+        "pnpm:1",
+        "push:1",
+        "release:2",
+        "run:1",
+        "tag:3",
+        "update:1",
+        "user:1",
+        "watch:1"
+      ],
+      "duplicateLines": 0,
+      "indentChars": 0,
+      "maxIndent": 0,
+      "tokens": 71,
+      "charsPerToken": 3.3661971830985915
+    }
+  },
+  "pages": {
+    "welcome@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 31,
+      "rowsUsed": 30,
+      "fill": 0.5,
+      "overflow": 0,
+      "coverage": 0.26729166666666665,
+      "crowding": 0.5345833333333333,
+      "indentation": 0.0075,
+      "wrappedLines": 0,
+      "lineKinds": "hbpppbpppppbsbpppppppppppbppbpb",
+      "proseLines": 22,
+      "structuredLines": 1,
+      "headingLines": 1,
+      "narrative": 0.9565217391304348,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "welcome@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 50,
+      "rowsUsed": 49,
+      "fill": 0.8448275862068966,
+      "overflow": 0,
+      "coverage": 0.3567853170189099,
+      "crowding": 0.42231731402238315,
+      "indentation": 0.005924950625411455,
+      "wrappedLines": 19,
+      "lineKinds": "hbpppbpppppbsbpppppppppppbppbpb",
+      "proseLines": 22,
+      "structuredLines": 1,
+      "headingLines": 1,
+      "narrative": 0.9565217391304348,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 19,
+          "cols": 62
+        }
+      ]
+    },
+    "welcome@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 38,
+      "rowsUsed": 37,
+      "fill": 0.6379310344827587,
+      "overflow": 0,
+      "coverage": 0.2949425287356322,
+      "crowding": 0.46234234234234234,
+      "indentation": 0.006486486486486486,
+      "wrappedLines": 7,
+      "lineKinds": "hbpppbpppppbsbpppppppppppbppbpb",
+      "proseLines": 22,
+      "structuredLines": 1,
+      "headingLines": 1,
+      "narrative": 0.9565217391304348,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 7,
+          "cols": 75
+        }
+      ]
+    },
+    "welcome@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 31,
+      "rowsUsed": 30,
+      "fill": 0.375,
+      "overflow": 0,
+      "coverage": 0.160375,
+      "crowding": 0.42766666666666664,
+      "indentation": 0.006,
+      "wrappedLines": 0,
+      "lineKinds": "hbpppbpppppbsbpppppppppppbppbpb",
+      "proseLines": 22,
+      "structuredLines": 1,
+      "headingLines": 1,
+      "narrative": 0.9565217391304348,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "incident-json@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 116,
+      "rowsUsed": 115,
+      "fill": 1.9166666666666667,
+      "overflow": 55,
+      "coverage": 0.38208333333333333,
+      "crowding": 0.19934782608695653,
+      "indentation": 0.07891304347826086,
+      "wrappedLines": 1,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 55
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 80
+        }
+      ]
+    },
+    "incident-json@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 118,
+      "rowsUsed": 117,
+      "fill": 2.0172413793103448,
+      "overflow": 59,
+      "coverage": 0.5100111234705228,
+      "crowding": 0.2528260270195754,
+      "indentation": 0.1000827129859388,
+      "wrappedLines": 3,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 59
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 3,
+          "cols": 62
+        }
+      ]
+    },
+    "incident-json@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 116,
+      "rowsUsed": 115,
+      "fill": 1.9827586206896552,
+      "overflow": 57,
+      "coverage": 0.42160919540229885,
+      "crowding": 0.21263768115942028,
+      "indentation": 0.08417391304347827,
+      "wrappedLines": 1,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 57
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 75
+        }
+      ]
+    },
+    "incident-json@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 115,
+      "rowsUsed": 114,
+      "fill": 1.425,
+      "overflow": 34,
+      "coverage": 0.22925,
+      "crowding": 0.16087719298245615,
+      "indentation": 0.06368421052631579,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 34
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        }
+      ]
+    },
+    "incident-narrative@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 32,
+      "rowsUsed": 31,
+      "fill": 0.5166666666666667,
+      "overflow": 0,
+      "coverage": 0.27145833333333336,
+      "crowding": 0.5254032258064516,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "incident-narrative@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 49,
+      "rowsUsed": 48,
+      "fill": 0.8275862068965517,
+      "overflow": 0,
+      "coverage": 0.36234705228031144,
+      "crowding": 0.43783602150537637,
+      "indentation": 0,
+      "wrappedLines": 17,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 17,
+          "cols": 62
+        }
+      ]
+    },
+    "incident-narrative@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 40,
+      "rowsUsed": 39,
+      "fill": 0.6724137931034483,
+      "overflow": 0,
+      "coverage": 0.29954022988505746,
+      "crowding": 0.4454700854700855,
+      "indentation": 0,
+      "wrappedLines": 8,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 8,
+          "cols": 75
+        }
+      ]
+    },
+    "incident-narrative@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 32,
+      "rowsUsed": 31,
+      "fill": 0.3875,
+      "overflow": 0,
+      "coverage": 0.162875,
+      "crowding": 0.4203225806451613,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-situation-brief@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 25,
+      "rowsUsed": 24,
+      "fill": 0.4,
+      "overflow": 0,
+      "coverage": 0.16229166666666667,
+      "crowding": 0.40572916666666664,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbppbpppbppbpbppbppbpb",
+      "proseLines": 15,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9375,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-situation-brief@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 34,
+      "rowsUsed": 33,
+      "fill": 0.5689655172413793,
+      "overflow": 0,
+      "coverage": 0.21662958843159066,
+      "crowding": 0.3807429130009775,
+      "indentation": 0,
+      "wrappedLines": 9,
+      "lineKinds": "sbppbppbpppbppbpbppbppbpb",
+      "proseLines": 15,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9375,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 9,
+          "cols": 62
+        }
+      ]
+    },
+    "template-situation-brief@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 29,
+      "rowsUsed": 28,
+      "fill": 0.4827586206896552,
+      "overflow": 0,
+      "coverage": 0.17908045977011494,
+      "crowding": 0.370952380952381,
+      "indentation": 0,
+      "wrappedLines": 4,
+      "lineKinds": "sbppbppbpppbppbpbppbppbpb",
+      "proseLines": 15,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9375,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 4,
+          "cols": 75
+        }
+      ]
+    },
+    "template-situation-brief@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 25,
+      "rowsUsed": 24,
+      "fill": 0.3,
+      "overflow": 0,
+      "coverage": 0.097375,
+      "crowding": 0.32458333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbppbpppbppbpbppbppbpb",
+      "proseLines": 15,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9375,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-entity-card@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 20,
+      "rowsUsed": 19,
+      "fill": 0.31666666666666665,
+      "overflow": 0,
+      "coverage": 0.123125,
+      "crowding": 0.3888157894736842,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbpbppbppbpbppb",
+      "proseLines": 11,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9166666666666666,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-entity-card@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 27,
+      "rowsUsed": 26,
+      "fill": 0.4482758620689655,
+      "overflow": 0,
+      "coverage": 0.164349276974416,
+      "crowding": 0.36662531017369726,
+      "indentation": 0,
+      "wrappedLines": 7,
+      "lineKinds": "sbppbpbpbppbppbpbppb",
+      "proseLines": 11,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9166666666666666,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 7,
+          "cols": 62
+        }
+      ]
+    },
+    "template-entity-card@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 23,
+      "rowsUsed": 22,
+      "fill": 0.3793103448275862,
+      "overflow": 0,
+      "coverage": 0.13586206896551725,
+      "crowding": 0.35818181818181816,
+      "indentation": 0,
+      "wrappedLines": 3,
+      "lineKinds": "sbppbpbpbppbppbpbppb",
+      "proseLines": 11,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9166666666666666,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 3,
+          "cols": 75
+        }
+      ]
+    },
+    "template-entity-card@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 20,
+      "rowsUsed": 19,
+      "fill": 0.2375,
+      "overflow": 0,
+      "coverage": 0.073875,
+      "crowding": 0.31105263157894736,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbpbppbppbpbppb",
+      "proseLines": 11,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9166666666666666,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1819
+        }
+      ]
+    },
+    "template-handoff@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.3333333333333333,
+      "overflow": 0,
+      "coverage": 0.13125,
+      "crowding": 0.39375,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbppbppbppbppbpbpb",
+      "proseLines": 12,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9230769230769231,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-handoff@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 27,
+      "rowsUsed": 26,
+      "fill": 0.4482758620689655,
+      "overflow": 0,
+      "coverage": 0.17519466073414905,
+      "crowding": 0.39081885856079407,
+      "indentation": 0,
+      "wrappedLines": 6,
+      "lineKinds": "sbppbppbppbppbppbpbpb",
+      "proseLines": 12,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9230769230769231,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 6,
+          "cols": 62
+        }
+      ]
+    },
+    "template-handoff@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 26,
+      "rowsUsed": 25,
+      "fill": 0.43103448275862066,
+      "overflow": 0,
+      "coverage": 0.14482758620689656,
+      "crowding": 0.336,
+      "indentation": 0,
+      "wrappedLines": 5,
+      "lineKinds": "sbppbppbppbppbppbpbpb",
+      "proseLines": 12,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9230769230769231,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 5,
+          "cols": 75
+        }
+      ]
+    },
+    "template-handoff@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.25,
+      "overflow": 0,
+      "coverage": 0.07875,
+      "crowding": 0.315,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbppbppbppbppbpbpb",
+      "proseLines": 12,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9230769230769231,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-decision-record@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 19,
+      "rowsUsed": 18,
+      "fill": 0.3,
+      "overflow": 0,
+      "coverage": 0.12125,
+      "crowding": 0.4041666666666667,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbpbppbppbpbpb",
+      "proseLines": 10,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9090909090909091,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-decision-record@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 25,
+      "rowsUsed": 24,
+      "fill": 0.41379310344827586,
+      "overflow": 0,
+      "coverage": 0.1618464961067853,
+      "crowding": 0.3911290322580645,
+      "indentation": 0,
+      "wrappedLines": 6,
+      "lineKinds": "sbppbpbpbppbppbpbpb",
+      "proseLines": 10,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9090909090909091,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 6,
+          "cols": 62
+        }
+      ]
+    },
+    "template-decision-record@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 22,
+      "rowsUsed": 21,
+      "fill": 0.3620689655172414,
+      "overflow": 0,
+      "coverage": 0.13379310344827586,
+      "crowding": 0.36952380952380953,
+      "indentation": 0,
+      "wrappedLines": 3,
+      "lineKinds": "sbppbpbpbppbppbpbpb",
+      "proseLines": 10,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9090909090909091,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 3,
+          "cols": 75
+        }
+      ]
+    },
+    "template-decision-record@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 19,
+      "rowsUsed": 18,
+      "fill": 0.225,
+      "overflow": 0,
+      "coverage": 0.07275,
+      "crowding": 0.3233333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbpbppbppbpbpb",
+      "proseLines": 10,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9090909090909091,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1839
+        }
+      ]
+    },
+    "template-agent-charter@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 23,
+      "rowsUsed": 22,
+      "fill": 0.36666666666666664,
+      "overflow": 0,
+      "coverage": 0.14166666666666666,
+      "crowding": 0.38636363636363635,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbppbpbppbppbppbpb",
+      "proseLines": 13,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9285714285714286,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "template-agent-charter@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 32,
+      "rowsUsed": 31,
+      "fill": 0.5344827586206896,
+      "overflow": 0,
+      "coverage": 0.18909899888765294,
+      "crowding": 0.3537981269510926,
+      "indentation": 0,
+      "wrappedLines": 9,
+      "lineKinds": "sbppbpbppbpbppbppbppbpb",
+      "proseLines": 13,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9285714285714286,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 9,
+          "cols": 62
+        }
+      ]
+    },
+    "template-agent-charter@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 28,
+      "rowsUsed": 27,
+      "fill": 0.46551724137931033,
+      "overflow": 0,
+      "coverage": 0.15632183908045977,
+      "crowding": 0.3358024691358025,
+      "indentation": 0,
+      "wrappedLines": 5,
+      "lineKinds": "sbppbpbppbpbppbppbppbpb",
+      "proseLines": 13,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9285714285714286,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 5,
+          "cols": 75
+        }
+      ]
+    },
+    "template-agent-charter@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 23,
+      "rowsUsed": 22,
+      "fill": 0.275,
+      "overflow": 0,
+      "coverage": 0.085,
+      "crowding": 0.3090909090909091,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sbppbpbppbpbppbppbppbpb",
+      "proseLines": 13,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0.9285714285714286,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "pair-incident-a@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 116,
+      "rowsUsed": 115,
+      "fill": 1.9166666666666667,
+      "overflow": 55,
+      "coverage": 0.38208333333333333,
+      "crowding": 0.19934782608695653,
+      "indentation": 0.07891304347826086,
+      "wrappedLines": 1,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 55
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 80
+        }
+      ]
+    },
+    "pair-incident-a@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 118,
+      "rowsUsed": 117,
+      "fill": 2.0172413793103448,
+      "overflow": 59,
+      "coverage": 0.5100111234705228,
+      "crowding": 0.2528260270195754,
+      "indentation": 0.1000827129859388,
+      "wrappedLines": 3,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 59
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 3,
+          "cols": 62
+        }
+      ]
+    },
+    "pair-incident-a@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 116,
+      "rowsUsed": 115,
+      "fill": 1.9827586206896552,
+      "overflow": 57,
+      "coverage": 0.42160919540229885,
+      "crowding": 0.21263768115942028,
+      "indentation": 0.08417391304347827,
+      "wrappedLines": 1,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 57
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 75
+        }
+      ]
+    },
+    "pair-incident-a@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 115,
+      "rowsUsed": 114,
+      "fill": 1.425,
+      "overflow": 34,
+      "coverage": 0.22925,
+      "crowding": 0.16087719298245615,
+      "indentation": 0.06368421052631579,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssspsssssssspsssssspsssssssssssssssssssssssssssppsssb",
+      "proseLines": 5,
+      "structuredLines": 109,
+      "headingLines": 0,
+      "narrative": 0.043859649122807015,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 34
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.23500545256270447
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.4363001745200698
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0.043859649122807015
+        }
+      ]
+    },
+    "pair-incident-b@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 32,
+      "rowsUsed": 31,
+      "fill": 0.5166666666666667,
+      "overflow": 0,
+      "coverage": 0.27145833333333336,
+      "crowding": 0.5254032258064516,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "pair-incident-b@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 49,
+      "rowsUsed": 48,
+      "fill": 0.8275862068965517,
+      "overflow": 0,
+      "coverage": 0.36234705228031144,
+      "crowding": 0.43783602150537637,
+      "indentation": 0,
+      "wrappedLines": 17,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 17,
+          "cols": 62
+        }
+      ]
+    },
+    "pair-incident-b@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 40,
+      "rowsUsed": 39,
+      "fill": 0.6724137931034483,
+      "overflow": 0,
+      "coverage": 0.29954022988505746,
+      "crowding": 0.4454700854700855,
+      "indentation": 0,
+      "wrappedLines": 8,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 8,
+          "cols": 75
+        }
+      ]
+    },
+    "pair-incident-b@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 32,
+      "rowsUsed": 31,
+      "fill": 0.3875,
+      "overflow": 0,
+      "coverage": 0.162875,
+      "crowding": 0.4203225806451613,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hbppbppppppbppppbppbpppbppppbppb",
+      "proseLines": 23,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        }
+      ]
+    },
+    "empty@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 1,
+      "rowsUsed": 0,
+      "fill": 0,
+      "overflow": 0,
+      "coverage": 0,
+      "crowding": 0,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "b",
+      "proseLines": 0,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": null,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "empty",
+      "findings": [
+        {
+          "id": "empty",
+          "severity": "info"
+        }
+      ]
+    },
+    "empty@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 1,
+      "rowsUsed": 0,
+      "fill": 0,
+      "overflow": 0,
+      "coverage": 0,
+      "crowding": 0,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "b",
+      "proseLines": 0,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": null,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "empty",
+      "findings": [
+        {
+          "id": "empty",
+          "severity": "info"
+        }
+      ]
+    },
+    "empty@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 1,
+      "rowsUsed": 0,
+      "fill": 0,
+      "overflow": 0,
+      "coverage": 0,
+      "crowding": 0,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "b",
+      "proseLines": 0,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": null,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "empty",
+      "findings": [
+        {
+          "id": "empty",
+          "severity": "info"
+        }
+      ]
+    },
+    "empty@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 1,
+      "rowsUsed": 0,
+      "fill": 0,
+      "overflow": 0,
+      "coverage": 0,
+      "crowding": 0,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "b",
+      "proseLines": 0,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": null,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "empty",
+      "findings": [
+        {
+          "id": "empty",
+          "severity": "info"
+        }
+      ]
+    },
+    "prose@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 9,
+      "rowsUsed": 9,
+      "fill": 0.15,
+      "overflow": 0,
+      "coverage": 0.111875,
+      "crowding": 0.7458333333333333,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "p",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7458333333333333
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 80
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1073
+        }
+      ]
+    },
+    "prose@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 11,
+      "rowsUsed": 11,
+      "fill": 0.1896551724137931,
+      "overflow": 0,
+      "coverage": 0.1493325917686318,
+      "crowding": 0.7873900293255132,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "p",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7873900293255132
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 772
+        }
+      ]
+    },
+    "prose@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 9,
+      "rowsUsed": 9,
+      "fill": 0.15517241379310345,
+      "overflow": 0,
+      "coverage": 0.12344827586206897,
+      "crowding": 0.7955555555555556,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "p",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7955555555555556
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 75
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 960
+        }
+      ]
+    },
+    "prose@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 7,
+      "rowsUsed": 7,
+      "fill": 0.0875,
+      "overflow": 0,
+      "coverage": 0.067125,
+      "crowding": 0.7671428571428571,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "p",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7671428571428571
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 100
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1873
+        }
+      ]
+    },
+    "half-page@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 30,
+      "rowsUsed": 30,
+      "fill": 0.5,
+      "overflow": 0,
+      "coverage": 0.25,
+      "crowding": 0.5,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 30,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "count": 30,
+          "share": 0.9666666666666667
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "half-page@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 30,
+      "rowsUsed": 30,
+      "fill": 0.5172413793103449,
+      "overflow": 0,
+      "coverage": 0.3337041156840934,
+      "crowding": 0.6451612903225806,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 30,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "count": 30,
+          "share": 0.9666666666666667
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "half-page@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 30,
+      "rowsUsed": 30,
+      "fill": 0.5172413793103449,
+      "overflow": 0,
+      "coverage": 0.27586206896551724,
+      "crowding": 0.5333333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 30,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "count": 30,
+          "share": 0.9666666666666667
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "half-page@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 30,
+      "rowsUsed": 30,
+      "fill": 0.375,
+      "overflow": 0,
+      "coverage": 0.15,
+      "crowding": 0.4,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 30,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww",
+          "count": 30,
+          "share": 0.9666666666666667
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflow@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 67,
+      "rowsUsed": 67,
+      "fill": 1.1166666666666667,
+      "overflow": 7,
+      "coverage": 0.08166666666666667,
+      "crowding": 0.07313432835820896,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 67,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 7
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 67,
+          "share": 0.9850746268656716
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflow@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 67,
+      "rowsUsed": 67,
+      "fill": 1.1551724137931034,
+      "overflow": 9,
+      "coverage": 0.10901001112347053,
+      "crowding": 0.09436687530091478,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 67,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 9
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 67,
+          "share": 0.9850746268656716
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflow@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 67,
+      "rowsUsed": 67,
+      "fill": 1.1551724137931034,
+      "overflow": 9,
+      "coverage": 0.09011494252873563,
+      "crowding": 0.07800995024875622,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 67,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 9
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 67,
+          "share": 0.9850746268656716
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflow@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 67,
+      "rowsUsed": 67,
+      "fill": 0.8375,
+      "overflow": 0,
+      "coverage": 0.049,
+      "crowding": 0.05850746268656717,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 67,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 67,
+          "share": 0.9850746268656716
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "crowded@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.16666666666666666,
+      "overflow": 0,
+      "coverage": 0.16666666666666666,
+      "crowding": 1,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 1
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1071
+        }
+      ]
+    },
+    "crowded@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 20,
+      "rowsUsed": 20,
+      "fill": 0.3448275862068966,
+      "overflow": 0,
+      "coverage": 0.22246941045606228,
+      "crowding": 0.6451612903225806,
+      "indentation": 0,
+      "wrappedLines": 10,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 10,
+          "cols": 62
+        }
+      ]
+    },
+    "crowded@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 20,
+      "rowsUsed": 20,
+      "fill": 0.3448275862068966,
+      "overflow": 0,
+      "coverage": 0.1839080459770115,
+      "crowding": 0.5333333333333333,
+      "indentation": 0,
+      "wrappedLines": 10,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "balanced",
+      "findings": [
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 10,
+          "cols": 75
+        }
+      ]
+    },
+    "crowded@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.125,
+      "overflow": 0,
+      "coverage": 0.1,
+      "crowding": 0.8,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.8
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1871
+        }
+      ]
+    },
+    "wall@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 40,
+      "rowsUsed": 40,
+      "fill": 0.6666666666666666,
+      "overflow": 0,
+      "coverage": 0.5729166666666666,
+      "crowding": 0.859375,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppppppppppppppppppppppppppppppppppppppp",
+      "proseLines": 40,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "busy",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.859375
+        }
+      ]
+    },
+    "wall@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 80,
+      "rowsUsed": 80,
+      "fill": 1.3793103448275863,
+      "overflow": 22,
+      "coverage": 0.7647385984427141,
+      "crowding": 0.5544354838709677,
+      "indentation": 0,
+      "wrappedLines": 40,
+      "lineKinds": "pppppppppppppppppppppppppppppppppppppppp",
+      "proseLines": 40,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 22
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 40,
+          "cols": 62
+        }
+      ]
+    },
+    "wall@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 80,
+      "rowsUsed": 80,
+      "fill": 1.3793103448275863,
+      "overflow": 22,
+      "coverage": 0.632183908045977,
+      "crowding": 0.4583333333333333,
+      "indentation": 0,
+      "wrappedLines": 40,
+      "lineKinds": "pppppppppppppppppppppppppppppppppppppppp",
+      "proseLines": 40,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 22
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 40,
+          "cols": 75
+        }
+      ]
+    },
+    "wall@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 40,
+      "rowsUsed": 40,
+      "fill": 0.5,
+      "overflow": 0,
+      "coverage": 0.34375,
+      "crowding": 0.6875,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppppppppppppppppppppppppppppppppppppppp",
+      "proseLines": 40,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "ok",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "busy",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.6875
+        }
+      ]
+    },
+    "json-line@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 1,
+      "rowsUsed": 1,
+      "fill": 0.016666666666666666,
+      "overflow": 0,
+      "coverage": 0.004375,
+      "crowding": 0.2625,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "s",
+      "proseLines": 0,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.47619047619047616
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1188
+        }
+      ]
+    },
+    "json-line@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 1,
+      "rowsUsed": 1,
+      "fill": 0.017241379310344827,
+      "overflow": 0,
+      "coverage": 0.005839822024471635,
+      "crowding": 0.3387096774193548,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "s",
+      "proseLines": 0,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.47619047619047616
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 887
+        }
+      ]
+    },
+    "json-line@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 1,
+      "rowsUsed": 1,
+      "fill": 0.017241379310344827,
+      "overflow": 0,
+      "coverage": 0.004827586206896552,
+      "crowding": 0.28,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "s",
+      "proseLines": 0,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.47619047619047616
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1075
+        }
+      ]
+    },
+    "json-line@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 1,
+      "rowsUsed": 1,
+      "fill": 0.0125,
+      "overflow": 0,
+      "coverage": 0.002625,
+      "crowding": 0.21,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "s",
+      "proseLines": 0,
+      "structuredLines": 1,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.47619047619047616
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1988
+        }
+      ]
+    },
+    "status-json@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.16666666666666666,
+      "overflow": 0,
+      "coverage": 0.04583333333333333,
+      "crowding": 0.275,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.45454545454545453
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1081
+        }
+      ]
+    },
+    "status-json@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.1724137931034483,
+      "overflow": 0,
+      "coverage": 0.06117908787541713,
+      "crowding": 0.3548387096774194,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.45454545454545453
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 780
+        }
+      ]
+    },
+    "status-json@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.1724137931034483,
+      "overflow": 0,
+      "coverage": 0.05057471264367816,
+      "crowding": 0.29333333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.45454545454545453
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 968
+        }
+      ]
+    },
+    "status-json@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 10,
+      "rowsUsed": 10,
+      "fill": 0.125,
+      "overflow": 0,
+      "coverage": 0.0275,
+      "crowding": 0.22,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssss",
+      "proseLines": 0,
+      "structuredLines": 10,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.45454545454545453
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 10,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1881
+        }
+      ]
+    },
+    "duplicates@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 7,
+      "rowsUsed": 7,
+      "fill": 0.11666666666666667,
+      "overflow": 0,
+      "coverage": 0.008125,
+      "crowding": 0.06964285714285715,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssss",
+      "proseLines": 0,
+      "structuredLines": 7,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 4,
+          "share": 0.75
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 3
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1183
+        }
+      ]
+    },
+    "duplicates@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 7,
+      "rowsUsed": 7,
+      "fill": 0.1206896551724138,
+      "overflow": 0,
+      "coverage": 0.010845383759733037,
+      "crowding": 0.08986175115207373,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssss",
+      "proseLines": 0,
+      "structuredLines": 7,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 4,
+          "share": 0.75
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 3
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 882
+        }
+      ]
+    },
+    "duplicates@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 7,
+      "rowsUsed": 7,
+      "fill": 0.1206896551724138,
+      "overflow": 0,
+      "coverage": 0.00896551724137931,
+      "crowding": 0.07428571428571429,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssss",
+      "proseLines": 0,
+      "structuredLines": 7,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 4,
+          "share": 0.75
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 3
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1070
+        }
+      ]
+    },
+    "duplicates@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 7,
+      "rowsUsed": 7,
+      "fill": 0.0875,
+      "overflow": 0,
+      "coverage": 0.004875,
+      "crowding": 0.055714285714285716,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssss",
+      "proseLines": 0,
+      "structuredLines": 7,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 4,
+          "share": 0.75
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 3
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1983
+        }
+      ]
+    },
+    "indents@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.08333333333333333,
+      "overflow": 0,
+      "coverage": 0.0010416666666666667,
+      "crowding": 0.0125,
+      "indentation": 0.05,
+      "wrappedLines": 0,
+      "lineKinds": "sssss",
+      "proseLines": 0,
+      "structuredLines": 5,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1185
+        }
+      ]
+    },
+    "indents@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.08620689655172414,
+      "overflow": 0,
+      "coverage": 0.0013904338153503894,
+      "crowding": 0.016129032258064516,
+      "indentation": 0.06451612903225806,
+      "wrappedLines": 0,
+      "lineKinds": "sssss",
+      "proseLines": 0,
+      "structuredLines": 5,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 884
+        }
+      ]
+    },
+    "indents@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.08620689655172414,
+      "overflow": 0,
+      "coverage": 0.0011494252873563218,
+      "crowding": 0.013333333333333334,
+      "indentation": 0.05333333333333334,
+      "wrappedLines": 0,
+      "lineKinds": "sssss",
+      "proseLines": 0,
+      "structuredLines": 5,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1072
+        }
+      ]
+    },
+    "indents@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.0625,
+      "overflow": 0,
+      "coverage": 0.000625,
+      "crowding": 0.01,
+      "indentation": 0.04,
+      "wrappedLines": 0,
+      "lineKinds": "sssss",
+      "proseLines": 0,
+      "structuredLines": 5,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1985
+        }
+      ]
+    },
+    "half-narrative@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 6,
+      "rowsUsed": 6,
+      "fill": 0.1,
+      "overflow": 0,
+      "coverage": 0.041041666666666664,
+      "crowding": 0.41041666666666665,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppsss",
+      "proseLines": 3,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1147
+        }
+      ]
+    },
+    "half-narrative@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 9,
+      "rowsUsed": 9,
+      "fill": 0.15517241379310345,
+      "overflow": 0,
+      "coverage": 0.05478309232480534,
+      "crowding": 0.35304659498207885,
+      "indentation": 0,
+      "wrappedLines": 3,
+      "lineKinds": "pppsss",
+      "proseLines": 3,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 3,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 846
+        }
+      ]
+    },
+    "half-narrative@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 6,
+      "rowsUsed": 6,
+      "fill": 0.10344827586206896,
+      "overflow": 0,
+      "coverage": 0.04528735632183908,
+      "crowding": 0.43777777777777777,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppsss",
+      "proseLines": 3,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1034
+        }
+      ]
+    },
+    "half-narrative@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 6,
+      "rowsUsed": 6,
+      "fill": 0.075,
+      "overflow": 0,
+      "coverage": 0.024625,
+      "crowding": 0.3283333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppsss",
+      "proseLines": 3,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1947
+        }
+      ]
+    },
+    "heading@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 3,
+      "rowsUsed": 3,
+      "fill": 0.05,
+      "overflow": 0,
+      "coverage": 0.017916666666666668,
+      "crowding": 0.35833333333333334,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hpp",
+      "proseLines": 2,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1179
+        }
+      ]
+    },
+    "heading@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 4,
+      "rowsUsed": 4,
+      "fill": 0.06896551724137931,
+      "overflow": 0,
+      "coverage": 0.023915461624026697,
+      "crowding": 0.3467741935483871,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "hpp",
+      "proseLines": 2,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 878
+        }
+      ]
+    },
+    "heading@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 3,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.019770114942528734,
+      "crowding": 0.38222222222222224,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hpp",
+      "proseLines": 2,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1066
+        }
+      ]
+    },
+    "heading@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 3,
+      "rowsUsed": 3,
+      "fill": 0.0375,
+      "overflow": 0,
+      "coverage": 0.01075,
+      "crowding": 0.2866666666666667,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hpp",
+      "proseLines": 2,
+      "structuredLines": 0,
+      "headingLines": 1,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1979
+        }
+      ]
+    },
+    "overflowing-json@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 70,
+      "rowsUsed": 70,
+      "fill": 1.1666666666666667,
+      "overflow": 10,
+      "coverage": 0.40625,
+      "crowding": 0.3482142857142857,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 70,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 10
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.6102564102564103
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflowing-json@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 70,
+      "rowsUsed": 70,
+      "fill": 1.206896551724138,
+      "overflow": 12,
+      "coverage": 0.5422691879866518,
+      "crowding": 0.44930875576036866,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 70,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 12
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.6102564102564103
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflowing-json@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 70,
+      "rowsUsed": 70,
+      "fill": 1.206896551724138,
+      "overflow": 12,
+      "coverage": 0.4482758620689655,
+      "crowding": 0.37142857142857144,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 70,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 12
+        },
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.6102564102564103
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "overflowing-json@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 70,
+      "rowsUsed": 70,
+      "fill": 0.875,
+      "overflow": 0,
+      "coverage": 0.24375,
+      "crowding": 0.2785714285714286,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 70,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.6102564102564103
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "noisy-json@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 12,
+      "rowsUsed": 12,
+      "fill": 0.2,
+      "overflow": 0,
+      "coverage": 0.09541666666666666,
+      "crowding": 0.47708333333333336,
+      "indentation": 0.025,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.44541484716157204
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 12,
+          "share": 0.8768115942028986
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 937
+        }
+      ]
+    },
+    "noisy-json@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 12,
+      "rowsUsed": 12,
+      "fill": 0.20689655172413793,
+      "overflow": 0,
+      "coverage": 0.12736373748609567,
+      "crowding": 0.6155913978494624,
+      "indentation": 0.03225806451612903,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.44541484716157204
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 12,
+          "share": 0.8768115942028986
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 636
+        }
+      ]
+    },
+    "noisy-json@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 12,
+      "rowsUsed": 12,
+      "fill": 0.20689655172413793,
+      "overflow": 0,
+      "coverage": 0.10528735632183908,
+      "crowding": 0.5088888888888888,
+      "indentation": 0.02666666666666667,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.44541484716157204
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 12,
+          "share": 0.8768115942028986
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 824
+        }
+      ]
+    },
+    "noisy-json@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 12,
+      "rowsUsed": 12,
+      "fill": 0.15,
+      "overflow": 0,
+      "coverage": 0.05725,
+      "crowding": 0.38166666666666665,
+      "indentation": 0.02,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.44541484716157204
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 12,
+          "share": 0.8768115942028986
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1737
+        }
+      ]
+    },
+    "light@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.08333333333333333,
+      "overflow": 0,
+      "coverage": 0.056666666666666664,
+      "crowding": 0.68,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppp",
+      "proseLines": 5,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.68
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1133
+        }
+      ]
+    },
+    "light@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 9,
+      "rowsUsed": 9,
+      "fill": 0.15517241379310345,
+      "overflow": 0,
+      "coverage": 0.07563959955506118,
+      "crowding": 0.4874551971326165,
+      "indentation": 0,
+      "wrappedLines": 4,
+      "lineKinds": "ppppp",
+      "proseLines": 5,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 4,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 832
+        }
+      ]
+    },
+    "light@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.08620689655172414,
+      "overflow": 0,
+      "coverage": 0.0625287356321839,
+      "crowding": 0.7253333333333334,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppp",
+      "proseLines": 5,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7253333333333334
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1020
+        }
+      ]
+    },
+    "light@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 5,
+      "rowsUsed": 5,
+      "fill": 0.0625,
+      "overflow": 0,
+      "coverage": 0.034,
+      "crowding": 0.544,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppp",
+      "proseLines": 5,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1933
+        }
+      ]
+    },
+    "repeated-term@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 14,
+      "rowsUsed": 14,
+      "fill": 0.23333333333333334,
+      "overflow": 0,
+      "coverage": 0.041666666666666664,
+      "crowding": 0.17857142857142858,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 14,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 28,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1131
+        }
+      ]
+    },
+    "repeated-term@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 14,
+      "rowsUsed": 14,
+      "fill": 0.2413793103448276,
+      "overflow": 0,
+      "coverage": 0.05561735261401557,
+      "crowding": 0.2304147465437788,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 14,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 28,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 830
+        }
+      ]
+    },
+    "repeated-term@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 14,
+      "rowsUsed": 14,
+      "fill": 0.2413793103448276,
+      "overflow": 0,
+      "coverage": 0.04597701149425287,
+      "crowding": 0.19047619047619047,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 14,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 28,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1018
+        }
+      ]
+    },
+    "repeated-term@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 14,
+      "rowsUsed": 14,
+      "fill": 0.175,
+      "overflow": 0,
+      "coverage": 0.025,
+      "crowding": 0.14285714285714285,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 14,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 28,
+          "share": 0.9
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1931
+        }
+      ]
+    },
+    "key-values@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05,
+      "overflow": 0,
+      "coverage": 0.006458333333333333,
+      "crowding": 0.12916666666666668,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssb",
+      "proseLines": 0,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1188
+        }
+      ]
+    },
+    "key-values@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.008620689655172414,
+      "crowding": 0.16666666666666666,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssb",
+      "proseLines": 0,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 887
+        }
+      ]
+    },
+    "key-values@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.007126436781609196,
+      "crowding": 0.13777777777777778,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssb",
+      "proseLines": 0,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1075
+        }
+      ]
+    },
+    "key-values@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.0375,
+      "overflow": 0,
+      "coverage": 0.003875,
+      "crowding": 0.10333333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssb",
+      "proseLines": 0,
+      "structuredLines": 3,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "clean",
+          "severity": "info"
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1988
+        }
+      ]
+    },
+    "nested-json@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 13,
+      "rowsUsed": 12,
+      "fill": 0.2,
+      "overflow": 0,
+      "coverage": 0.0625,
+      "crowding": 0.3125,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.68
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 984
+        }
+      ]
+    },
+    "nested-json@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 13,
+      "rowsUsed": 12,
+      "fill": 0.20689655172413793,
+      "overflow": 0,
+      "coverage": 0.08342602892102335,
+      "crowding": 0.4032258064516129,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.68
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 683
+        }
+      ]
+    },
+    "nested-json@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 13,
+      "rowsUsed": 12,
+      "fill": 0.20689655172413793,
+      "overflow": 0,
+      "coverage": 0.06896551724137931,
+      "crowding": 0.3333333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.68
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 871
+        }
+      ]
+    },
+    "nested-json@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 13,
+      "rowsUsed": 12,
+      "fill": 0.15,
+      "overflow": 0,
+      "coverage": 0.0375,
+      "crowding": 0.25,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 12,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "bad",
+        "repetition": "ok",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "warning",
+          "share": 0.68
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 11
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1784
+        }
+      ]
+    },
+    "status-lines@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 9,
+      "rowsUsed": 8,
+      "fill": 0.13333333333333333,
+      "overflow": 0,
+      "coverage": 0.08,
+      "crowding": 0.6,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppb",
+      "proseLines": 8,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 64,
+          "share": 0.984375
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 7
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1128
+        }
+      ]
+    },
+    "status-lines@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 9,
+      "rowsUsed": 8,
+      "fill": 0.13793103448275862,
+      "overflow": 0,
+      "coverage": 0.1067853170189099,
+      "crowding": 0.7741935483870968,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppb",
+      "proseLines": 8,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 64,
+          "share": 0.984375
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 7
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7741935483870968
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 827
+        }
+      ]
+    },
+    "status-lines@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 9,
+      "rowsUsed": 8,
+      "fill": 0.13793103448275862,
+      "overflow": 0,
+      "coverage": 0.08827586206896551,
+      "crowding": 0.64,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppb",
+      "proseLines": 8,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 64,
+          "share": 0.984375
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 7
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1015
+        }
+      ]
+    },
+    "status-lines@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 9,
+      "rowsUsed": 8,
+      "fill": 0.1,
+      "overflow": 0,
+      "coverage": 0.048,
+      "crowding": 0.48,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppb",
+      "proseLines": 8,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "status",
+          "count": 64,
+          "share": 0.984375
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 7
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1928
+        }
+      ]
+    },
+    "words@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 31,
+      "rowsUsed": 30,
+      "fill": 0.5,
+      "overflow": 0,
+      "coverage": 0.375,
+      "crowding": 0.75,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppppppppppppppppppppppppb",
+      "proseLines": 30,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "ok",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "word",
+          "count": 450,
+          "share": 0.9977777777777778
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.75
+        }
+      ]
+    },
+    "words@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 61,
+      "rowsUsed": 60,
+      "fill": 1.0344827586206897,
+      "overflow": 2,
+      "coverage": 0.5005561735261401,
+      "crowding": 0.4838709677419355,
+      "indentation": 0,
+      "wrappedLines": 30,
+      "lineKinds": "ppppppppppppppppppppppppppppppb",
+      "proseLines": 30,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 2
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "word",
+          "count": 450,
+          "share": 0.9977777777777778
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 30,
+          "cols": 62
+        }
+      ]
+    },
+    "words@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 31,
+      "rowsUsed": 30,
+      "fill": 0.5172413793103449,
+      "overflow": 0,
+      "coverage": 0.41379310344827586,
+      "crowding": 0.8,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppppppppppppppppppppppppb",
+      "proseLines": 30,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "ok",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "word",
+          "count": 450,
+          "share": 0.9977777777777778
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.8
+        }
+      ]
+    },
+    "words@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 31,
+      "rowsUsed": 30,
+      "fill": 0.375,
+      "overflow": 0,
+      "coverage": 0.225,
+      "crowding": 0.6,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "ppppppppppppppppppppppppppppppb",
+      "proseLines": 30,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "ok",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "word",
+          "count": 450,
+          "share": 0.9977777777777778
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 29
+        }
+      ]
+    },
+    "deep-indent@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.3333333333333333,
+      "overflow": 0,
+      "coverage": 0.058333333333333334,
+      "crowding": 0.175,
+      "indentation": 0.1,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 20,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "indent",
+          "count": 20,
+          "share": 0.95
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 19
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "deep-indent@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.3448275862068966,
+      "overflow": 0,
+      "coverage": 0.0778642936596218,
+      "crowding": 0.22580645161290322,
+      "indentation": 0.12903225806451613,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 20,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "bad"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "indent",
+          "count": 20,
+          "share": 0.95
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 19
+        },
+        {
+          "id": "indentation",
+          "severity": "warning",
+          "share": 0.12903225806451613,
+          "maxIndent": 8
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "deep-indent@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.3448275862068966,
+      "overflow": 0,
+      "coverage": 0.06436781609195402,
+      "crowding": 0.18666666666666668,
+      "indentation": 0.10666666666666667,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 20,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "indent",
+          "count": 20,
+          "share": 0.95
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 19
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "deep-indent@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 21,
+      "rowsUsed": 20,
+      "fill": 0.25,
+      "overflow": 0,
+      "coverage": 0.035,
+      "crowding": 0.14,
+      "indentation": 0.08,
+      "wrappedLines": 0,
+      "lineKinds": "ssssssssssssssssssssb",
+      "proseLines": 0,
+      "structuredLines": 20,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "bad",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "indent",
+          "count": 20,
+          "share": 0.95
+        },
+        {
+          "id": "duplicates",
+          "severity": "warning",
+          "lines": 19
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "one-sentence@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05,
+      "overflow": 0,
+      "coverage": 0.028125,
+      "crowding": 0.5625,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppb",
+      "proseLines": 3,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "explains",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1170
+        }
+      ]
+    },
+    "one-sentence@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.037541713014460514,
+      "crowding": 0.7258064516129032,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppb",
+      "proseLines": 3,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "explains",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7258064516129032
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 869
+        }
+      ]
+    },
+    "one-sentence@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.03103448275862069,
+      "crowding": 0.6,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppb",
+      "proseLines": 3,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "explains",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1057
+        }
+      ]
+    },
+    "one-sentence@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.0375,
+      "overflow": 0,
+      "coverage": 0.016875,
+      "crowding": 0.45,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "pppb",
+      "proseLines": 3,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "explains",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1970
+        }
+      ]
+    },
+    "long-line@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05,
+      "overflow": 0,
+      "coverage": 0.029375,
+      "crowding": 0.5875,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "pb",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "going",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 80
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1159
+        }
+      ]
+    },
+    "long-line@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.03921023359288098,
+      "crowding": 0.7580645161290323,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "pb",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "going",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.7580645161290323
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 858
+        }
+      ]
+    },
+    "long-line@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 4,
+      "rowsUsed": 3,
+      "fill": 0.05172413793103448,
+      "overflow": 0,
+      "coverage": 0.032413793103448274,
+      "crowding": 0.6266666666666667,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "pb",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "going",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 75
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1046
+        }
+      ]
+    },
+    "long-line@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 3,
+      "rowsUsed": 2,
+      "fill": 0.025,
+      "overflow": 0,
+      "coverage": 0.017625,
+      "crowding": 0.705,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "pb",
+      "proseLines": 1,
+      "structuredLines": 0,
+      "headingLines": 0,
+      "narrative": 1,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "bad",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "going",
+          "count": 3,
+          "share": 0.6666666666666666
+        },
+        {
+          "id": "crowding",
+          "severity": "warning",
+          "share": 0.705
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 100
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1959
+        }
+      ]
+    },
+    "one-row-over@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 61,
+      "rowsUsed": 61,
+      "fill": 1.0166666666666666,
+      "overflow": 1,
+      "coverage": 0.07416666666666667,
+      "crowding": 0.07295081967213114,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 61,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 1
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 61,
+          "share": 0.9836065573770492
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "one-row-over@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 61,
+      "rowsUsed": 61,
+      "fill": 1.0517241379310345,
+      "overflow": 3,
+      "coverage": 0.09899888765294772,
+      "crowding": 0.09413008989952407,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 61,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 3
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 61,
+          "share": 0.9836065573770492
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "one-row-over@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 61,
+      "rowsUsed": 61,
+      "fill": 1.0517241379310345,
+      "overflow": 3,
+      "coverage": 0.08183908045977012,
+      "crowding": 0.07781420765027322,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 61,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "overflowing",
+      "findings": [
+        {
+          "id": "overflow",
+          "severity": "critical",
+          "rows": 3
+        },
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 61,
+          "share": 0.9836065573770492
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "one-row-over@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 61,
+      "rowsUsed": 61,
+      "fill": 0.7625,
+      "overflow": 0,
+      "coverage": 0.0445,
+      "crowding": 0.058360655737704915,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss",
+      "proseLines": 0,
+      "structuredLines": 61,
+      "headingLines": 0,
+      "narrative": 0,
+      "signals": {
+        "syntax": "ok",
+        "repetition": "bad",
+        "duplicates": "ok",
+        "narrative": "bad",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "noisy",
+      "findings": [
+        {
+          "id": "repetition",
+          "severity": "warning",
+          "term": "line",
+          "count": 61,
+          "share": 0.9836065573770492
+        },
+        {
+          "id": "narrative",
+          "severity": "warning",
+          "share": 0
+        }
+      ]
+    },
+    "checklist@terminal": {
+      "cols": 80,
+      "pageRows": 60,
+      "capacity": 4800,
+      "tokenCeiling": 1200,
+      "rowsTotal": 6,
+      "rowsUsed": 5,
+      "fill": 0.08333333333333333,
+      "overflow": 0,
+      "coverage": 0.042291666666666665,
+      "crowding": 0.5075,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hppssb",
+      "proseLines": 2,
+      "structuredLines": 2,
+      "headingLines": 1,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "warn",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "info",
+          "share": 0.10837438423645321
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1129
+        }
+      ]
+    },
+    "checklist@pica": {
+      "cols": 62,
+      "pageRows": 58,
+      "capacity": 3596,
+      "tokenCeiling": 899,
+      "rowsTotal": 7,
+      "rowsUsed": 6,
+      "fill": 0.10344827586206896,
+      "overflow": 0,
+      "coverage": 0.056451612903225805,
+      "crowding": 0.5456989247311828,
+      "indentation": 0,
+      "wrappedLines": 1,
+      "lineKinds": "hppssb",
+      "proseLines": 2,
+      "structuredLines": 2,
+      "headingLines": 1,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "warn",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "info",
+          "share": 0.10837438423645321
+        },
+        {
+          "id": "wrapped",
+          "severity": "info",
+          "lines": 1,
+          "cols": 62
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 828
+        }
+      ]
+    },
+    "checklist@elite": {
+      "cols": 75,
+      "pageRows": 58,
+      "capacity": 4350,
+      "tokenCeiling": 1087,
+      "rowsTotal": 6,
+      "rowsUsed": 5,
+      "fill": 0.08620689655172414,
+      "overflow": 0,
+      "coverage": 0.04666666666666667,
+      "crowding": 0.5413333333333333,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hppssb",
+      "proseLines": 2,
+      "structuredLines": 2,
+      "headingLines": 1,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "warn",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "info",
+          "share": 0.10837438423645321
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1016
+        }
+      ]
+    },
+    "checklist@dense": {
+      "cols": 100,
+      "pageRows": 80,
+      "capacity": 8000,
+      "tokenCeiling": 2000,
+      "rowsTotal": 6,
+      "rowsUsed": 5,
+      "fill": 0.0625,
+      "overflow": 0,
+      "coverage": 0.025375,
+      "crowding": 0.406,
+      "indentation": 0,
+      "wrappedLines": 0,
+      "lineKinds": "hppssb",
+      "proseLines": 2,
+      "structuredLines": 2,
+      "headingLines": 1,
+      "narrative": 0.5,
+      "signals": {
+        "syntax": "warn",
+        "repetition": "ok",
+        "duplicates": "ok",
+        "narrative": "na",
+        "crowding": "ok",
+        "indentation": "ok"
+      },
+      "verdict": "light",
+      "findings": [
+        {
+          "id": "syntax",
+          "severity": "info",
+          "share": 0.10837438423645321
+        },
+        {
+          "id": "room",
+          "severity": "info",
+          "tokens": 1929
+        }
+      ]
+    }
+  }
+}

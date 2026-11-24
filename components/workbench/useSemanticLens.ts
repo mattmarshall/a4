@@ -10,17 +10,17 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { realScheduler } from "@/lib/autosave";
-import type { A4Plane } from "@/lib/element/a4-sheet";
-import { modelLens, type LensAttr } from "@/lib/element/contract";
-import type { LensId } from "@/lib/lenses";
-import type { ScoreResult } from "@/lib/models/host";
-import type { PluginId } from "@/lib/models/plugin-id";
-import { SEMANTIC_REPETITION_CARD, SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
-import { ScoreSchedule } from "@/lib/models/semantic/schedule";
-import { PRESETS, type PageSpec, type PresetId } from "@/lib/page-spec";
-import type { Notify } from "@/lib/workspace/errors";
-import type { Slot } from "@/lib/workspace/types";
+import { realScheduler } from "@/lib/persist";
+import { type A4Plane, modelLens, type LensAttr } from "@/lib/render";
+import {
+  type ScoreResult,
+  type PluginId,
+  SEMANTIC_REPETITION_CARD,
+  SEMANTIC_REPETITION_ID,
+  ScoreSchedule,
+} from "@/lib/models";
+import { PRESETS, type LensId, type PageSpec, type PresetId } from "@/lib/page";
+import type { Notify, Slot } from "@/lib/workspace";
 import type { ModelLegend } from "../MetricsPanel";
 import type { SemanticSummary } from "../ModelsPanel";
 import type { ModelsState } from "../useModels";

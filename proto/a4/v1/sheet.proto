@@ -8,7 +8,7 @@ syntax = "proto3";
 
 package a4.v1;
 
-// The page's grid geometry (see lib/page-spec.ts).
+// The page's grid geometry (see lib/page/spec.ts).
 message PageSpec {
   // "terminal", "pica", "elite", or "dense".
   string preset = 1;

@@ -17,12 +17,12 @@ const BRANDS = ["PageName", "FilePath", "Revision", "TrashId", "PluginId"];
 
 /** The functions allowed to cast to a brand: its parsers, and the test-only forgers. */
 const PARSERS: Record<string, readonly string[]> = {
-  "lib/store/names.ts": ["parsePageName", "storedPageName"],
-  "lib/store/refs.ts": ["parseFilePath"],
-  "lib/store/revision.ts": ["revisionOf", "parseRevision"],
-  "lib/store/trash-ids.ts": ["parseTrashId", "makeTrashId"],
+  "lib/persist/store/names.ts": ["parsePageName", "storedPageName"],
+  "lib/persist/store/refs.ts": ["parseFilePath"],
+  "lib/persist/store/revision.ts": ["revisionOf", "parseRevision"],
+  "lib/persist/store/trash-ids.ts": ["parseTrashId", "makeTrashId"],
   "lib/models/plugin-id.ts": ["pluginIdOf"],
-  "lib/store/testing/forge.ts": ["forgePageName", "forgeFilePath"],
+  "lib/persist/store/testing/forge.ts": ["forgePageName", "forgeFilePath"],
 };
 
 /** Files allowed `as unknown as`, and why the types can't line up without it. */
@@ -36,7 +36,7 @@ const DOUBLE_CASTS: Record<string, string> = {
   "lib/models/fit/adapter.ts": "SDK boundary",
   "lib/models/fit/fit.test.ts": "records the SDK request body as plain data",
   "lib/models/consent.test.ts": "forges a consent token on purpose, to show the host refuses it",
-  "lib/store/testing/fake-opfs.ts": "the fake implements only the File System Access methods the stores use",
+  "lib/persist/store/testing/fake-opfs.ts": "the fake implements only the File System Access methods the stores use",
 };
 
 const ROOTS = ["app", "components", "lib", "scripts", "types"];

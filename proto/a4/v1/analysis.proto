@@ -1,0 +1,160 @@
+// The density analysis of one page, as a report: for a CI lint command, a
+// server, or anything else that reads A4's judgment without the browser.
+//
+// Shares are fractions of 1 (0.2 is 20%). The report carries numbers and
+// judgments only, never the page's text (repeated terms excepted, as the
+// repetition finding names them). Built by `toReport()` in
+// lib/analysis/report.ts.
+
+syntax = "proto3";
+
+package a4.v1;
+
+message AnalysisReport {
+  // The preset the page was measured on: "terminal", "pica", "elite", or "dense".
+  string preset = 1;
+  AnalysisMetrics metrics = 2;
+  AnalysisSignals signals = 3;
+  Verdict verdict = 4;
+  repeated AnalysisFinding findings = 5;
+}
+
+// How the page spends its cells (lib/analysis/metrics.ts).
+message AnalysisMetrics {
+  uint32 cols = 1;
+  uint32 page_rows = 2;
+  uint32 capacity = 3;
+  uint32 token_ceiling = 4;
+  uint32 chars = 5;
+  uint32 ink = 6;
+  uint32 rows_total = 7;
+  uint32 rows_used = 8;
+  double fill = 9;
+  uint32 overflow = 10;
+  double coverage = 11;
+  double crowding = 12;
+  uint32 syntax_chars = 13;
+  double syntax = 14;
+  double repetition = 15;
+  // Terms seen more than once, most frequent first.
+  repeated TermCount repeated_terms = 16;
+  uint32 duplicate_lines = 17;
+  uint32 indent_chars = 18;
+  double indentation = 19;
+  uint32 max_indent = 20;
+  uint32 wrapped_lines = 21;
+  uint32 prose_lines = 22;
+  uint32 structured_lines = 23;
+  uint32 heading_lines = 24;
+  // Prose / (prose + structured); absent when there are neither.
+  optional double narrative = 25;
+  uint32 tokens = 26;
+  // Absent when there are no tokens.
+  optional double chars_per_token = 27;
+}
+
+message TermCount {
+  string term = 1;
+  uint32 count = 2;
+}
+
+// How a judged metric reads.
+enum Tone {
+  TONE_UNSPECIFIED = 0;
+  TONE_OK = 1;
+  // Worth a note.
+  TONE_WARN = 2;
+  // A problem.
+  TONE_BAD = 3;
+  // No value, or too little text to judge.
+  TONE_NOT_APPLICABLE = 4;
+}
+
+// One tone per judged metric; the verdict and findings follow from them.
+message AnalysisSignals {
+  Tone syntax = 1;
+  Tone repetition = 2;
+  Tone duplicates = 3;
+  Tone narrative = 4;
+  Tone crowding = 5;
+  Tone indentation = 6;
+}
+
+// The page's overall reading, checked in this order (after Empty).
+enum Verdict {
+  VERDICT_UNSPECIFIED = 0;
+  VERDICT_EMPTY = 1;
+  VERDICT_OVERFLOWING = 2;
+  VERDICT_NOISY = 3;
+  VERDICT_BUSY = 4;
+  VERDICT_LIGHT = 5;
+  VERDICT_BALANCED = 6;
+}
+
+enum Severity {
+  SEVERITY_UNSPECIFIED = 0;
+  SEVERITY_CRITICAL = 1;
+  SEVERITY_WARNING = 2;
+  SEVERITY_INFO = 3;
+}
+
+// One thing the analysis found, with the numbers its copy quotes.
+message AnalysisFinding {
+  Severity severity = 1;
+  oneof finding {
+    // Nothing on the page yet.
+    FindingEmpty empty = 2;
+    FindingOverflow overflow = 3;
+    // Syntax-heavy: a warning when noisy, an info note when merely high.
+    FindingShare syntax = 4;
+    FindingRepetition repetition = 5;
+    FindingDuplicates duplicates = 6;
+    FindingShare crowding = 7;
+    FindingIndentation indentation = 8;
+    FindingShare narrative = 9;
+    FindingWrapped wrapped = 10;
+    FindingRoom room = 11;
+    // No signal needs attention.
+    FindingClean clean = 12;
+  }
+}
+
+message FindingEmpty {}
+
+message FindingOverflow {
+  // Rows past the page.
+  uint32 rows = 1;
+}
+
+message FindingShare {
+  double share = 1;
+}
+
+message FindingRepetition {
+  // The most repeated term, and how often it appears.
+  string term = 1;
+  uint32 count = 2;
+  double share = 3;
+}
+
+message FindingDuplicates {
+  uint32 lines = 1;
+}
+
+message FindingIndentation {
+  double share = 1;
+  uint32 max_indent = 2;
+}
+
+message FindingWrapped {
+  // Lines longer than the page is wide.
+  uint32 lines = 1;
+  uint32 cols = 2;
+}
+
+message FindingRoom {
+  // Estimated tokens left before the page's ceiling.
+  uint32 tokens = 1;
+}
+
+message FindingClean {}

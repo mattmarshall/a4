@@ -3,13 +3,11 @@
 /** The top bar's Page, View, and Help menus. */
 
 import Link from "next/link";
-import { PRESET_ORDER, PRESETS, PX_PER_MM_ACTUAL } from "@/lib/page-spec";
-import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/samples";
-import { SETTINGS } from "@/lib/settings";
-import { baseName } from "@/lib/store";
-import { slugFromText } from "@/lib/text";
-import type { Notify } from "@/lib/workspace/errors";
-import type { SlotSnapshot } from "@/lib/workspace/types";
+import { slugFromText } from "@/lib/archive";
+import { PRESET_IDS, PRESETS, PX_PER_MM_ACTUAL } from "@/lib/page";
+import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/content";
+import { SETTINGS, baseName } from "@/lib/persist";
+import type { Notify, SlotSnapshot } from "@/lib/workspace";
 import { Menu, MenuItem } from "../Menu";
 import { useSetting } from "../useSetting";
 import { saveFile } from "./download";
@@ -110,7 +108,7 @@ export function ViewMenu({ layout, gpuMissing }: { layout: Layout; gpuMissing: b
       {(close) => (
         <>
           <div className="menu-heading">Grid</div>
-          {PRESET_ORDER.map((id) => (
+          {PRESET_IDS.map((id) => (
             <MenuItem key={id} kind="radio" checked={presetId === id} close={close} onSelect={() => setPreset(id)}>
               <strong>
                 {PRESETS[id].name} · {PRESETS[id].cols}×{PRESETS[id].rows}

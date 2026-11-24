@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import * as sdk from "@anthropic-ai/sdk";
 import { TransformRequestSchema } from "../../gen/a4/v1/model_pb.js";
-import { PRESETS } from "../../page-spec.ts";
+import { PRESETS } from "../../page/index.ts";
 import { sheetRecord } from "../../tensor/record.ts";
 import { grantConsent } from "../consent.ts";
 import { ErrorCode, ModelError } from "../errors.ts";

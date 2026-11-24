@@ -12,7 +12,7 @@
 
 import { create } from "@bufbuild/protobuf";
 import { GridSchema, type Grid } from "../gen/a4/v1/sheet_pb.js";
-import { layoutRows } from "../text.ts";
+import { layoutRows } from "../page/index.ts";
 
 export interface GridShape {
   cols: number;

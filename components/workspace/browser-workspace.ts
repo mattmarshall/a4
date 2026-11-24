@@ -5,10 +5,10 @@
  * disposes it, which saves every open page.
  */
 
-import { browserFolderSource } from "@/lib/folder/fs-browser";
-import { browserPlatform } from "@/lib/platform/browser";
-import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/samples";
-import { Workspace } from "@/lib/workspace/workspace";
+import { browserFolderSource } from "@/lib/persist";
+import { browserPlatform } from "@/lib/platform";
+import { INCIDENT_JSON, INCIDENT_NARRATIVE, TEMPLATES, WELCOME } from "@/lib/content";
+import { Workspace } from "@/lib/workspace";
 
 export type BrowserWorkspace = Workspace<FileSystemDirectoryHandle>;
 

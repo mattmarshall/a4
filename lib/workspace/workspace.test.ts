@@ -1,16 +1,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FakeScheduler, settle } from "../autosave/testing/fake-scheduler.ts";
-import { browserFolderSource } from "../folder/fs-browser.ts";
+import { FakeScheduler, settle } from "../persist/autosave/testing/fake-scheduler.ts";
+import { browserFolderSource } from "../persist/folder/fs-browser.ts";
 import { MemoryHandleStore } from "../platform/handle-store.ts";
 import { MemoryKeyValue } from "../platform/key-value.ts";
 import { ChannelHub, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
-import { readSetting, SETTINGS } from "../settings.ts";
-import { MemoryPageStore } from "../store/key-value.ts";
-import { parsePageName } from "../store/names.ts";
-import { fileRef, libraryRef, parseFilePath } from "../store/refs.ts";
-import { asDirectoryHandle, FakeDirectoryHandle, FakeVolume } from "../store/testing/fake-opfs.ts";
-import type { PageStore } from "../store/types.ts";
+import { readSetting, SETTINGS } from "../persist/settings.ts";
+import { MemoryPageStore } from "../persist/store/key-value.ts";
+import { parsePageName } from "../persist/store/names.ts";
+import { fileRef, libraryRef, parseFilePath } from "../persist/store/refs.ts";
+import { asDirectoryHandle, FakeDirectoryHandle, FakeVolume } from "../persist/store/testing/fake-opfs.ts";
+import type { PageStore } from "../persist/store/types.ts";
 import type { WorkspaceNotice } from "./types.ts";
 import { Workspace } from "./workspace.ts";
 

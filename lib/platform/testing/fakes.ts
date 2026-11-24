@@ -3,7 +3,7 @@
  * `FakeScheduler`, so timers and the clock advance together.
  */
 
-import { FakeScheduler } from "../../autosave/testing/fake-scheduler.ts";
+import { FakeScheduler } from "../../persist/autosave/testing/fake-scheduler.ts";
 import type { Channel } from "../channel.ts";
 import type { Clock } from "../clock.ts";
 import type { DeviceStorage } from "../device-storage.ts";

@@ -6,8 +6,8 @@
  * call" is structural rather than a UI convention.
  */
 
-import { revisionOf } from "../store/revision.ts";
-import type { Revision } from "../store/types.ts";
+import { revisionOf } from "../persist/store/revision.ts";
+import type { Revision } from "../persist/store/types.ts";
 import { ErrorCode, ModelError } from "./errors.ts";
 import type { PluginId } from "./plugin-id.ts";
 

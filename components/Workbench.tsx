@@ -8,19 +8,21 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { describeImport } from "@/lib/import";
-import type { LensId } from "@/lib/lenses";
-import { grantConsent } from "@/lib/models/consent";
-import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
-import { FitJob } from "@/lib/models/fit/job";
-import { forgetApiKey } from "@/lib/models/fit/key";
-import { MAX_ATTEMPTS, type FindingResult, type TransformResult } from "@/lib/models/host";
-import { SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
-import { PRESETS } from "@/lib/page-spec";
-import { SAMPLE_PAIRS } from "@/lib/samples";
-import { SETTINGS } from "@/lib/settings";
-import { copyNameFor, sameRef, type PageName, type PageRef } from "@/lib/store";
-import type { Slot } from "@/lib/workspace/types";
+import { describeImport } from "@/lib/archive";
+import { type LensId, PRESETS } from "@/lib/page";
+import {
+  grantConsent,
+  FIT_TO_PAGE_ID,
+  FitJob,
+  forgetApiKey,
+  MAX_ATTEMPTS,
+  type FindingResult,
+  type TransformResult,
+  SEMANTIC_REPETITION_ID,
+} from "@/lib/models";
+import { SAMPLE_PAIRS } from "@/lib/content";
+import { SETTINGS, copyNameFor, sameRef, type PageName, type PageRef } from "@/lib/persist";
+import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { ComparePanel } from "./ComparePanel";
 import { FitJobChip, FitToPage } from "./FitToPage";
@@ -279,7 +281,7 @@ export function Workbench() {
           lens={lens}
           semantic={semantic}
           onLens={chooseLens}
-          verdict={targetAnalysis.verdict}
+          verdict={targetAnalysis.assessment.verdict}
         >
           <PageMenu
             page={page}

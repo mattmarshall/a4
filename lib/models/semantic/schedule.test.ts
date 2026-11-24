@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { FakeScheduler } from "../../autosave/testing/fake-scheduler.ts";
+import { FakeScheduler } from "../../persist/autosave/testing/fake-scheduler.ts";
 import { ScoreSchedule } from "./schedule.ts";
 
 function setup(delayMs = 1500) {

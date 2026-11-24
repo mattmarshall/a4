@@ -8,9 +8,9 @@
  */
 
 import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import type { FolderFile } from "@/lib/folder/scan";
-import { PAGE_ROWS } from "@/lib/folder/scan";
 import {
+  type FolderFile,
+  PAGE_ROWS,
   fileRef,
   libraryRef,
   sameRef,
@@ -19,8 +19,8 @@ import {
   type PageSummary,
   type TrashEntry,
   type TrashId,
-} from "@/lib/store";
-import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace/types";
+} from "@/lib/persist";
+import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace";
 
 /** Library commands. Rename returns an error message to show inline, or null. */
 export interface PageActions {

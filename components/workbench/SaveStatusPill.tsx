@@ -1,6 +1,6 @@
 "use client";
 
-import type { SaveStatus } from "@/lib/autosave";
+import type { SaveStatus } from "@/lib/persist";
 
 const STATUS_LABEL: Record<SaveStatus, string> = {
   saved: "Saved",

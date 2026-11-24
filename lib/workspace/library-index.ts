@@ -4,18 +4,17 @@
  * to this origin's other tabs.
  */
 
-import type { Journal } from "../autosave/journal.ts";
-import { buildLibraryArchive, type LibraryArchive } from "../export.ts";
-import { importZip, type ImportReport } from "../import.ts";
+import type { Journal } from "../persist/autosave/journal.ts";
+import { buildLibraryArchive, importZip, type ImportReport, type LibraryArchive } from "../archive/index.ts";
 import {
   decodeLibraryEvent,
   encodeLibraryEvent,
   pageSaved,
   pagesChanged,
   type LibraryEvent,
-} from "../library-events.ts";
+} from "../persist/library-events.ts";
 import type { Channel } from "../platform/channel.ts";
-import { availableName } from "../store/names.ts";
+import { availableName } from "../persist/store/names.ts";
 import {
   isStoreError,
   type PageName,
@@ -24,7 +23,7 @@ import {
   type TrashEntry,
   type TrashId,
   type WriteResult,
-} from "../store/types.ts";
+} from "../persist/store/types.ts";
 
 function byRecent(pages: readonly PageSummary[]): PageSummary[] {
   return [...pages].sort((a, b) => b.modifiedAt - a.modifiedAt || a.name.localeCompare(b.name));

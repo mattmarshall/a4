@@ -10,7 +10,7 @@
  *   key and its text is still the key's text; stale results are dropped.
  */
 
-import type { Scheduler } from "../../autosave/session.ts";
+import type { Scheduler } from "../../persist/autosave/session.ts";
 
 export interface ScoreScheduleOptions<K extends string, R> {
   scheduler: Scheduler;

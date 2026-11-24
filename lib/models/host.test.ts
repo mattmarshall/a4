@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { ModelCardSchema, Operation, Placement, View, type TransformRequest } from "../gen/a4/v1/model_pb.js";
-import { PRESETS } from "../page-spec.ts";
+import { PRESETS } from "../page/index.ts";
 import { decodeGrid } from "../tensor/codec.ts";
 import { implement, type SheetModelHandlers } from "./client.ts";
 import { ErrorCode, ModelError } from "./errors.ts";

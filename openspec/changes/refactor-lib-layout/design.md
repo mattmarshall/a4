@@ -82,3 +82,56 @@ until refactor-sheet-element.
 
 Code moves only. Stored data and contracts are unchanged, except that the
 new `analysis.proto` is added. Reverting is a revert of the commits.
+
+## Implementation Notes
+
+Where the code differs from the decisions above, and why:
+
+- **Moves:**
+  - A codemod (`git mv`, then import rewrites checked by `tsc`) moved each
+    folder in the planned order. `pnpm check` passed after each one.
+  - The moves sit in one working tree, ready for one commit per folder or
+    one commit, as the reviewer prefers.
+  - `lib/tensor/` (the models' grid codec) and `lib/gen/` stay where they
+    are.
+- **Lens ids live in `page/spec.ts`** (`LENS_IDS`, `LensId`), next to
+  `PRESET_IDS`. Settings (persist) and the element (render) can then name
+  a lens without importing the analysis. Their names, hints, and painting
+  stay in `analysis/lenses.ts`.
+- **Analysis modules:**
+  - `analyze.ts` holds `analyze()`, `Layout` lives in `metrics.ts` (to
+    avoid an import cycle), and `compress.ts` holds compressibility.
+  - `measure()` takes no config: no metric is configurable.
+  - The heading width follows `spec.cols`. No recorded text changes on any
+    preset, so the golden record is the one taken before the split; a
+    separate test pins the rule on Pica, Elite, and Dense.
+- **The report:**
+  - The proto's finding message is `AnalysisFinding`, because `a4.v1.Finding`
+    already exists in `model.proto`.
+  - `report.ts` isn't exported from the analysis index. Tools import it
+    directly, which keeps the proto out of the UI's first load.
+- **Geometry:**
+  - `page/geometry.ts` owns the paper size, `cellRect`, `cellAt`, `rowTop`,
+    `fitScale`, `textureDensity`, and the pixel-ratio caps.
+  - The caps stay two values (GPU 2, flat 3), so behavior is unchanged.
+  - `PageSpec` extends geometry's `CellGrid`, so `spec` and `geometry` don't
+    import each other.
+- **The strict core:**
+  - `tsconfig.core.json` uses `lib: ["ES2024"]`, not ES2023: archives use
+    the store's page-name rules, which need `String.prototype.isWellFormed`.
+  - The core may use web-standard globals: `TextEncoder`, `TextDecoder`,
+    `Blob`, `Response`, `CompressionStream`, and `DecompressionStream`.
+    `types/core/web.d.ts` declares only those, and the main config excludes
+    it.
+  - `PAGE_EXTENSION` moved to the store's `names.ts`, so archives don't pull
+    in the OPFS store.
+- **Boundary rules follow the code as it is:**
+  - Models also depend on persist (consent uses revisions; the score
+    schedule uses the scheduler type), the analysis (semantic units classify
+    lines), and tensor.
+  - Render depends on the analysis and tensor.
+  - Workspace depends on archive and on `models/errors.ts`.
+  - Components import folders through their `index.ts`. A dynamic import may
+    load an entry point directly, which keeps the model registry's
+    `import.meta.env.SSR` guard in `useModels`.
+  - The render index registers the element with `defineSheetElement()`.

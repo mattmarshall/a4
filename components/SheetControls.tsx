@@ -1,8 +1,7 @@
 "use client";
 
-import { ATTRIBUTES, type NumberAttribute } from "@/lib/element/contract";
-import { withPose, type Pose } from "@/lib/paper/deform";
-import type { Slot } from "@/lib/workspace/types";
+import { ATTRIBUTES, type NumberAttribute, withPose, type Pose } from "@/lib/render";
+import type { Slot } from "@/lib/workspace";
 
 export interface SheetView {
   tilt: number;

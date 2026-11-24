@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ElementDemo } from "@/components/ElementDemo";
-import { A4_EVENTS, ATTRIBUTES } from "@/lib/element/contract";
+import { A4_EVENTS, ATTRIBUTES } from "@/lib/render";
 
 export const metadata: Metadata = {
   title: "<a4-sheet>: the A4 page as a web component",

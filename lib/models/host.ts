@@ -18,8 +18,7 @@ import {
   type ModelCard,
 } from "../gen/a4/v1/model_pb.js";
 import { SheetSchema, type Sheet, type TextSpan } from "../gen/a4/v1/sheet_pb.js";
-import type { PageSpec } from "../page-spec.ts";
-import { layoutRows, normalizeText } from "../text.ts";
+import { type PageSpec, layoutRows, normalizeText } from "../page/index.ts";
 import { encodeGrid } from "../tensor/codec.ts";
 import { pageSpecMessage } from "../tensor/record.ts";
 import type { SheetModelClient } from "./client.ts";

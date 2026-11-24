@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { SheetSchema } from "../gen/a4/v1/sheet_pb.js";
-import { PRESETS } from "../page-spec.ts";
+import { PRESETS } from "../page/index.ts";
 import { encodeGrid } from "./codec.ts";
 import { pageSpecMessage, readSheet, SheetRecordError, sheetRecord, writeSheet } from "./record.ts";
 

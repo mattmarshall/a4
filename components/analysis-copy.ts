@@ -1,14 +1,14 @@
 /**
  * The English copy for the analysis: verdict labels and summaries, and each
- * finding's title and detail. The analysis itself (lib/analyze.ts) returns
+ * finding's title and detail. The analysis itself (lib/analysis) returns
  * only ids and numbers, so a CLI or another language can write its own.
  *
  * Relative imports, so Node's test runner can load this file
  * (components/analysis-copy.test.ts).
  */
 
-import type { Finding, VerdictId } from "../lib/analyze.ts";
-import { assertNever } from "../lib/assert-never.ts";
+import type { Finding, VerdictId } from "../lib/analysis/index.ts";
+import { assertNever } from "../lib/page/index.ts";
 
 export const VERDICT_LABEL: Readonly<Record<VerdictId, string>> = {
   empty: "Empty",

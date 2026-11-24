@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useMemo, type ReactNode } from "react";
-import { inspectorSection } from "@/lib/settings";
+import { inspectorSection } from "@/lib/persist";
 import { useSetting } from "./useSetting";
 
 export function InspectorSection({

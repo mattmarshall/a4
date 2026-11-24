@@ -71,15 +71,7 @@
   },
   "overrides": [
     {
-      "includes": [
-        "lib/**",
-        "!lib/platform/**",
-        "!lib/element/**",
-        "!lib/paper/**",
-        "!lib/models/**",
-        "!**/*.test.ts",
-        "!**/testing/**"
-      ],
+      "includes": ["lib/**", "!lib/platform/**", "!lib/render/**", "!lib/models/**", "!**/*.test.ts", "!**/testing/**"],
       "plugins": ["./biome/platform-globals.grit"],
       "linter": {
         "rules": {

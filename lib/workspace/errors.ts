@@ -5,7 +5,7 @@
  */
 
 import { ModelError } from "../models/errors.ts";
-import { PageStoreError } from "../store/types.ts";
+import { PageStoreError } from "../persist/store/types.ts";
 import type { Result } from "./types.ts";
 
 function errorName(error: unknown): string | undefined {

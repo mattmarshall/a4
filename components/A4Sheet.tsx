@@ -7,17 +7,19 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import type { A4Plane, A4SheetElement } from "@/lib/element/a4-sheet";
+import type { PresetId } from "@/lib/page";
 import {
   A4_EVENTS,
+  defineSheetElement,
   toAttributes,
+  type A4Plane,
   type A4Render,
   type A4RenderRequest,
+  type A4SheetElement,
   type A4ViewChange,
   type LensAttr,
-} from "@/lib/element/contract";
-import type { PresetId } from "@/lib/page-spec";
-import type { Pose } from "@/lib/paper/deform";
+  type Pose,
+} from "@/lib/render";
 
 export interface A4SheetHandle {
   element(): A4SheetElement | null;
@@ -51,7 +53,7 @@ export interface A4SheetProps {
 
 let defining: Promise<void> | null = null;
 function ensureDefined(): Promise<void> {
-  defining ??= import("@/lib/element/a4-sheet").then((m) => m.defineA4Sheet());
+  defining ??= defineSheetElement();
   return defining;
 }
 

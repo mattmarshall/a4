@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { settle } from "../autosave/testing/fake-scheduler.ts";
+import { settle } from "../persist/autosave/testing/fake-scheduler.ts";
 import { MemoryHandleStore } from "./handle-store.ts";
 import { MemoryKeyValue } from "./key-value.ts";
 import { noLocks } from "./locks.ts";

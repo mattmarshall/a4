@@ -1,0 +1,15 @@
+{
+  // The pure core: the page, the analysis, and archives. No DOM and no Node
+  // types (only the web-standard globals in types/core), and index access
+  // that may miss is checked. ES2024, for the page-name rules' isWellFormed.
+  // Run by `pnpm typecheck`.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": [],
+    "noUncheckedIndexedAccess": true,
+    "incremental": false
+  },
+  "include": ["lib/page/**/*.ts", "lib/analysis/**/*.ts", "lib/archive/**/*.ts", "types/core/*.d.ts"],
+  "exclude": ["node_modules", "**/*.test.ts", "**/testing/**"]
+}

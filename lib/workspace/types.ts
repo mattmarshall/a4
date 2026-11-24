@@ -4,19 +4,19 @@
  * the English (components/workspace/notices.ts).
  */
 
-import type { Recovery } from "../autosave/bootstrap.ts";
-import type { SaveStatus } from "../autosave/session.ts";
-import type { FolderState } from "../folder/access.ts";
-import type { FolderFile } from "../folder/scan.ts";
-import type { FilePath, FileRef, LibraryRef } from "../store/refs.ts";
-import type { PageName, PageSummary, StoreKind, TrashEntry } from "../store/types.ts";
+import type { Recovery } from "../persist/autosave/bootstrap.ts";
+import type { SaveStatus } from "../persist/autosave/session.ts";
+import type { FolderState } from "../persist/folder/access.ts";
+import type { FolderFile } from "../persist/folder/scan.ts";
+import type { FilePath, FileRef, LibraryRef } from "../persist/store/refs.ts";
+import type { PageName, PageSummary, StoreKind, TrashEntry } from "../persist/store/types.ts";
 import type { Slot } from "./pending.ts";
 
 export type { Slot } from "./pending.ts";
 
 export const SLOTS: readonly Slot[] = ["a", "b"];
 
-export type { FileRef, LibraryRef } from "../store/refs.ts";
+export type { FileRef, LibraryRef } from "../persist/store/refs.ts";
 
 export interface StorageInfo {
   readonly kind: StoreKind;

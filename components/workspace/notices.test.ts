@@ -1,8 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePageName } from "../../lib/store/names.ts";
-import { parseFilePath } from "../../lib/store/refs.ts";
-import { PageNotFoundError } from "../../lib/store/types.ts";
+import { parsePageName, parseFilePath, PageNotFoundError } from "../../lib/persist/index.ts";
 import { describeNotice } from "./notices.ts";
 
 const n = parsePageName;

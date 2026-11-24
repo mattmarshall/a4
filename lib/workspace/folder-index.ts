@@ -6,17 +6,15 @@
  * journal).
  */
 
-import type { Journal } from "../autosave/journal.ts";
-import type { PageSession, Scheduler } from "../autosave/session.ts";
-import { realScheduler } from "../autosave/session.ts";
-import type { ConnectedFolder, FolderAccess, FolderState } from "../folder/access.ts";
-import { isFsError } from "../folder/fs.ts";
-import { scanFolder, type FolderFile } from "../folder/scan.ts";
-import { FileWatcher } from "../folder/watch.ts";
-import { PRESETS } from "../page-spec.ts";
-import { parseFilePath, type FilePath } from "../store/refs.ts";
-import type { PageName, PageStore, UnreadableReason, WriteResult } from "../store/types.ts";
-import { layoutRows, rowsUsed } from "../text.ts";
+import type { Journal } from "../persist/autosave/journal.ts";
+import { realScheduler, type PageSession, type Scheduler } from "../persist/autosave/session.ts";
+import type { ConnectedFolder, FolderAccess, FolderState } from "../persist/folder/access.ts";
+import { isFsError } from "../persist/folder/fs.ts";
+import { scanFolder, type FolderFile } from "../persist/folder/scan.ts";
+import { FileWatcher } from "../persist/folder/watch.ts";
+import { layoutRows, PRESETS, rowsUsed } from "../page/index.ts";
+import { parseFilePath, type FilePath } from "../persist/store/refs.ts";
+import type { PageName, PageStore, UnreadableReason, WriteResult } from "../persist/store/types.ts";
 import type { FolderSnapshot, Slot, WorkspaceNotice } from "./types.ts";
 
 const TERMINAL_COLS = PRESETS.terminal.cols;

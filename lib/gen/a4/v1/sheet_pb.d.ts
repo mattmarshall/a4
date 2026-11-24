@@ -17,7 +17,7 @@ import type { Message } from "@bufbuild/protobuf";
 export declare const file_a4_v1_sheet: GenFile;
 
 /**
- * The page's grid geometry (see lib/page-spec.ts).
+ * The page's grid geometry (see lib/page/spec.ts).
  *
  * @generated from message a4.v1.PageSpec
  */

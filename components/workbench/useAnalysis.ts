@@ -7,8 +7,8 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import { analyze, compressibility, type Analysis } from "@/lib/analyze";
-import type { PageSpec } from "@/lib/page-spec";
+import { analyze, compressibility, type Analysis } from "@/lib/analysis";
+import type { PageSpec } from "@/lib/page";
 
 const COMPRESS_DELAY_MS = 250;
 

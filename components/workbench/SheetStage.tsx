@@ -8,13 +8,11 @@
  */
 
 import { useState, type CSSProperties, type ReactNode, type RefCallback, type RefObject } from "react";
-import type { Analysis } from "@/lib/analyze";
-import type { A4Plane } from "@/lib/element/a4-sheet";
-import type { LensAttr } from "@/lib/element/contract";
-import type { PageSpec } from "@/lib/page-spec";
-import { FLAT, type Pose } from "@/lib/paper/deform";
-import { decodeRef, encodeRef, libraryRef, type PageRef, type PageSummary } from "@/lib/store";
-import type { FolderSnapshot, Slot, SlotSnapshot } from "@/lib/workspace/types";
+import type { Analysis } from "@/lib/analysis";
+import { type A4Plane, type LensAttr, FLAT, type Pose } from "@/lib/render";
+import type { PageSpec } from "@/lib/page";
+import { decodeRef, encodeRef, libraryRef, type PageRef, type PageSummary } from "@/lib/persist";
+import type { FolderSnapshot, Slot, SlotSnapshot } from "@/lib/workspace";
 import { A4Sheet, type A4SheetHandle } from "../A4Sheet";
 import { VERDICT_LABEL } from "../analysis-copy";
 import { DEFAULT_VIEW, SheetControls, type SheetView } from "../SheetControls";
@@ -134,7 +132,8 @@ export function SheetStage(props: SheetStageProps) {
                     />
                     <SaveStatusPill status={state.status} />
                     <span>
-                      {VERDICT_LABEL[analysis.verdict]} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
+                      {VERDICT_LABEL[analysis.assessment.verdict]} · ≈{analysis.metrics.tokens.toLocaleString("en-US")}{" "}
+                      tokens
                     </span>
                   </div>
                 ) : null}

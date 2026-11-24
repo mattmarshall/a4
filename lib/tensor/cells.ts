@@ -3,7 +3,7 @@
  * the editor, both renderers, and the grid codec.
  */
 
-import type { VisualRow } from "../text.ts";
+import type { VisualRow } from "../page/index.ts";
 
 export interface Cell {
   row: number;

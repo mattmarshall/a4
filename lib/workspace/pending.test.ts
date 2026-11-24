@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePageName } from "../store/names.ts";
-import { fileRef, libraryRef, parseFilePath } from "../store/refs.ts";
+import { parsePageName } from "../persist/store/names.ts";
+import { fileRef, libraryRef, parseFilePath } from "../persist/store/refs.ts";
 import { shouldReopen } from "./pending.ts";
 
 const file = fileRef(parseFilePath("AGENTS.md"));

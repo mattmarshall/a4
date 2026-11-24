@@ -3,7 +3,7 @@
  * it is tested with fixed vectors; the worker supplies real embeddings.
  */
 
-import { layoutRows } from "../../text.ts";
+import { layoutRows } from "../../page/index.ts";
 import { spanToCells } from "../../tensor/cells.ts";
 import type { Unit } from "./units.ts";
 

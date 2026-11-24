@@ -10,10 +10,8 @@
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FIT_HOST, FIT_MODEL } from "@/lib/models/fit/card";
-import type { FitJob } from "@/lib/models/fit/job";
-import { forgetApiKey, hasApiKey, setApiKey } from "@/lib/models/fit/key";
-import type { PageRef } from "@/lib/store";
+import { FIT_HOST, FIT_MODEL, type FitJob, forgetApiKey, hasApiKey, setApiKey } from "@/lib/models";
+import type { PageRef } from "@/lib/persist";
 
 export function useFitJob(job: FitJob<PageRef>) {
   return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);

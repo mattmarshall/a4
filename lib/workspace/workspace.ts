@@ -16,25 +16,30 @@
  * in Node tests with fakes.
  */
 
-import { recoverDrafts } from "../autosave/bootstrap.ts";
-import { ensureFirstPage, migrateLegacySlots } from "../autosave/bootstrap.ts";
-import { Journal } from "../autosave/journal.ts";
-import type { PageSessionOptions, Scheduler, SessionEvent } from "../autosave/session.ts";
-import { assertNever } from "../assert-never.ts";
-import type { LibraryArchive } from "../export.ts";
-import { FolderAccess, type ConnectedFolder } from "../folder/access.ts";
-import type { FolderSource } from "../folder/fs.ts";
-import { FolderRegistry } from "../folder/registry.ts";
-import type { ImportReport } from "../import.ts";
-import type { LibraryEvent } from "../library-events.ts";
-import { LIBRARY_CHANNEL } from "../library-events.ts";
+import { recoverDrafts } from "../persist/autosave/bootstrap.ts";
+import { ensureFirstPage, migrateLegacySlots } from "../persist/autosave/bootstrap.ts";
+import { Journal } from "../persist/autosave/journal.ts";
+import type { PageSessionOptions, Scheduler, SessionEvent } from "../persist/autosave/session.ts";
+import { assertNever } from "../page/index.ts";
+import type { ImportReport, LibraryArchive } from "../archive/index.ts";
+import { FolderAccess, type ConnectedFolder } from "../persist/folder/access.ts";
+import type { FolderSource } from "../persist/folder/fs.ts";
+import { FolderRegistry } from "../persist/folder/registry.ts";
+import type { LibraryEvent } from "../persist/library-events.ts";
+import { LIBRARY_CHANNEL } from "../persist/library-events.ts";
 import type { HandleStore } from "../platform/handle-store.ts";
 import type { Platform } from "../platform/index.ts";
-import { readSetting, setSettingsStorage, SETTINGS, writeSetting } from "../settings.ts";
-import { availableName, pageNameCodec, parsePageName } from "../store/names.ts";
-import { openPageStore, type OpenedStore } from "../store/open.ts";
-import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef } from "../store/refs.ts";
-import { FileUnreadableError, isStoreError, type PageName, type PageSummary, type TrashId } from "../store/types.ts";
+import { readSetting, setSettingsStorage, SETTINGS, writeSetting } from "../persist/settings.ts";
+import { availableName, pageNameCodec, parsePageName } from "../persist/store/names.ts";
+import { openPageStore, type OpenedStore } from "../persist/store/open.ts";
+import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef } from "../persist/store/refs.ts";
+import {
+  FileUnreadableError,
+  isStoreError,
+  type PageName,
+  type PageSummary,
+  type TrashId,
+} from "../persist/store/types.ts";
 import { FolderIndex } from "./folder-index.ts";
 import { LibraryIndex } from "./library-index.ts";
 import { shouldReopen, type PendingFile } from "./pending.ts";

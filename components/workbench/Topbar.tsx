@@ -8,12 +8,11 @@
 
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
-import type { Analysis } from "@/lib/analyze";
-import { LENSES, type LensId } from "@/lib/lenses";
-import type { FitJob } from "@/lib/models/fit/job";
-import { SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
-import type { PageName, PageRef } from "@/lib/store";
-import type { SlotSnapshot } from "@/lib/workspace/types";
+import { LENSES, type VerdictId } from "@/lib/analysis";
+import { type FitJob, SEMANTIC_REPETITION_ID } from "@/lib/models";
+import type { LensId } from "@/lib/page";
+import type { PageName, PageRef } from "@/lib/persist";
+import type { SlotSnapshot } from "@/lib/workspace";
 import { FitJobChip } from "../FitToPage";
 import { VerdictChip } from "../MetricsPanel";
 import { SaveStatusPill } from "./SaveStatusPill";
@@ -111,7 +110,7 @@ export function Topbar({
   semantic: SemanticLens;
   onLens: (id: LensId) => void;
   /** The target page's verdict, shown while the inspector is hidden. */
-  verdict: Analysis["verdict"];
+  verdict: VerdictId;
   /** The menus. */
   children: ReactNode;
 }) {

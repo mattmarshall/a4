@@ -1,10 +1,9 @@
 "use client";
 
-import { THRESHOLDS, type Analysis, type Tone } from "@/lib/analyze";
+import { DEFAULT_CONFIG, KIND_LABEL, LENSES, type Analysis, type Tone, type VerdictId } from "@/lib/analysis";
+import { fontSizePt, type LensId, type PageSpec } from "@/lib/page";
 import { describeFinding, VERDICT_LABEL, VERDICT_SUMMARY, VERDICT_TONE } from "./analysis-copy";
-import { KIND_LABEL, LENSES, type LensId } from "@/lib/lenses";
 import { InspectorSection } from "./InspectorSection";
-import { fontSizePt, type PageSpec } from "@/lib/page-spec";
 
 export function pct(x: number | null | undefined, digits = 0): string {
   if (x === null || x === undefined || Number.isNaN(x)) return "–";
@@ -64,7 +63,7 @@ function Metric({
   );
 }
 
-export function VerdictChip({ verdict }: { verdict: Analysis["verdict"] }) {
+export function VerdictChip({ verdict }: { verdict: VerdictId }) {
   return (
     <span className="verdict-chip" data-tone={VERDICT_TONE[verdict]}>
       {VERDICT_LABEL[verdict]}
@@ -150,12 +149,12 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
 
 /** Warnings and critical findings, shown as a badge even while Findings is collapsed. */
 export function findingCount(a: Analysis): number | null {
-  const n = a.findings.filter((f) => f.severity !== "info").length;
+  const n = a.assessment.findings.filter((f) => f.severity !== "info").length;
   return n > 0 ? n : null;
 }
 
 export function MetricsPanel({
-  analysis: a,
+  analysis,
   spec,
   compress,
 }: {
@@ -163,13 +162,16 @@ export function MetricsPanel({
   spec: PageSpec;
   compress: number | null;
 }) {
-  const t = THRESHOLDS;
+  const t = DEFAULT_CONFIG.verdict;
+  const low = DEFAULT_CONFIG.findings.lowNarrative;
+  const a = analysis.metrics;
+  const v = analysis.assessment;
   return (
     <>
       <InspectorSection id="verdict" title="Verdict" defaultOpen className="verdict">
         <div className="verdict-body" aria-live="polite">
-          <VerdictChip verdict={a.verdict} />
-          <p>{VERDICT_SUMMARY[a.verdict]}</p>
+          <VerdictChip verdict={v.verdict} />
+          <p>{VERDICT_SUMMARY[v.verdict]}</p>
         </div>
       </InspectorSection>
 
@@ -214,9 +216,9 @@ export function MetricsPanel({
         </p>
       </InspectorSection>
 
-      <InspectorSection id="findings" title="Findings" defaultOpen badge={findingCount(a)}>
+      <InspectorSection id="findings" title="Findings" defaultOpen badge={findingCount(analysis)}>
         <ul className="findings">
-          {a.findings.map((f) => {
+          {v.findings.map((f) => {
             const { title, detail } = describeFinding(f);
             return (
               <li key={f.id} className="finding" data-s={f.severity}>
@@ -234,7 +236,7 @@ export function MetricsPanel({
             name="Syntax overhead"
             value={a.syntax}
             shown={pct(a.syntax)}
-            tone={a.signals.syntax}
+            tone={v.signals.syntax}
             threshold={t.noisySyntax}
             note="Share of ink that is scaffolding: quotes, braces, colons, markup."
           />
@@ -242,7 +244,7 @@ export function MetricsPanel({
             name="Repetition"
             value={a.repetition}
             shown={pct(a.repetition)}
-            tone={a.signals.repetition}
+            tone={v.signals.repetition}
             threshold={t.noisyRepetition}
             note={`Word ink spent restating terms.${a.duplicateLines ? ` ${a.duplicateLines} duplicated lines.` : ""}`}
           />
@@ -250,15 +252,15 @@ export function MetricsPanel({
             name="Narrative share"
             value={a.narrative ?? 0}
             shown={pct(a.narrative)}
-            tone={a.signals.narrative}
-            threshold={t.lowNarrative}
+            tone={v.signals.narrative}
+            threshold={low}
             note={`${a.proseLines} sentence lines, ${a.structuredLines} field or fragment lines.`}
           />
           <Metric
             name="Crowding"
             value={a.crowding}
             shown={pct(a.crowding)}
-            tone={a.signals.crowding}
+            tone={v.signals.crowding}
             threshold={t.busyCrowding}
             note="Ink as a share of the cells in used rows."
           />
@@ -266,7 +268,7 @@ export function MetricsPanel({
             name="Indentation"
             value={a.indentation}
             shown={pct(a.indentation)}
-            tone={a.signals.indentation}
+            tone={v.signals.indentation}
             threshold={t.busyIndentation}
             note={`Leading whitespace${a.maxIndent ? `; deepest indent ${a.maxIndent} columns` : ""}.`}
           />

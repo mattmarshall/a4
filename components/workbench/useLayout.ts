@@ -8,9 +8,9 @@
  */
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { PX_PER_MM_ACTUAL } from "@/lib/page-spec";
-import { readSetting, SETTINGS, subscribeSettings, writeSetting, type Mode, type Setting } from "@/lib/settings";
-import type { Slot } from "@/lib/workspace/types";
+import { fitScale, PX_PER_MM_ACTUAL } from "@/lib/page";
+import { readSetting, SETTINGS, subscribeSettings, writeSetting, type Mode, type Setting } from "@/lib/persist";
+import type { Slot } from "@/lib/workspace";
 import { useSetting } from "../useSetting";
 
 export type Zoom = { readonly kind: "fit" } | { readonly kind: "fixed"; readonly mm: number };
@@ -73,10 +73,10 @@ export function useLayout() {
   const captionHeight = compare ? CAPTION_HEIGHT : 0;
   const fitMm = useMemo(() => {
     if (!desk.width || !desk.height) return PX_PER_MM_ACTUAL;
-    const pages = compare ? 2 : 1;
-    const byWidth = (desk.width - SHEET_GAP * (pages - 1)) / (210 * pages);
-    const byHeight = (desk.height - captionHeight) / 297;
-    return Math.max(MIN_MM, Math.min(PX_PER_MM_ACTUAL, byWidth, byHeight));
+    return fitScale(
+      { width: desk.width, height: desk.height - captionHeight },
+      { pages: compare ? 2 : 1, gap: SHEET_GAP, min: MIN_MM },
+    );
   }, [desk.width, desk.height, compare, captionHeight]);
   const mm = zoom.kind === "fit" ? fitMm : zoom.mm;
 

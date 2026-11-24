@@ -5,7 +5,7 @@
  * folder (which copies out to the library).
  */
 
-import type { Journal } from "../autosave/journal.ts";
+import type { Journal } from "../persist/autosave/journal.ts";
 import {
   createFileSession,
   createLibrarySession,
@@ -13,10 +13,10 @@ import {
   type PageSession,
   type PageSessionOptions,
   type SaveStatus,
-} from "../autosave/session.ts";
-import type { ConnectedFolder } from "../folder/access.ts";
-import { fileCopyName, fileRef, libraryRef, refLabel, type FilePath } from "../store/refs.ts";
-import type { Page, PageName, PageStore } from "../store/types.ts";
+} from "../persist/autosave/session.ts";
+import type { ConnectedFolder } from "../persist/folder/access.ts";
+import { fileCopyName, fileRef, libraryRef, refLabel, type FilePath } from "../persist/store/refs.ts";
+import type { Page, PageName, PageStore } from "../persist/store/types.ts";
 import type { FileRef, LibraryRef, Slot, SlotSnapshot } from "./types.ts";
 
 /** What a slot holds: a library page's session, or a folder file's. */

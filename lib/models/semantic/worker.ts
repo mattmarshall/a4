@@ -145,7 +145,7 @@ servePort(
         await load(); // from Cache Storage: no network for the model
       }
       const text = sheet.text;
-      const units = extractUnits(text);
+      const units = extractUnits(text, sheet.spec.cols);
       let vectors: Float32Array[] = [];
       if (units.length) {
         const output = await extractor!(

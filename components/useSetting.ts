@@ -7,7 +7,7 @@
  */
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
-import { snapshotReader, subscribeSettings, writeSetting, type Setting } from "@/lib/settings";
+import { snapshotReader, subscribeSettings, writeSetting, type Setting } from "@/lib/persist";
 
 export function useSetting<T>(setting: Setting<T>): [T, (value: T) => void] {
   const read = useMemo(() => snapshotReader(setting), [setting]);

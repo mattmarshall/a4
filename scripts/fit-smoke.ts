@@ -17,9 +17,8 @@ import { fitToPagePlugin } from "../lib/models/fit/adapter.ts";
 import { setApiKey } from "../lib/models/fit/key.ts";
 import { grantConsent } from "../lib/models/consent.ts";
 import { ModelHost } from "../lib/models/host.ts";
-import { PRESETS } from "../lib/page-spec.ts";
-import { SAMPLE_PAIRS } from "../lib/samples.ts";
-import { layoutRows } from "../lib/text.ts";
+import { PRESETS, layoutRows } from "../lib/page/index.ts";
+import { SAMPLE_PAIRS } from "../lib/content/index.ts";
 
 const key = process.env.ANTHROPIC_API_KEY;
 if (!key) {

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PRESETS } from "../page-spec.ts";
-import { layoutRows } from "../text.ts";
+import { PRESETS, layoutRows } from "../page/index.ts";
 import { cellToOffset, offsetToCell, spanToCells } from "./cells.ts";
 import { decodeGrid, encodeGrid } from "./codec.ts";
 

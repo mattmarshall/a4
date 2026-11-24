@@ -1,6 +1,6 @@
 "use client";
 
-import type { Analysis } from "@/lib/analyze";
+import type { Analysis } from "@/lib/analysis";
 import { describeFinding, VERDICT_SUMMARY } from "./analysis-copy";
 import { InspectorSection } from "./InspectorSection";
 import { findingCount, num, pct, VerdictChip } from "./MetricsPanel";
@@ -41,37 +41,58 @@ export function ComparePanel({
   const rows: Row[] = [
     {
       name: "Rows used",
-      a: a.rowsUsed,
-      b: b.rowsUsed,
+      a: a.metrics.rowsUsed,
+      b: b.metrics.rowsUsed,
       format: (x) => (x === null ? "–" : num(x)),
       better: "lower",
       delta: count,
     },
     {
       name: "Overflow",
-      a: a.overflow,
-      b: b.overflow,
+      a: a.metrics.overflow,
+      b: b.metrics.overflow,
       format: (x) => (x === null ? "–" : num(x)),
       better: "lower",
       delta: count,
     },
     {
       name: "Tokens ≈",
-      a: a.tokens,
-      b: b.tokens,
+      a: a.metrics.tokens,
+      b: b.metrics.tokens,
       format: (x) => (x === null ? "–" : num(x)),
       better: "lower",
       delta: count,
     },
-    { name: "Syntax", a: a.syntax, b: b.syntax, format: (x) => pct(x), better: "lower", delta: pts },
-    { name: "Repetition", a: a.repetition, b: b.repetition, format: (x) => pct(x), better: "lower", delta: pts },
-    { name: "Narrative", a: a.narrative, b: b.narrative, format: (x) => pct(x), better: "higher", delta: pts },
-    { name: "Crowding", a: a.crowding, b: b.crowding, format: (x) => pct(x), delta: pts },
-    { name: "Indentation", a: a.indentation, b: b.indentation, format: (x) => pct(x), better: "lower", delta: pts },
+    { name: "Syntax", a: a.metrics.syntax, b: b.metrics.syntax, format: (x) => pct(x), better: "lower", delta: pts },
+    {
+      name: "Repetition",
+      a: a.metrics.repetition,
+      b: b.metrics.repetition,
+      format: (x) => pct(x),
+      better: "lower",
+      delta: pts,
+    },
+    {
+      name: "Narrative",
+      a: a.metrics.narrative,
+      b: b.metrics.narrative,
+      format: (x) => pct(x),
+      better: "higher",
+      delta: pts,
+    },
+    { name: "Crowding", a: a.metrics.crowding, b: b.metrics.crowding, format: (x) => pct(x), delta: pts },
+    {
+      name: "Indentation",
+      a: a.metrics.indentation,
+      b: b.metrics.indentation,
+      format: (x) => pct(x),
+      better: "lower",
+      delta: pts,
+    },
     {
       name: "Duplicate lines",
-      a: a.duplicateLines,
-      b: b.duplicateLines,
+      a: a.metrics.duplicateLines,
+      b: b.metrics.duplicateLines,
       format: (x) => (x === null ? "–" : num(x)),
       better: "lower",
       delta: count,
@@ -93,15 +114,15 @@ export function ComparePanel({
             <span>
               Page <b>A</b>
             </span>
-            <VerdictChip verdict={a.verdict} />
-            <span>{VERDICT_SUMMARY[a.verdict]}</span>
+            <VerdictChip verdict={a.assessment.verdict} />
+            <span>{VERDICT_SUMMARY[a.assessment.verdict]}</span>
           </div>
           <div>
             <span>
               Page <b>B</b>
             </span>
-            <VerdictChip verdict={b.verdict} />
-            <span>{VERDICT_SUMMARY[b.verdict]}</span>
+            <VerdictChip verdict={b.assessment.verdict} />
+            <span>{VERDICT_SUMMARY[b.assessment.verdict]}</span>
           </div>
         </div>
       </InspectorSection>
@@ -148,7 +169,7 @@ export function ComparePanel({
 
       <InspectorSection id="compare-findings" title="Findings for B" defaultOpen badge={findingCount(b)}>
         <ul className="findings">
-          {b.findings.map((f) => {
+          {b.assessment.findings.map((f) => {
             const { title, detail } = describeFinding(f);
             return (
               <li key={f.id} className="finding" data-s={f.severity}>

@@ -5,10 +5,9 @@
  * Relative imports, so Node's test runner can load this file.
  */
 
-import { assertNever } from "../../lib/assert-never.ts";
-import type { Recovery } from "../../lib/autosave/bootstrap.ts";
-import { describeError } from "../../lib/workspace/errors.ts";
-import type { WorkspaceNotice } from "../../lib/workspace/types.ts";
+import { assertNever } from "../../lib/page/index.ts";
+import type { Recovery } from "../../lib/persist/index.ts";
+import { describeError, type WorkspaceNotice } from "../../lib/workspace/index.ts";
 
 export type Tone = "info" | "warn";
 

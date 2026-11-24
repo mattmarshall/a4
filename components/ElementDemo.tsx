@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { A4_EVENTS, type A4Render } from "@/lib/element/contract";
+import { A4_EVENTS, defineSheetElement, type A4Render } from "@/lib/render";
 
 /** Plain HTML, no React props: proves <a4-sheet> works from markup alone. */
 const MARKUP = `
@@ -23,8 +23,7 @@ const MARKUP = `
 export function ElementDemo() {
   useEffect(() => {
     let cleanup = () => {};
-    void import("@/lib/element/a4-sheet").then(({ defineA4Sheet }) => {
-      defineA4Sheet();
+    void defineSheetElement().then(() => {
       const log = document.getElementById("demo-log");
       const sheets = [...document.querySelectorAll("a4-sheet")];
       const offs = sheets.flatMap((sheet) => {

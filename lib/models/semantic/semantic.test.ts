@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { PRESETS } from "../../page-spec.ts";
+import { PRESETS } from "../../page/index.ts";
 import { cellValue, MAX_PAIRS, scoreUnits } from "./similarity.ts";
 import { extractUnits, type Unit } from "./units.ts";
 

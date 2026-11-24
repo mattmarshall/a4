@@ -12,9 +12,15 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { PageName, PageRef, TrashId } from "@/lib/store";
-import { describeError, reportResult, type Notify } from "@/lib/workspace/errors";
-import type { Slot, WorkspaceSnapshot } from "@/lib/workspace/types";
+import type { PageName, PageRef, TrashId } from "@/lib/persist";
+import {
+  describeError,
+  reportResult,
+  type Notify,
+  type Slot,
+  type WorkspaceSnapshot,
+  type Result,
+} from "@/lib/workspace";
 import { acquireWorkspace, releaseWorkspace, type BrowserWorkspace } from "./browser-workspace";
 import { describeNotice } from "./notices";
 
@@ -87,14 +93,14 @@ export function useWorkspaceApi(notify: Notify) {
   const ws = workspace;
 
   const run = useCallback(
-    <T>(what: string, command: (w: BrowserWorkspace) => Promise<import("@/lib/workspace/types").Result<T>>) =>
+    <T>(what: string, command: (w: BrowserWorkspace) => Promise<Result<T>>) =>
       ws ? reportResult(command(ws), notify, what) : Promise.resolve(undefined),
     [ws, notify],
   );
 
   /** A command whose failure the caller shows inline: the message, or null on success. */
   const inline = useCallback(
-    async <T>(command: (w: BrowserWorkspace) => Promise<import("@/lib/workspace/types").Result<T>>) => {
+    async <T>(command: (w: BrowserWorkspace) => Promise<Result<T>>) => {
       if (!ws) return "Storage isn’t ready yet.";
       const result = await command(ws);
       return result.ok ? null : describeError(result.error);

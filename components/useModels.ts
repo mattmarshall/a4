@@ -7,10 +7,15 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { ModelHost, ScoreResult } from "@/lib/models/host";
-import { BUNDLED_CARDS, MODEL_DOWNLOADED } from "@/lib/models/cards";
-import { pluginIdOf, type PluginId } from "@/lib/models/plugin-id";
-import type { PageSpec } from "@/lib/page-spec";
+import {
+  type ModelHost,
+  type ScoreResult,
+  BUNDLED_CARDS,
+  MODEL_DOWNLOADED,
+  pluginIdOf,
+  type PluginId,
+} from "@/lib/models";
+import type { PageSpec } from "@/lib/page";
 
 export type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
 

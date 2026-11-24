@@ -9,7 +9,7 @@ import {
   ScoreRequestSchema,
 } from "../gen/a4/v1/model_pb.js";
 import { RpcFrameSchema, type RpcFrame } from "../gen/a4/v1/rpc_pb.js";
-import { PRESETS } from "../page-spec.ts";
+import { PRESETS } from "../page/index.ts";
 import { sheetRecord } from "../tensor/record.ts";
 import { implement } from "./client.ts";
 import { ErrorCode, ModelError } from "./errors.ts";

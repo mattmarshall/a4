@@ -10,7 +10,7 @@
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { layoutRows } from "../../text.ts";
+import { layoutRows } from "../../page/index.ts";
 import { implement, type SheetModelClient } from "../client.ts";
 import { ErrorCode, ModelError } from "../errors.ts";
 import { FIT_HOST, FIT_MODEL, FIT_TO_PAGE_CARD } from "./card.ts";

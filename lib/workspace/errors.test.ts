@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ErrorCode, ModelError } from "../models/errors.ts";
-import { PageNotFoundError } from "../store/types.ts";
+import { PageNotFoundError } from "../persist/store/types.ts";
 import { describeError, runReported } from "./errors.ts";
 
 function domError(name: string, message = "") {
