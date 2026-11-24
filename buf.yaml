@@ -11,3 +11,18 @@ breaking:
   # which always ship together, so its frame can change freely.
   ignore:
     - proto/a4/v1/rpc.proto
+  # refactor-model-plugins made ModelCard's placement a oneof and its presets
+  # (and PageSpec's preset) an enum, removed the unused CellRect, and gave
+  # Sheet.text explicit presence. Cards are built in code and sheets are never
+  # stored, so nothing old is read. Remove these exceptions once that change
+  # has shipped.
+  ignore_only:
+    ENUM_NO_DELETE:
+      - proto/a4/v1/model.proto
+    FIELD_NO_DELETE:
+      - proto/a4/v1/model.proto
+      - proto/a4/v1/sheet.proto
+    MESSAGE_NO_DELETE:
+      - proto/a4/v1/sheet.proto
+    FIELD_SAME_CARDINALITY:
+      - proto/a4/v1/sheet.proto

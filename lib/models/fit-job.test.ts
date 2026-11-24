@@ -1,8 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ErrorCode, ModelError } from "../errors.ts";
-import type { TransformResult } from "../host.ts";
-import { FitJob, type FitRunOptions } from "./job.ts";
+import { ErrorCode, ModelError } from "./errors.ts";
+import type { TransformResult } from "./host.ts";
+import { FitJob, type FitRunOptions } from "./fit-job.ts";
 
 const result: TransformResult = {
   text: "short",
@@ -12,6 +12,7 @@ const result: TransformResult = {
   fits: true,
   overBy: 0,
   attempts: 1,
+  maxAttempts: 3,
 };
 
 function setup(run: (text: string, options: FitRunOptions) => Promise<TransformResult>) {
@@ -28,7 +29,6 @@ function setup(run: (text: string, options: FitRunOptions) => Promise<TransformR
       opened.push(`${name}|${ref}|${r.text}`);
     },
     onAuthFailed: () => authFailed++,
-    maxAttempts: 3,
   });
   const states: string[] = [];
   job.subscribe(() => states.push(job.state.kind));
@@ -46,15 +46,30 @@ test("ask, send, progress, and result: consent is for the exact text shown", asy
   assert.equal(job.state.kind, "confirm");
   const sending = job.send();
   assert.deepEqual(granted, ["long text"]);
-  progress({ attempt: 2, characters: 120 });
-  assert.deepEqual(job.state, {
-    kind: "running",
-    name: "Brief",
-    attempt: 2,
-    maxAttempts: 3,
-    characters: 120,
-    note: null,
-  });
+  // The most attempts is unknown until the host reports it.
+  assert.deepEqual(
+    { ...job.state },
+    {
+      kind: "running",
+      name: "Brief",
+      attempt: 1,
+      maxAttempts: null,
+      characters: 0,
+      note: null,
+    },
+  );
+  progress({ attempt: 2, maxAttempts: 3, characters: 120 });
+  assert.deepEqual(
+    { ...job.state },
+    {
+      kind: "running",
+      name: "Brief",
+      attempt: 2,
+      maxAttempts: 3,
+      characters: 120,
+      note: null,
+    },
+  );
   finish();
   await sending;
   assert.deepEqual(opened, ["Brief|ref-brief|short"]);

@@ -11,6 +11,7 @@
 import { create, fromBinary, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import { RpcFrameSchema, type RpcFrame } from "../gen/a4/v1/rpc_pb.js";
 import { METHOD_NAMES, methodDesc, type MethodName, type SheetModelClient } from "./client.ts";
+import { AsyncQueue } from "./async-queue.ts";
 import { ErrorCode, ModelError, toModelError } from "./errors.ts";
 
 /** The parts of MessagePort (browser or Node) the transport uses. */
@@ -109,13 +110,10 @@ function readFrame(event: MessageEvent): Read {
 
 const UNREADABLE_MESSAGE = "A message between the page and the model worker couldn't be read.";
 
-/** A reply stream for one call: frames are queued until the caller reads them. */
+/** A reply stream for one call: payloads are queued until the caller reads them. */
 class Reply {
   readonly #unary: boolean;
-  readonly #items: Uint8Array[] = [];
-  #done = false;
-  #error: ModelError | null = null;
-  #wake: (() => void) | null = null;
+  readonly #queue = new AsyncQueue<Uint8Array>();
 
   constructor(unary: boolean) {
     this.#unary = unary;
@@ -126,43 +124,29 @@ class Reply {
     const { kind } = frame;
     switch (kind.case) {
       case "error":
-        this.#error = new ModelError(kind.value.code || ErrorCode.PLUGIN, kind.value.message);
-        this.#done = true;
-        break;
+        this.#queue.fail(new ModelError(kind.value.code || ErrorCode.PLUGIN, kind.value.message));
+        return true;
       case "end":
         // A unary reply's result is the end frame's payload, even when empty:
         // proto3 encodes an all-default message as zero bytes.
-        if (this.#unary) this.#items.push(kind.value.payload);
-        this.#done = true;
-        break;
+        if (this.#unary) this.#queue.push(kind.value.payload);
+        this.#queue.end();
+        return true;
       case "message":
-        if (!this.#unary) this.#items.push(kind.value.payload);
-        break;
+        if (!this.#unary) this.#queue.push(kind.value.payload);
+        return false;
       default:
         // A call or cancel frame isn't a reply: ignore it.
         return false;
     }
-    this.#wake?.();
-    return this.#done;
   }
 
   fail(error: ModelError): void {
-    this.#error = error;
-    this.#done = true;
-    this.#wake?.();
+    this.#queue.fail(error);
   }
 
-  async *drain(): AsyncGenerator<Uint8Array> {
-    for (;;) {
-      if (this.#items.length) {
-        yield this.#items.shift()!;
-        continue;
-      }
-      if (this.#error) throw this.#error;
-      if (this.#done) return;
-      await new Promise<void>((resolve) => (this.#wake = resolve));
-      this.#wake = null;
-    }
+  drain(): AsyncIterable<Uint8Array> {
+    return this.#queue;
   }
 }
 

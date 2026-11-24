@@ -10,11 +10,11 @@
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
-import { layoutRows } from "../../page/index.ts";
-import { implement, type SheetModelClient } from "../client.ts";
-import { ErrorCode, ModelError } from "../errors.ts";
-import { FIT_HOST, FIT_MODEL, FIT_TO_PAGE_CARD } from "./card.ts";
-import { currentApiKey } from "./key.ts";
+import { layoutRows } from "../../../page/index.ts";
+import { implement, type SheetModelClient } from "../../client.ts";
+import { ErrorCode, ModelError } from "../../errors.ts";
+import { readTextSheet } from "../../sheet-input.ts";
+import { FIT_HOST, FIT_MODEL, FIT_TO_PAGE_CARD } from "./descriptor.ts";
 import { firstRequest, repairRequest, stripWrappingFence, systemPrompt } from "./prompt.ts";
 
 type Sdk = typeof import("@anthropic-ai/sdk");
@@ -40,8 +40,8 @@ export interface FitDeps {
   sdk?: () => Promise<Sdk>;
   /** Build a client for a key. */
   client?: (sdk: Sdk, apiKey: string) => StreamingClient;
-  /** The author's key (in-memory by default). */
-  apiKey?: () => string | null;
+  /** The author's key, from the host's credential store. */
+  apiKey: () => string | null;
 }
 
 /** Progress is reported every this many characters written. */
@@ -93,14 +93,22 @@ export function mapError(sdk: Sdk, error: unknown, signal?: AbortSignal): ModelE
   return new ModelError(ErrorCode.PLUGIN, error instanceof Error ? error.message : String(error), { cause: error });
 }
 
-export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
+/** `error` with every copy of `key` removed from its message, and no cause that holds it. */
+function withoutKey(error: ModelError, key: string): ModelError {
+  const cause: unknown = error.cause;
+  const causeMessage = cause instanceof Error ? cause.message : String(cause ?? "");
+  if (!error.message.includes(key) && !causeMessage.includes(key)) return error;
+  return new ModelError(error.code, error.message.split(key).join("[key]"));
+}
+
+export function fitToPagePlugin(deps: FitDeps): SheetModelClient {
   const loadSdk = deps.sdk ?? (() => import("@anthropic-ai/sdk"));
   const makeClient =
     deps.client ??
     ((sdk: Sdk, apiKey: string) =>
       // The author's own key, entered for this tab: the case the SDK's browser opt-in exists for.
       new sdk.default({ apiKey, dangerouslyAllowBrowser: true }) as unknown as StreamingClient);
-  const keyOf = deps.apiKey ?? currentApiKey;
+  const keyOf = deps.apiKey;
 
   return implement({
     describe: () => ({ card: FIT_TO_PAGE_CARD }),
@@ -108,15 +116,14 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
     async *transform(request, signal) {
       const key = keyOf();
       if (!key) throw new ModelError(ErrorCode.AUTH, "Enter your Anthropic API key first.");
-      const sheet = request.sheet;
-      if (!sheet?.spec) throw new ModelError(ErrorCode.INVALID_RESULT, "Fit to page needs a sheet with a page spec.");
-      const shape = { cols: sheet.spec.cols, rows: sheet.spec.rows };
+      const { text, spec } = readTextSheet(request.sheet, "Fit to page");
+      const shape = { cols: spec.cols, rows: spec.rows };
 
       const history: MessageParam[] = request.resume.length ? decodeHistory(request.resume) : [];
       if (!history.length) {
         history.push({
           role: "user",
-          content: firstRequest(sheet.text, layoutRows(sheet.text, shape.cols).length, shape),
+          content: firstRequest(text, layoutRows(text, shape.cols).length, shape),
         });
       } else {
         const feedback = request.feedback;
@@ -152,7 +159,7 @@ export function fitToPagePlugin(deps: FitDeps = {}): SheetModelClient {
         }
         message = await stream.finalMessage();
       } catch (error) {
-        throw mapError(sdk, error, signal);
+        throw withoutKey(mapError(sdk, error, signal), key);
       }
 
       if (message.stop_reason === "refusal")

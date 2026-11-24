@@ -30,11 +30,11 @@ const DOUBLE_CASTS: Record<string, string> = {
   // Worker scope typing: the app compiles with the DOM lib, not the webworker
   // lib, so the worker's `self` and the transformers.js pipeline (typed for
   // Node and the browser at once) are cast to the narrow interfaces it uses.
-  "lib/models/semantic/worker.ts": "worker scope typing",
+  "lib/models/plugins/semantic/worker.ts": "worker scope typing",
   // The Anthropic SDK boundary: its client and message params are cast to the
   // small interfaces the adapter uses, so tests can stand in for the SDK.
-  "lib/models/fit/adapter.ts": "SDK boundary",
-  "lib/models/fit/fit.test.ts": "records the SDK request body as plain data",
+  "lib/models/plugins/fit/adapter.ts": "SDK boundary",
+  "lib/models/plugins/fit/fit.test.ts": "records the SDK request body as plain data",
   "lib/models/consent.test.ts": "forges a consent token on purpose, to show the host refuses it",
   "lib/persist/store/testing/fake-opfs.ts": "the fake implements only the File System Access methods the stores use",
 };

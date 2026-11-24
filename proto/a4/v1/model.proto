@@ -24,6 +24,7 @@ enum View {
   VIEW_UNSPECIFIED = 0;
   VIEW_TEXT = 1;
   VIEW_GRID = 2;
+  // Experimental: no plugin or host path uses pixels yet.
   VIEW_PIXELS = 3;
 }
 
@@ -61,13 +62,6 @@ enum ErrorCode {
   ERROR_CODE_UNREADABLE = 14;
 }
 
-enum Placement {
-  PLACEMENT_UNSPECIFIED = 0;
-  PLACEMENT_BROWSER = 1;
-  PLACEMENT_LOCAL_SERVICE = 2;
-  PLACEMENT_REMOTE = 3;
-}
-
 message ModelCard {
   string id = 1;
   string name = 2;
@@ -75,16 +69,89 @@ message ModelCard {
   string description = 4;
   repeated Operation operations = 5;
   repeated View views = 6;
-  // Preset ids the plugin supports. Empty means all.
-  repeated string presets = 7;
-  Placement placement = 8;
-  bool sends_text_off_device = 9;
-  // Where page text goes when sends_text_off_device is true.
-  string destination_host = 10;
+  // Fields 7 to 10 were the preset ids as strings and the placement enum,
+  // flag, and host, before presets became an enum and placement a oneof.
+  reserved 7, 8, 9, 10;
+  reserved "sends_text_off_device", "destination_host";
   // Model files the plugin downloads before first use, in bytes.
   uint64 download_bytes = 11;
   // The underlying model, for display (e.g. "claude-opus-5-5").
   string model = 12;
+  // What Score returns, for a plugin that scores.
+  ScoreCapability score = 13;
+  // What Transform accepts, for a plugin that transforms.
+  TransformCapability transform = 14;
+  // Credentials the plugin needs from the author, held by the host in memory.
+  repeated CredentialRequirement credentials = 15;
+  // Where the plugin runs. Only a remote plugin sends page text off the
+  // device, and it names where; the host then asks for consent on each call.
+  oneof placement {
+    BrowserPlacement browser = 16;
+    RemotePlacement remote = 17;
+  }
+  // The presets the plugin supports. Empty means all.
+  repeated Preset presets = 18;
+}
+
+// Runs in the browser: page text stays on the device.
+message BrowserPlacement {}
+
+// Runs elsewhere: page text goes to `destination_host`.
+message RemotePlacement {
+  string destination_host = 1;
+}
+
+// What a Score plugin returns, so the host can check results and the UI can
+// show them without knowing the plugin.
+message ScoreCapability {
+  repeated PlaneInfo planes = 1;
+  repeated ScoreInfo scores = 2;
+  repeated FindingKindInfo findings = 3;
+}
+
+// A plane the plugin paints on the sheet, and how to read its tint.
+message PlaneInfo {
+  string name = 1;
+  string label = 2;
+  // What the values measure (e.g. "similarity").
+  string quantity = 3;
+  // Values at or below `min` get no tint; values at `max` get the darkest.
+  double min = 4;
+  double max = 5;
+  // How to read the tint, in a sentence (e.g. "Darker means closer in meaning.").
+  string description = 6;
+  // Marked values, in order (e.g. 0.85, "counts as restating").
+  repeated LegendStop legend = 7;
+}
+
+message LegendStop {
+  double value = 1;
+  string label = 2;
+}
+
+message ScoreInfo {
+  string name = 1;
+  string label = 2;
+}
+
+message FindingKindInfo {
+  string kind = 1;
+  string label = 2;
+}
+
+// What a Transform plugin accepts. The host refuses any other instruction.
+message TransformCapability {
+  repeated string instructions = 1;
+  // Attempts in all, counting repairs, before the host keeps the best candidate.
+  uint32 max_attempts = 2;
+}
+
+// A credential the plugin needs (e.g. an API key). The host keeps it in
+// memory only and passes the plugin a getter.
+message CredentialRequirement {
+  string kind = 1;
+  // How to ask for it (e.g. "Anthropic API key").
+  string label = 2;
 }
 
 message DescribeRequest {}
@@ -109,6 +176,7 @@ message PrepareResponse {
   bool ready = 3;
 }
 
+// Experimental: Encode and Generate have no host path or plugin yet.
 message EncodeRequest {
   Sheet sheet = 1;
   Granularity granularity = 2;

@@ -1,6 +1,6 @@
 /**
  * Line classification: prose, structured, heading, or blank. Shared with the
- * Semantic repetition units (lib/models/semantic/units.ts).
+ * Semantic repetition units (lib/models/plugins/semantic/units.ts).
  */
 
 import { countInk } from "../page/index.ts";

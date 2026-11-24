@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { planeLevel } from "../../capabilities.ts";
+import { RESTATE_SIMILARITY, SEMANTIC_REPETITION, SIMILARITY_FLOOR } from "./descriptor.ts";
 import { test } from "node:test";
-import { PRESETS } from "../../page/index.ts";
+import { PRESETS } from "../../../page/index.ts";
 import { cellValue, MAX_PAIRS, scoreUnits } from "./similarity.ts";
 import { extractUnits, type Unit } from "./units.ts";
 
@@ -114,4 +116,14 @@ test("summary: at most 5 pairs, most similar first", () => {
   assert.equal(score.pairs.length, MAX_PAIRS);
   for (let k = 1; k < score.pairs.length; k++) assert.ok(score.pairs[k - 1].similarity >= score.pairs[k].similarity);
   assert.equal(score.restating, 8);
+});
+
+test("the card's plane scale is the one the worker paints with", () => {
+  const plane = SEMANTIC_REPETITION.card.score?.planes.find((p) => p.name === SEMANTIC_REPETITION.names.plane);
+  assert.ok(plane);
+  for (const similarity of [0, 0.5, 0.6, 0.7, 0.85, 0.99, 1]) {
+    assert.ok(Math.abs(planeLevel(plane, similarity) - cellValue(similarity)) < 1e-12, String(similarity));
+  }
+  assert.equal(plane.legend[0]?.value, RESTATE_SIMILARITY);
+  assert.equal(plane.min, SIMILARITY_FLOOR);
 });

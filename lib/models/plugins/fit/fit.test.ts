@@ -2,14 +2,13 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import * as sdk from "@anthropic-ai/sdk";
-import { TransformRequestSchema } from "../../gen/a4/v1/model_pb.js";
-import { PRESETS } from "../../page/index.ts";
-import { sheetRecord } from "../../tensor/record.ts";
-import { grantConsent } from "../consent.ts";
-import { ErrorCode, ModelError } from "../errors.ts";
-import { ModelHost } from "../host.ts";
+import { Operation, TransformRequestSchema } from "../../../gen/a4/v1/model_pb.js";
+import { PRESETS } from "../../../page/index.ts";
+import { sheetRecord } from "../../../tensor/record.ts";
+import { ErrorCode, ModelError } from "../../errors.ts";
+import { ModelHost } from "../../host.ts";
 import { fitToPagePlugin, mapError, type StreamingClient } from "./adapter.ts";
-import { FIT_TO_PAGE_CARD, FIT_TO_PAGE_ID } from "./card.ts";
+import { FIT_TO_PAGE, FIT_TO_PAGE_CARD, FIT_TO_PAGE_ID } from "./descriptor.ts";
 import { stripWrappingFence } from "./prompt.ts";
 
 const T = PRESETS.terminal;
@@ -192,10 +191,67 @@ test("fit adapter through the host: consent required, repaired until it fits", a
   assert.equal(s.requests.length, 0);
   const result = await host.transform(FIT_TO_PAGE_ID, text, T, {
     instruction: "fit",
-    consent: grantConsent(FIT_TO_PAGE_ID, text),
+    consent: host.consent.request(FIT_TO_PAGE_ID, Operation.TRANSFORM, text).approve(),
   });
   assert.equal(result.fits, true);
   assert.equal(result.rowsUsed, 58);
   assert.equal(result.attempts, 2);
   assert.equal(s.requests.length, 2);
+});
+
+test("fit through the host: the key comes from the host's store, and errors never include it", async () => {
+  const key = "sk-ant-api03-SECRET-1234567890";
+  const kind = FIT_TO_PAGE.names.credentials.apiKey;
+  const failures: unknown[] = [
+    new sdk.AuthenticationError(401, undefined, `invalid x-api-key ${key}`, new Headers()),
+    new sdk.BadRequestError(400, undefined, `request with ${key} was malformed`, new Headers()),
+    new Error(`socket closed while sending ${key}`),
+  ];
+  const s = stub(failures.map((throws) => ({ throws })));
+  const host = new ModelHost();
+  host.register({
+    card: FIT_TO_PAGE_CARD,
+    connect: async (context) =>
+      fitToPagePlugin({ sdk: async () => sdk, client: () => s.client, apiKey: () => context.credential(kind) }),
+  });
+  const text = "Too long.\n".repeat(70);
+  const send = () =>
+    host.transform(FIT_TO_PAGE_ID, text, T, {
+      instruction: "fit",
+      consent: host.consent.request(FIT_TO_PAGE_ID, Operation.TRANSFORM, text).approve(),
+    });
+
+  // No key yet: nothing is sent.
+  await assert.rejects(send(), (e: unknown) => e instanceof ModelError && e.code === ErrorCode.AUTH);
+  assert.equal(s.requests.length, 0);
+
+  host.credentials.set(FIT_TO_PAGE_ID, kind, `  ${key}  `);
+  assert.equal(host.credentials.has(FIT_TO_PAGE_ID, kind), true);
+  for (let i = 0; i < failures.length; i++) {
+    const error = await send().then(
+      () => assert.fail("expected a failure"),
+      (e: unknown) => e,
+    );
+    assert.ok(error instanceof ModelError);
+    for (const shown of [error.message, String(error), error.stack ?? "", String(error.cause ?? "")]) {
+      assert.ok(!shown.includes(key), `failure ${i} shows the key: ${shown}`);
+    }
+  }
+  assert.equal(s.requests.length, failures.length);
+
+  host.credentials.forget(FIT_TO_PAGE_ID, kind);
+  assert.equal(host.credentials.has(FIT_TO_PAGE_ID, kind), false);
+});
+
+test("the host keeps credentials only for kinds the card declares, and a new host has none", () => {
+  const host = new ModelHost();
+  host.register({ card: FIT_TO_PAGE_CARD, connect: async () => fitToPagePlugin({ apiKey: () => null }) });
+  assert.throws(
+    () => host.credentials.set(FIT_TO_PAGE_ID, "password", "x"),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_CARD,
+  );
+  host.credentials.set(FIT_TO_PAGE_ID, FIT_TO_PAGE.names.credentials.apiKey, "sk-test");
+  const reloaded = new ModelHost();
+  reloaded.register({ card: FIT_TO_PAGE_CARD, connect: async () => fitToPagePlugin({ apiKey: () => null }) });
+  assert.equal(reloaded.credentials.has(FIT_TO_PAGE_ID, FIT_TO_PAGE.names.credentials.apiKey), false);
 });

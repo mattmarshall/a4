@@ -11,7 +11,8 @@ import {
   type ModelHost,
   type ScoreResult,
   BUNDLED_CARDS,
-  MODEL_DOWNLOADED,
+  isDownloaded,
+  needsDownload,
   pluginIdOf,
   type PluginId,
 } from "@/lib/models";
@@ -47,12 +48,12 @@ export function useModels(): ModelsState {
     let cancelled = false;
     void (async () => {
       for (const card of BUNDLED_CARDS) {
-        if (card.sendsTextOffDevice) continue; // remote plugins have nothing to download
+        if (!needsDownload(card)) continue; // nothing to download, so nothing to check
         setStatus((s) => ({ ...s, [card.id]: "checking" }));
         try {
           // Start the plugin only if its model is already downloaded; then its
           // worker can also fetch its code while the page is online.
-          const downloaded = (await MODEL_DOWNLOADED[card.id]?.()) ?? true;
+          const downloaded = await isDownloaded(pluginIdOf(card));
           const ready = downloaded && (await (await host()).status(pluginIdOf(card)));
           if (!cancelled) setStatus((s) => ({ ...s, [card.id]: ready ? "ready" : "not-downloaded" }));
         } catch (error) {

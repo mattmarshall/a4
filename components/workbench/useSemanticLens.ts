@@ -12,13 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { realScheduler } from "@/lib/persist";
 import { type A4Plane, modelLens, type LensAttr } from "@/lib/render";
-import {
-  type ScoreResult,
-  type PluginId,
-  SEMANTIC_REPETITION_CARD,
-  SEMANTIC_REPETITION_ID,
-  ScoreSchedule,
-} from "@/lib/models";
+import { type ScoreResult, type PluginId, SEMANTIC_REPETITION, ScoreSchedule } from "@/lib/models";
 import { PRESETS, type LensId, type PageSpec, type PresetId } from "@/lib/page";
 import type { Notify, Slot } from "@/lib/workspace";
 import type { ModelLegend } from "../MetricsPanel";
@@ -28,13 +22,23 @@ import type { ModelsState } from "../useModels";
 /** Rescore this long after the author stops typing. */
 const RESCORE_MS = 1500;
 
-const LEGEND: ModelLegend = {
-  plane: "Semantic repetition",
-  plugin: SEMANTIC_REPETITION_CARD.name,
-  model: SEMANTIC_REPETITION_CARD.model,
-  scale: "similarity 0.60 → 1.00",
-  note: "Darker means closer in meaning. 0.85 or more counts as restating.",
-};
+const { id: SEMANTIC_ID, card: SEMANTIC_CARD, names: NAMES } = SEMANTIC_REPETITION;
+
+/** The plane's legend, from the card: its scale, and what the marked values mean. */
+function legendOf(): ModelLegend | null {
+  const plane = SEMANTIC_CARD.score?.planes.find((p) => p.name === NAMES.plane);
+  if (!plane) return null;
+  const marks = plane.legend.map((stop) => `${stop.value.toFixed(2)} or more ${stop.label}.`);
+  return {
+    plane: plane.label,
+    plugin: SEMANTIC_CARD.name,
+    model: SEMANTIC_CARD.model,
+    scale: `${plane.quantity} ${plane.min.toFixed(2)} → ${plane.max.toFixed(2)}`,
+    note: [plane.description, ...marks].join(" "),
+  };
+}
+
+const LEGEND = legendOf();
 
 type Scored = ScoreResult & { readonly preset: PresetId };
 type Planes = Readonly<Record<string, A4Plane>>;
@@ -76,7 +80,7 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
       new ScoreSchedule<Slot, ScoreResult>({
         scheduler: realScheduler,
         delayMs: RESCORE_MS,
-        score: (_slot, text, preset) => latest.current.score(SEMANTIC_REPETITION_ID, text, PRESETS[preset as PresetId]),
+        score: (_slot, text, preset) => latest.current.score(SEMANTIC_ID, text, PRESETS[preset as PresetId]),
         onResult: (slot, result, _text, preset) =>
           setScored((s) => ({ ...s, [slot]: { ...result, preset: preset as PresetId } })),
         onError: (_slot, error) =>
@@ -88,8 +92,8 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
   );
   useEffect(() => () => schedule.stop(), [schedule]);
 
-  const available = models.status[SEMANTIC_REPETITION_ID] === "ready";
-  const on = active === SEMANTIC_REPETITION_ID;
+  const available = models.status[SEMANTIC_ID] === "ready";
+  const on = active === SEMANTIC_ID;
   const { a: textA, b: textB } = texts;
   useEffect(() => {
     if (!on || !available) return;
@@ -113,9 +117,9 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
     const value = (name: string) => result.scores.find((x) => x.name === name)?.value ?? 0;
     return {
       sheet,
-      restating: value("restating"),
-      units: value("units"),
-      pairs: result.findings.filter((f) => f.kind === "similar"),
+      restating: value(NAMES.scores.restating),
+      units: value(NAMES.scores.units),
+      pairs: result.findings.filter((f) => f.kind === NAMES.findings.similar),
       stale: result.planes[0]?.text !== texts[target] || result.preset !== spec.id,
     };
   })();
@@ -131,7 +135,7 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
     summary,
     /** Turn the lens on and score the shown pages now. */
     show() {
-      setActive(SEMANTIC_REPETITION_ID);
+      setActive(SEMANTIC_ID);
       schedule.now("a", textA, spec.id);
       if (compare) schedule.now("b", textB, spec.id);
     },

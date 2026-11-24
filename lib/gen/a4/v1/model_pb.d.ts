@@ -8,7 +8,7 @@
 
 import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
-import type { Embedding, Granularity, PageSpec, Plane, Sheet, TextSpan } from "./sheet_pb.js";
+import type { Embedding, Granularity, PageSpec, Plane, Preset, Sheet, TextSpan } from "./sheet_pb.js";
 
 /**
  * Describes the file a4/v1/model.proto.
@@ -50,30 +50,6 @@ export declare type ModelCard = Message<"a4.v1.ModelCard"> & {
   views: View[];
 
   /**
-   * Preset ids the plugin supports. Empty means all.
-   *
-   * @generated from field: repeated string presets = 7;
-   */
-  presets: string[];
-
-  /**
-   * @generated from field: a4.v1.Placement placement = 8;
-   */
-  placement: Placement;
-
-  /**
-   * @generated from field: bool sends_text_off_device = 9;
-   */
-  sendsTextOffDevice: boolean;
-
-  /**
-   * Where page text goes when sends_text_off_device is true.
-   *
-   * @generated from field: string destination_host = 10;
-   */
-  destinationHost: string;
-
-  /**
    * Model files the plugin downloads before first use, in bytes.
    *
    * @generated from field: uint64 download_bytes = 11;
@@ -86,6 +62,54 @@ export declare type ModelCard = Message<"a4.v1.ModelCard"> & {
    * @generated from field: string model = 12;
    */
   model: string;
+
+  /**
+   * What Score returns, for a plugin that scores.
+   *
+   * @generated from field: a4.v1.ScoreCapability score = 13;
+   */
+  score?: ScoreCapability | undefined;
+
+  /**
+   * What Transform accepts, for a plugin that transforms.
+   *
+   * @generated from field: a4.v1.TransformCapability transform = 14;
+   */
+  transform?: TransformCapability | undefined;
+
+  /**
+   * Credentials the plugin needs from the author, held by the host in memory.
+   *
+   * @generated from field: repeated a4.v1.CredentialRequirement credentials = 15;
+   */
+  credentials: CredentialRequirement[];
+
+  /**
+   * Where the plugin runs. Only a remote plugin sends page text off the
+   * device, and it names where; the host then asks for consent on each call.
+   *
+   * @generated from oneof a4.v1.ModelCard.placement
+   */
+  placement: {
+    /**
+     * @generated from field: a4.v1.BrowserPlacement browser = 16;
+     */
+    value: BrowserPlacement;
+    case: "browser";
+  } | {
+    /**
+     * @generated from field: a4.v1.RemotePlacement remote = 17;
+     */
+    value: RemotePlacement;
+    case: "remote";
+  } | { case: undefined; value?: undefined };
+
+  /**
+   * The presets the plugin supports. Empty means all.
+   *
+   * @generated from field: repeated a4.v1.Preset presets = 18;
+   */
+  presets: Preset[];
 };
 
 /**
@@ -93,6 +117,237 @@ export declare type ModelCard = Message<"a4.v1.ModelCard"> & {
  * Use `create(ModelCardSchema)` to create a new message.
  */
 export declare const ModelCardSchema: GenMessage<ModelCard>;
+
+/**
+ * Runs in the browser: page text stays on the device.
+ *
+ * @generated from message a4.v1.BrowserPlacement
+ */
+export declare type BrowserPlacement = Message<"a4.v1.BrowserPlacement"> & {
+};
+
+/**
+ * Describes the message a4.v1.BrowserPlacement.
+ * Use `create(BrowserPlacementSchema)` to create a new message.
+ */
+export declare const BrowserPlacementSchema: GenMessage<BrowserPlacement>;
+
+/**
+ * Runs elsewhere: page text goes to `destination_host`.
+ *
+ * @generated from message a4.v1.RemotePlacement
+ */
+export declare type RemotePlacement = Message<"a4.v1.RemotePlacement"> & {
+  /**
+   * @generated from field: string destination_host = 1;
+   */
+  destinationHost: string;
+};
+
+/**
+ * Describes the message a4.v1.RemotePlacement.
+ * Use `create(RemotePlacementSchema)` to create a new message.
+ */
+export declare const RemotePlacementSchema: GenMessage<RemotePlacement>;
+
+/**
+ * What a Score plugin returns, so the host can check results and the UI can
+ * show them without knowing the plugin.
+ *
+ * @generated from message a4.v1.ScoreCapability
+ */
+export declare type ScoreCapability = Message<"a4.v1.ScoreCapability"> & {
+  /**
+   * @generated from field: repeated a4.v1.PlaneInfo planes = 1;
+   */
+  planes: PlaneInfo[];
+
+  /**
+   * @generated from field: repeated a4.v1.ScoreInfo scores = 2;
+   */
+  scores: ScoreInfo[];
+
+  /**
+   * @generated from field: repeated a4.v1.FindingKindInfo findings = 3;
+   */
+  findings: FindingKindInfo[];
+};
+
+/**
+ * Describes the message a4.v1.ScoreCapability.
+ * Use `create(ScoreCapabilitySchema)` to create a new message.
+ */
+export declare const ScoreCapabilitySchema: GenMessage<ScoreCapability>;
+
+/**
+ * A plane the plugin paints on the sheet, and how to read its tint.
+ *
+ * @generated from message a4.v1.PlaneInfo
+ */
+export declare type PlaneInfo = Message<"a4.v1.PlaneInfo"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+
+  /**
+   * What the values measure (e.g. "similarity").
+   *
+   * @generated from field: string quantity = 3;
+   */
+  quantity: string;
+
+  /**
+   * Values at or below `min` get no tint; values at `max` get the darkest.
+   *
+   * @generated from field: double min = 4;
+   */
+  min: number;
+
+  /**
+   * @generated from field: double max = 5;
+   */
+  max: number;
+
+  /**
+   * How to read the tint, in a sentence (e.g. "Darker means closer in meaning.").
+   *
+   * @generated from field: string description = 6;
+   */
+  description: string;
+
+  /**
+   * Marked values, in order (e.g. 0.85, "counts as restating").
+   *
+   * @generated from field: repeated a4.v1.LegendStop legend = 7;
+   */
+  legend: LegendStop[];
+};
+
+/**
+ * Describes the message a4.v1.PlaneInfo.
+ * Use `create(PlaneInfoSchema)` to create a new message.
+ */
+export declare const PlaneInfoSchema: GenMessage<PlaneInfo>;
+
+/**
+ * @generated from message a4.v1.LegendStop
+ */
+export declare type LegendStop = Message<"a4.v1.LegendStop"> & {
+  /**
+   * @generated from field: double value = 1;
+   */
+  value: number;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message a4.v1.LegendStop.
+ * Use `create(LegendStopSchema)` to create a new message.
+ */
+export declare const LegendStopSchema: GenMessage<LegendStop>;
+
+/**
+ * @generated from message a4.v1.ScoreInfo
+ */
+export declare type ScoreInfo = Message<"a4.v1.ScoreInfo"> & {
+  /**
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message a4.v1.ScoreInfo.
+ * Use `create(ScoreInfoSchema)` to create a new message.
+ */
+export declare const ScoreInfoSchema: GenMessage<ScoreInfo>;
+
+/**
+ * @generated from message a4.v1.FindingKindInfo
+ */
+export declare type FindingKindInfo = Message<"a4.v1.FindingKindInfo"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message a4.v1.FindingKindInfo.
+ * Use `create(FindingKindInfoSchema)` to create a new message.
+ */
+export declare const FindingKindInfoSchema: GenMessage<FindingKindInfo>;
+
+/**
+ * What a Transform plugin accepts. The host refuses any other instruction.
+ *
+ * @generated from message a4.v1.TransformCapability
+ */
+export declare type TransformCapability = Message<"a4.v1.TransformCapability"> & {
+  /**
+   * @generated from field: repeated string instructions = 1;
+   */
+  instructions: string[];
+
+  /**
+   * Attempts in all, counting repairs, before the host keeps the best candidate.
+   *
+   * @generated from field: uint32 max_attempts = 2;
+   */
+  maxAttempts: number;
+};
+
+/**
+ * Describes the message a4.v1.TransformCapability.
+ * Use `create(TransformCapabilitySchema)` to create a new message.
+ */
+export declare const TransformCapabilitySchema: GenMessage<TransformCapability>;
+
+/**
+ * A credential the plugin needs (e.g. an API key). The host keeps it in
+ * memory only and passes the plugin a getter.
+ *
+ * @generated from message a4.v1.CredentialRequirement
+ */
+export declare type CredentialRequirement = Message<"a4.v1.CredentialRequirement"> & {
+  /**
+   * @generated from field: string kind = 1;
+   */
+  kind: string;
+
+  /**
+   * How to ask for it (e.g. "Anthropic API key").
+   *
+   * @generated from field: string label = 2;
+   */
+  label: string;
+};
+
+/**
+ * Describes the message a4.v1.CredentialRequirement.
+ * Use `create(CredentialRequirementSchema)` to create a new message.
+ */
+export declare const CredentialRequirementSchema: GenMessage<CredentialRequirement>;
 
 /**
  * @generated from message a4.v1.DescribeRequest
@@ -193,6 +448,8 @@ export declare type PrepareResponse = Message<"a4.v1.PrepareResponse"> & {
 export declare const PrepareResponseSchema: GenMessage<PrepareResponse>;
 
 /**
+ * Experimental: Encode and Generate have no host path or plugin yet.
+ *
  * @generated from message a4.v1.EncodeRequest
  */
 export declare type EncodeRequest = Message<"a4.v1.EncodeRequest"> & {
@@ -607,6 +864,8 @@ export enum View {
   GRID = 2,
 
   /**
+   * Experimental: no plugin or host path uses pixels yet.
+   *
    * @generated from enum value: VIEW_PIXELS = 3;
    */
   PIXELS = 3,
@@ -732,36 +991,6 @@ export enum ErrorCode {
  * Describes the enum a4.v1.ErrorCode.
  */
 export declare const ErrorCodeSchema: GenEnum<ErrorCode>;
-
-/**
- * @generated from enum a4.v1.Placement
- */
-export enum Placement {
-  /**
-   * @generated from enum value: PLACEMENT_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: PLACEMENT_BROWSER = 1;
-   */
-  BROWSER = 1,
-
-  /**
-   * @generated from enum value: PLACEMENT_LOCAL_SERVICE = 2;
-   */
-  LOCAL_SERVICE = 2,
-
-  /**
-   * @generated from enum value: PLACEMENT_REMOTE = 3;
-   */
-  REMOTE = 3,
-}
-
-/**
- * Describes the enum a4.v1.Placement.
- */
-export declare const PlacementSchema: GenEnum<Placement>;
 
 /**
  * @generated from service a4.v1.SheetModelService

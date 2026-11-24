@@ -7,28 +7,26 @@
  * semantic lens.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeImport } from "@/lib/archive";
 import { type LensId, PRESETS } from "@/lib/page";
 import {
-  grantConsent,
-  FIT_TO_PAGE_ID,
+  Operation,
+  FIT_TO_PAGE,
   FitJob,
-  forgetApiKey,
-  MAX_ATTEMPTS,
   type FindingResult,
   type TransformResult,
-  SEMANTIC_REPETITION_ID,
+  SEMANTIC_REPETITION,
 } from "@/lib/models";
 import { SAMPLE_PAIRS } from "@/lib/content";
 import { SETTINGS, copyNameFor, sameRef, type PageName, type PageRef } from "@/lib/persist";
 import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { ComparePanel } from "./ComparePanel";
-import { FitJobChip, FitToPage } from "./FitToPage";
+import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
-import { ModelsPanel } from "./ModelsPanel";
+import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
 import { saveFile } from "./workbench/download";
@@ -132,6 +130,15 @@ export function Workbench() {
       result.fits ? "info" : "warn",
     );
   }
+  // Fit to page's API key, in the host's credential store (the host loads on first use).
+  const fitKey = useMemo((): KeyStore => {
+    const kind = FIT_TO_PAGE.names.credentials.apiKey;
+    return {
+      has: async () => (await models.host()).credentials.has(FIT_TO_PAGE.id, kind),
+      set: async (value) => (await models.host()).credentials.set(FIT_TO_PAGE.id, kind, value),
+      forget: async () => (await models.host()).credentials.forget(FIT_TO_PAGE.id, kind),
+    };
+  }, [models.host]);
   const fitDeps = useRef({ spec, openFitResult });
   useEffect(() => {
     fitDeps.current = { spec, openFitResult };
@@ -139,15 +146,15 @@ export function Workbench() {
   const [fitJob] = useState(
     () =>
       new FitJob<PageRef>({
-        grant: (text) => grantConsent(FIT_TO_PAGE_ID, text),
+        grant: async (text) =>
+          (await models.host()).consent.request(FIT_TO_PAGE.id, Operation.TRANSFORM, text).approve(),
         run: async (text, options) =>
-          (await models.host()).transform(FIT_TO_PAGE_ID, text, fitDeps.current.spec, {
-            instruction: "fit",
+          (await models.host()).transform(FIT_TO_PAGE.id, text, fitDeps.current.spec, {
+            instruction: FIT_TO_PAGE.names.instructions.fit,
             ...options,
           }),
         onResult: (_name, result, ref) => fitDeps.current.openFitResult(result, ref),
-        onAuthFailed: () => forgetApiKey(),
-        maxAttempts: MAX_ATTEMPTS,
+        onAuthFailed: () => void fitKey.forget(),
       }),
   );
 
@@ -395,11 +402,16 @@ export function Workbench() {
             )}
             <ModelsPanel
               models={models}
-              semanticActive={semantic.active === SEMANTIC_REPETITION_ID}
+              scoreActive={semantic.active === SEMANTIC_REPETITION.id}
               onScore={semantic.show}
-              summary={semantic.summary}
-              onSelectPair={selectLaterUnit}
-              fit={<FitToPage page={{ name: page.label, ref: page.ref, text: page.text }} job={fitJob} />}
+              slots={{
+                [FIT_TO_PAGE.id]: (
+                  <FitToPage page={{ name: page.label, ref: page.ref, text: page.text }} job={fitJob} apiKey={fitKey} />
+                ),
+                [SEMANTIC_REPETITION.id]: semantic.summary ? (
+                  <SemanticSummaryView summary={semantic.summary} onSelectPair={selectLaterUnit} />
+                ) : null,
+              }}
             />
           </aside>
         ) : null}

@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { SheetSchema } from "../gen/a4/v1/sheet_pb.js";
+import { Preset, SheetSchema } from "../gen/a4/v1/sheet_pb.js";
 import { PRESETS } from "../page/index.ts";
 import { encodeGrid } from "./codec.ts";
-import { pageSpecMessage, readSheet, SheetRecordError, sheetRecord, writeSheet } from "./record.ts";
+import { pageSpecMessage, readSheet, SheetRecordError, sheetRecord, verifySheet, writeSheet } from "./record.ts";
 
 const T = PRESETS.terminal;
 
@@ -12,7 +12,7 @@ test("sheet record: a consistent record round-trips", () => {
   const bytes = writeSheet(sheetRecord("hello", T));
   const back = readSheet(bytes);
   assert.equal(back.text, "hello");
-  assert.equal(back.spec?.preset, "terminal");
+  assert.equal(back.spec?.preset, Preset.TERMINAL);
   assert.equal(back.spec?.cols, 80);
   assert.equal(back.spec?.rows, 60);
   assert.deepEqual(back.grid, encodeGrid("hello", T));
@@ -42,8 +42,24 @@ test("sheet record: missing grid, garbage bytes, and lone surrogates are refused
   assert.throws(() => writeSheet(sheetRecord("bad \uD800", T)), SheetRecordError);
 });
 
-test("sheet record: a full Terminal page of ASCII is about 5 KB", () => {
+test("sheet record: a full Terminal page of ASCII is about 10 KB", () => {
   const text = Array.from({ length: 60 }, () => "m".repeat(80)).join("\n");
   const size = writeSheet(sheetRecord(text, T)).length;
   assert.ok(size > 9_000 && size < 11_000, `unexpected size ${size}`); // text + one varint byte per cell
+});
+
+test("a sheet sent to a plugin may carry one view; it still needs a spec and a consistent grid", () => {
+  const spec = pageSpecMessage(T);
+  verifySheet(create(SheetSchema, { spec, text: "only text" }));
+  verifySheet(create(SheetSchema, { spec, grid: encodeGrid("only grid", T) }));
+  assert.throws(() => verifySheet(create(SheetSchema, { spec })), SheetRecordError);
+  assert.throws(() => verifySheet(create(SheetSchema, { text: "no spec" })), SheetRecordError);
+  assert.throws(
+    () => verifySheet(create(SheetSchema, { spec, text: "one text", grid: encodeGrid("another", T) })),
+    SheetRecordError,
+  );
+  assert.throws(
+    () => verifySheet(create(SheetSchema, { spec, grid: encodeGrid("too narrow", PRESETS.pica) })),
+    SheetRecordError,
+  );
 });

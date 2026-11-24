@@ -4,7 +4,7 @@
  * Shared by the worker and the page.
  */
 
-import { EMBEDDING_MODEL, EMBEDDING_REVISION } from "./card.ts";
+import { EMBEDDING_MODEL, EMBEDDING_REVISION } from "./descriptor.ts";
 
 /** The Cache Storage name the inference library uses. */
 export const MODEL_CACHE_NAME = "transformers-cache";

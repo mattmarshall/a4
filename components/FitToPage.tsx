@@ -4,13 +4,13 @@
  * Fit to page controls: the in-memory API key, the per-call consent dialog,
  * progress with cancel, and the outcome. The key never enters React state:
  * the field is uncontrolled and is cleared as soon as the key is handed to
- * the key module. Consent is minted only by the dialog's Send button (the
+ * the host's credential store. Consent is minted only by the dialog's Send button (the
  * job's `send`), for the exact text the dialog describes. The request itself
  * lives in a FitJob owned by the Workbench, so it outlives this panel.
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FIT_HOST, FIT_MODEL, type FitJob, forgetApiKey, hasApiKey, setApiKey } from "@/lib/models";
+import { FIT_TO_PAGE, type FitJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
 
 export function useFitJob(job: FitJob<PageRef>) {
@@ -24,7 +24,8 @@ export function FitJobChip({ job }: { job: FitJob<PageRef> }) {
   return (
     <span className="fit-chip" role="status" aria-live="polite">
       <span className="fit-chip-label">
-        Fitting “{phase.name}” · {phase.attempt}/{phase.maxAttempts}
+        Fitting “{phase.name}” · {phase.attempt}
+        {phase.maxAttempts === null ? "" : `/${phase.maxAttempts}`}
       </span>
       <button type="button" className="btn" onClick={() => job.cancel()}>
         Cancel
@@ -33,23 +34,41 @@ export function FitJobChip({ job }: { job: FitJob<PageRef> }) {
   );
 }
 
+/** The API key, as the host's credential store holds it (the host loads on first use). */
+export interface KeyStore {
+  has(): Promise<boolean>;
+  set(value: string): Promise<void>;
+  forget(): Promise<void>;
+}
+
 export function FitToPage({
   page,
   job,
+  apiKey,
 }: {
   /** The page Fit to page would rewrite (the active sheet). */
   page: { name: string | null; ref: PageRef | null; text: string };
   /** The request, owned above the inspector so it outlives this panel. */
   job: FitJob<PageRef>;
+  apiKey: KeyStore;
 }) {
   const [keySet, setKeySet] = useState(false);
   const phase = useFitJob(job);
   const keyField = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDialogElement>(null);
 
-  // The key module outlives this component only within the tab.
+  // The store outlives this component only within the tab. Re-read it when
+  // the job changes phase (a rejected key is forgotten).
   // biome-ignore lint/correctness/useExhaustiveDependencies: re-read the key store each time the job changes phase.
-  useEffect(() => setKeySet(hasApiKey()), [phase.kind]);
+  useEffect(() => {
+    let live = true;
+    void apiKey.has().then((has) => {
+      if (live) setKeySet(has);
+    });
+    return () => {
+      live = false;
+    };
+  }, [apiKey, phase.kind]);
 
   useEffect(() => {
     const d = dialog.current;
@@ -61,13 +80,16 @@ export function FitToPage({
   function applyKey() {
     const field = keyField.current;
     if (!field) return;
-    setApiKey(field.value);
+    const value = field.value;
     field.value = "";
-    setKeySet(hasApiKey());
+    void apiKey
+      .set(value)
+      .then(() => apiKey.has())
+      .then(setKeySet);
   }
 
   function forget() {
-    forgetApiKey();
+    void apiKey.forget();
     setKeySet(false);
   }
 
@@ -123,8 +145,9 @@ export function FitToPage({
       {phase.kind === "running" ? (
         <div className="fit-progress" aria-live="polite">
           <span className="model-status">
-            Claude is rewriting “{phase.name}” · attempt {phase.attempt} of {phase.maxAttempts} ·{" "}
-            {phase.characters.toLocaleString("en-US")} characters
+            Claude is rewriting “{phase.name}” · attempt {phase.attempt}
+            {phase.maxAttempts === null ? "" : ` of ${phase.maxAttempts}`} · {phase.characters.toLocaleString("en-US")}{" "}
+            characters
           </span>
           {phase.note ? <span className="model-status">{phase.note}</span> : null}
           <button type="button" className="btn" onClick={() => job.cancel()}>
@@ -151,12 +174,13 @@ export function FitToPage({
             <dl>
               <dt>Destination</dt>
               <dd>
-                <code>{FIT_HOST}</code> (Anthropic), directly from this browser. A4’s server never sees the page or your
-                key.
+                <code>{remoteHost(FIT_TO_PAGE.card)}</code> (Anthropic), directly from this browser. A4’s server never
+                sees the page or your key.
               </dd>
               <dt>Model</dt>
               <dd>
-                <code>{FIT_MODEL}</code>. If Claude declines, Anthropic may retry the request with a fallback model.
+                <code>{FIT_TO_PAGE.card.model}</code>. If Claude declines, Anthropic may retry the request with a
+                fallback model.
               </dd>
               <dt>Page</dt>
               <dd>

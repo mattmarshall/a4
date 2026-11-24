@@ -3,22 +3,14 @@
  * it is tested with fixed vectors; the worker supplies real embeddings.
  */
 
-import { layoutRows } from "../../page/index.ts";
-import { spanToCells } from "../../tensor/cells.ts";
+import { layoutRows } from "../../../page/index.ts";
+import { spanToCells } from "../../../tensor/cells.ts";
+import { RESTATE_SIMILARITY, SIMILARITY_FLOOR } from "./descriptor.ts";
 import type { Unit } from "./units.ts";
-
-/** Similarity at which a unit counts as restating another. */
-export const RESTATE_SIMILARITY = 0.85;
-/**
- * Where the scale starts: below this a unit's cells hold 0 and its pairs
- * aren't listed. Unrelated sentences score far lower (under 0.2 in
- * calibration), so they stay clear.
- */
-export const SIMILARITY_FLOOR = 0.6;
 /** Most pairs listed in the summary. */
 export const MAX_PAIRS = 5;
 
-export interface SimilarPair {
+interface SimilarPair {
   /** Index of the earlier unit. */
   a: number;
   /** Index of the later unit, the one to consider cutting. */

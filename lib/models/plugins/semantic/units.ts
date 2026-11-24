@@ -4,11 +4,11 @@
  * text so scores map back to cells.
  */
 
-import { classifyLines, DEFAULT_CONFIG, type LineKind } from "../../analysis/index.ts";
-import { PRESETS } from "../../page/index.ts";
+import { classifyLines, DEFAULT_CONFIG, type LineKind } from "../../../analysis/index.ts";
+import { PRESETS } from "../../../page/index.ts";
 
 /** Units with fewer non-whitespace characters than this are skipped. */
-export const MIN_UNIT_INK = 12;
+const MIN_UNIT_INK = 12;
 
 export interface Unit {
   /** Half-open span of the unit in the page text. */

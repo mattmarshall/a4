@@ -1,8 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ModelCardSchema, Operation, Placement, View, type TransformRequest } from "../gen/a4/v1/model_pb.js";
+import {
+  BrowserPlacementSchema,
+  ModelCardSchema,
+  Operation,
+  View,
+  type TransformRequest,
+} from "../gen/a4/v1/model_pb.js";
 import { PRESETS } from "../page/index.ts";
+import { Preset } from "../gen/a4/v1/sheet_pb.js";
 import { decodeGrid } from "../tensor/codec.ts";
 import { implement, type SheetModelHandlers } from "./client.ts";
 import { ErrorCode, ModelError } from "./errors.ts";
@@ -17,14 +24,22 @@ const pid = (id: string) => pluginIdOf(create(ModelCardSchema, { id }));
 const T = PRESETS.terminal;
 const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i}`).join("\n");
 
-function fake(opts: { operations: Operation[]; views?: View[]; handlers: Partial<SheetModelHandlers>; id?: string }) {
+function fake(opts: {
+  operations: Operation[];
+  views?: View[];
+  presets?: Preset[];
+  handlers: Partial<SheetModelHandlers>;
+  id?: string;
+}) {
   const calls: string[] = [];
   const card = create(ModelCardSchema, {
     id: opts.id ?? "fake",
     name: "Fake",
     operations: opts.operations,
     views: opts.views ?? [View.TEXT, View.GRID],
-    placement: Placement.BROWSER,
+    placement: { case: "browser", value: {} },
+    ...(opts.operations.includes(Operation.TRANSFORM) ? { transform: { instructions: ["fit"], maxAttempts: 3 } } : {}),
+    ...(opts.presets ? { presets: opts.presets } : {}),
   });
   const handlers: Partial<SheetModelHandlers> = {
     describe: () => ({ card }),
@@ -86,7 +101,7 @@ test("sheet views: a grid reader receives a grid that decodes to the page text",
     handlers: {
       score(req) {
         seen = decodeGrid(req.sheet!.grid!);
-        assert.equal(req.sheet!.text, "", "text view not declared, so no text");
+        assert.equal(req.sheet?.text, undefined, "text view not declared, so no text at all");
         assert.equal(req.sheet!.spec!.cols, 80);
         return {};
       },
@@ -101,7 +116,7 @@ test("per-cell planes: a 60 × 79 plane for a 60 × 80 grid is rejected", async 
     operations: [Operation.SCORE],
     handlers: {
       score: (req) => ({
-        planes: [{ name: "p", shape: [60, 79], values: new Array(60 * 79).fill(0), text: req.sheet!.text }],
+        planes: [{ name: "p", shape: [60, 79], values: new Array(60 * 79).fill(0), text: req.sheet?.text ?? "" }],
       }),
     },
   });
@@ -122,7 +137,7 @@ test("per-cell planes: a matching plane is returned with its text and values", a
             label: "Heat",
             shape: [60, 80],
             values: Array.from({ length: 4800 }, (_, i) => (i === 0 ? 1 : 0)),
-            text: req.sheet!.text,
+            text: req.sheet?.text ?? "",
           },
         ],
         findings: [{ kind: "restates", spans: [{ start: 0, end: 1 }], value: 0.9, label: "x" }],
@@ -198,7 +213,7 @@ test("a plugin that describes itself under another id is refused", async () => {
     id: "real",
     name: "Real",
     operations: [Operation.SCORE],
-    placement: Placement.BROWSER,
+    placement: { case: "browser", value: {} },
   });
   const host = new ModelHost();
   host.register({ card, connect: async () => implement({ describe: () => ({ card: { ...card, id: "other" } }) }) });
@@ -213,8 +228,8 @@ test("a card that sends text off the device must name its destination", () => {
   const card = create(ModelCardSchema, {
     id: "r",
     operations: [Operation.TRANSFORM],
-    placement: Placement.REMOTE,
-    sendsTextOffDevice: true,
+    transform: { instructions: ["fit"], maxAttempts: 3 },
+    placement: { case: "remote", value: {} },
   });
   assert.throws(() => host.register({ card, connect: async () => implement({}) }), ModelError);
 });
@@ -225,7 +240,7 @@ test("a plugin whose worker crashed is reconnected on the next call", async () =
     name: "Worker",
     operations: [Operation.SCORE],
     views: [View.TEXT],
-    placement: Placement.BROWSER,
+    placement: { case: "browser", value: {} },
   });
   const workers: FakeWorker[] = [];
   const host = new ModelHost();
@@ -251,10 +266,9 @@ test("changing a card after registration can't turn consent off", async () => {
     id: "remote",
     name: "Remote",
     operations: [Operation.TRANSFORM],
+    transform: { instructions: ["fit"], maxAttempts: 3 },
     views: [View.TEXT],
-    placement: Placement.REMOTE,
-    sendsTextOffDevice: true,
-    destinationHost: "api.example.com",
+    placement: { case: "remote", value: { destinationHost: "api.example.com" } },
   });
   let connected = false;
   const host = new ModelHost();
@@ -265,7 +279,7 @@ test("changing a card after registration can't turn consent off", async () => {
       return implement({ describe: () => ({ card }) });
     },
   });
-  card.sendsTextOffDevice = false; // the caller's object, after registration
+  card.placement = { case: "browser", value: create(BrowserPlacementSchema) }; // the caller's object, after registration
   await assert.rejects(
     host.transform(pid("remote"), "text", PRESETS.terminal, { instruction: "fit" }),
     (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CONSENT_REQUIRED,
@@ -275,9 +289,9 @@ test("changing a card after registration can't turn consent off", async () => {
   const listed = host.list()[0]!;
   assert.ok(Object.isFrozen(listed));
   assert.throws(() => {
-    (listed as { sendsTextOffDevice: boolean }).sendsTextOffDevice = false;
+    (listed as { placement: unknown }).placement = { case: "browser", value: {} };
   });
-  assert.equal(host.card(pid("remote")).sendsTextOffDevice, true);
+  assert.equal(host.card(pid("remote")).placement.case, "remote");
 });
 
 test("the host rejects spans outside the page, deep planes, and duplicate plane names", async () => {
@@ -334,4 +348,50 @@ test("the host rejects spans outside the page, deep planes, and duplicate plane 
     result.planes.map((p) => p.name),
     ["p", "q"],
   );
+});
+
+test("the host enforces the card's presets and instructions without contacting the plugin", async () => {
+  const picky = fake({
+    operations: [Operation.SCORE, Operation.TRANSFORM],
+    presets: [Preset.TERMINAL],
+    handlers: {
+      score: () => ({}),
+      async *transform() {
+        yield { event: { case: "candidate", value: { text: "ok", model: "m" } } };
+      },
+    },
+  });
+  const unsupported = (e: unknown) => e instanceof ModelError && e.code === ErrorCode.UNSUPPORTED_OPERATION;
+  await assert.rejects(picky.host.score(pid("fake"), "x", PRESETS.dense), unsupported);
+  await assert.rejects(picky.host.transform(pid("fake"), "x", T, { instruction: "summarize" }), unsupported);
+  assert.deepEqual(picky.calls, []);
+  assert.equal((await picky.host.transform(pid("fake"), "x", T, { instruction: "fit" })).text, "ok");
+});
+
+test("a card that transforms must declare its instructions", () => {
+  const host = new ModelHost();
+  const card = create(ModelCardSchema, {
+    id: "t",
+    operations: [Operation.TRANSFORM],
+    placement: { case: "browser", value: {} },
+  });
+  assert.throws(
+    () => host.register({ card, connect: async () => implement({}) }),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.INVALID_CARD,
+  );
+});
+
+test("sheet views: a text reader receives the text and no grid", async () => {
+  const { host } = fake({
+    operations: [Operation.SCORE],
+    views: [View.TEXT],
+    handlers: {
+      score(req) {
+        assert.equal(req.sheet?.text, "hello");
+        assert.equal(req.sheet?.grid, undefined);
+        return {};
+      },
+    },
+  });
+  await host.score(pid("fake"), "hello", T);
 });

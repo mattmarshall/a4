@@ -93,3 +93,49 @@ status, prepare, score, and not-ready.
 
 No stored data is involved: models keep only Cache Storage, which is
 unchanged. Reverting is a revert of the commits.
+
+## Implementation Notes
+
+Where the code differs from the decisions above, and why:
+
+- **Server builds stub plugin code.** The manifest's dynamic imports pulled
+  the semantic worker and the ONNX WebAssembly runtime into the server
+  bundle (23 MB to 37 MB). `browserOnlyPlugins()` in `vite.config.ts`
+  resolves `./plugins/<id>/connect.ts` to a stub that throws in non-client
+  builds, so the server output is back to 23 MB.
+- **The UI reads descriptors, not plugins.** Components import descriptors
+  (ids and typed name tables) through `lib/models`. Thresholds, the
+  destination host, the legend, and labels come from the cards, through
+  `planeLevel` and `remoteHost(card)`. `PlaneInfo` also has `quantity` and
+  `description`, so the legend's text comes from the card too.
+- **Panel slots.** The models panel renders one slot per plugin, keyed by
+  descriptor id (Fit to page's controls and the semantic summary), instead
+  of named props.
+- **Consent:**
+  - FitJob's `grant` is async, because the host loads on first use. The job
+    awaits only a grant that returns a Promise, so a synchronous grant keeps
+    its timing.
+  - Remote scoring goes through the same egress guard as transforms.
+- **Credentials:**
+  - The UI uses a small `KeyStore` facade over `host.credentials`.
+  - A plugin receives `context.credential(kind)`, and the host refuses kinds
+    its card doesn't declare.
+  - The Fit adapter's `withoutKey` removes the key from error messages and
+    drops a cause that contains it.
+- **Attempts.** The most attempts comes from the card's
+  `TransformCapability`. The host reports it at the start of each attempt,
+  and FitJob's running state holds `null` until then. `MAX_ATTEMPTS` is
+  gone.
+- **Sheets.** `verifySheet` accepts a sheet with only text or only a grid
+  and checks the view it declares. Stored records (`readSheet` and
+  `writeSheet`) still need both, through a private `verifyRecord`. Plugins
+  share `readTextSheet`.
+- **Proto changes beyond the `oneof`.** The card's presets became
+  `repeated Preset` (field 18) and `PageSpec.preset` an enum (field 8);
+  `CellRect` is removed; `Sheet.text` has explicit presence; the unused
+  `LOCAL_SERVICE` placement is dropped. Cards are built in code and sheets
+  are never stored, so nothing old is read. `buf.yaml` allows these breaks
+  for `model.proto` and `sheet.proto` only, with a note to remove the
+  exception once this change has shipped.
+- **`AsyncQueue`** is shared by the worker transport's reply stream and the
+  semantic plugin's download progress.

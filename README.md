@@ -75,7 +75,7 @@ push and pull request.
   dependency-cruiser reads TypeScript with the TypeScript 6 API, so
   `pnpm-workspace.yaml` gives it its own TypeScript 6.
 - **Unused code** (`knip.jsonc`): unused files and dependencies fail. Unused
-  exports are reported. `lib/models/semantic/calibration-pairs.ts` is kept on
+  exports are reported. `lib/models/plugins/semantic/calibration-pairs.ts` is kept on
   purpose: it's the fixture set for recalibrating the semantic thresholds by
   hand.
 - **CSS** (`.stylelintrc.json`): duplicate selectors, `!important` outside the
@@ -92,7 +92,9 @@ push and pull request.
 - **Protobuf compatibility:** `buf breaking` compares `proto/` with `main`
   locally, and in CI with the pull request's base or the previous `main`
   commit. The worker transport (`proto/a4/v1/rpc.proto`) is exempt: a worker
-  and its page always ship together.
+  and its page always ship together. `buf.yaml` also lets `model.proto` and
+  `sheet.proto` drop the fields that became a `oneof` or an enum in
+  refactor-model-plugins; remove that exception once the change has shipped.
 - **First load:** the build records each client chunk's modules in
   `dist/client-chunks.json`. `pnpm check:bundle` fails if the chunks the home
   page loads contain the Fit to page adapter, the semantic worker,

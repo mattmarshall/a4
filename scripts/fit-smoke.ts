@@ -12,10 +12,9 @@
  */
 
 import { writeFileSync } from "node:fs";
-import { FIT_TO_PAGE_CARD, FIT_TO_PAGE_ID } from "../lib/models/fit/card.ts";
-import { fitToPagePlugin } from "../lib/models/fit/adapter.ts";
-import { setApiKey } from "../lib/models/fit/key.ts";
-import { grantConsent } from "../lib/models/consent.ts";
+import { FIT_TO_PAGE, FIT_TO_PAGE_CARD, FIT_TO_PAGE_ID } from "../lib/models/plugins/fit/descriptor.ts";
+import { connect } from "../lib/models/plugins/fit/connect.ts";
+import { Operation } from "../lib/gen/a4/v1/model_pb.js";
 import { ModelHost } from "../lib/models/host.ts";
 import { PRESETS, layoutRows } from "../lib/page/index.ts";
 import { SAMPLE_PAIRS } from "../lib/content/index.ts";
@@ -25,14 +24,14 @@ if (!key) {
   console.error("Set ANTHROPIC_API_KEY (for example: node --env-file=.env.local scripts/fit-smoke.ts).");
   process.exit(1);
 }
-setApiKey(key);
 
 const rowsArg = process.argv.indexOf("--rows");
 const rows = rowsArg > 0 ? Number(process.argv[rowsArg + 1]) : PRESETS.terminal.rows;
 const spec = { ...PRESETS.terminal, rows };
 const source = SAMPLE_PAIRS[0].a;
 const host = new ModelHost();
-host.register({ card: FIT_TO_PAGE_CARD, connect: async () => fitToPagePlugin() });
+host.register({ card: FIT_TO_PAGE_CARD, connect });
+host.credentials.set(FIT_TO_PAGE_ID, FIT_TO_PAGE.names.credentials.apiKey, key);
 
 console.log(
   `Source: "${SAMPLE_PAIRS[0].name}" sample A, ${source.length} characters, ${layoutRows(source, spec.cols).length} rows (page holds ${spec.rows}).`,
@@ -41,8 +40,8 @@ const started = Date.now();
 let lastReported = 0;
 const result = await host.transform(FIT_TO_PAGE_ID, source, spec, {
   instruction: "fit",
-  // The author asked for this run; in the app, only the consent dialog mints this.
-  consent: grantConsent(FIT_TO_PAGE_ID, source),
+  // The author asked for this run; in the app, only the consent dialog approves this.
+  consent: host.consent.request(FIT_TO_PAGE_ID, Operation.TRANSFORM, source).approve(),
   onProgress: ({ attempt, characters }) => {
     if (characters - lastReported >= 500) {
       lastReported = characters;

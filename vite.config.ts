@@ -8,7 +8,7 @@ import { cloudflare } from "@cloudflare/vite-plugin";
  * The ONNX runtime's JavaScript references WebAssembly builds the app never
  * loads: the WebGPU-capable ones (asyncify, jsep, jspi). The asyncify file is
  * 26.9 MB, over Cloudflare's 25 MiB asset limit. The app always points the
- * runtime at the plain build it serves itself (see lib/models/semantic/worker.ts),
+ * runtime at the plain build it serves itself (see lib/models/plugins/semantic/worker.ts),
  * so drop the others from the output.
  */
 function dropUnusedOrtWasm(): Plugin {
@@ -50,6 +50,29 @@ function keepWindowGuardInWorkers(): Plugin {
         ),
         map: null,
       };
+    },
+  };
+}
+
+/**
+ * Model plugins run only in the browser. lib/models/manifest.ts loads each
+ * implementation lazily (`import("./plugins/<id>/connect.ts")`), but a server
+ * build still bundles a dynamic import's target, and Semantic repetition's
+ * worker brings a 14 MB WebAssembly runtime. In server environments, each
+ * plugin's connect.ts resolves to a stub that refuses to connect.
+ */
+function browserOnlyPlugins(): Plugin {
+  const STUB = "\0a4:plugin-connect-stub";
+  return {
+    name: "a4:browser-only-plugins",
+    enforce: "pre",
+    resolveId(source) {
+      if (this.environment.config.consumer === "client") return null;
+      return /^\.\/plugins\/[^/]+\/connect\.ts$/.test(source) ? STUB : null;
+    },
+    load(id) {
+      if (id !== STUB) return null;
+      return 'export async function connect() { throw new Error("Model plugins run only in the browser."); }';
     },
   };
 }
@@ -96,6 +119,7 @@ export default defineConfig({
         childEnvironments: ["ssr"],
       },
     }),
+    browserOnlyPlugins(),
     dropUnusedOrtWasm(),
     recordClientChunks(),
   ],

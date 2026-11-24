@@ -23,11 +23,9 @@ export declare const file_a4_v1_sheet: GenFile;
  */
 export declare type PageSpec = Message<"a4.v1.PageSpec"> & {
   /**
-   * "terminal", "pica", "elite", or "dense".
-   *
-   * @generated from field: string preset = 1;
+   * @generated from field: a4.v1.Preset preset = 8;
    */
-  preset: string;
+  preset: Preset;
 
   /**
    * @generated from field: uint32 cols = 2;
@@ -121,8 +119,9 @@ export declare type Grid = Message<"a4.v1.Grid"> & {
 export declare const GridSchema: GenMessage<Grid>;
 
 /**
- * One page: its spec, its text, and its grid. Readers reject a record whose
- * grid does not decode to its text.
+ * One page: its spec, and its text, its grid, or both. A sheet sent to a
+ * plugin carries the views its card declares and nothing else. Readers
+ * reject a sheet with neither, or whose grid does not decode to its text.
  *
  * @generated from message a4.v1.Sheet
  */
@@ -133,9 +132,9 @@ export declare type Sheet = Message<"a4.v1.Sheet"> & {
   spec?: PageSpec | undefined;
 
   /**
-   * @generated from field: string text = 2;
+   * @generated from field: optional string text = 2;
    */
-  text: string;
+  text?: string | undefined;
 
   /**
    * @generated from field: a4.v1.Grid grid = 3;
@@ -171,39 +170,6 @@ export declare type TextSpan = Message<"a4.v1.TextSpan"> & {
  * Use `create(TextSpanSchema)` to create a new message.
  */
 export declare const TextSpanSchema: GenMessage<TextSpan>;
-
-/**
- * A rectangle of cells.
- *
- * @generated from message a4.v1.CellRect
- */
-export declare type CellRect = Message<"a4.v1.CellRect"> & {
-  /**
-   * @generated from field: uint32 row = 1;
-   */
-  row: number;
-
-  /**
-   * @generated from field: uint32 col = 2;
-   */
-  col: number;
-
-  /**
-   * @generated from field: uint32 rows = 3;
-   */
-  rows: number;
-
-  /**
-   * @generated from field: uint32 cols = 4;
-   */
-  cols: number;
-};
-
-/**
- * Describes the message a4.v1.CellRect.
- * Use `create(CellRectSchema)` to create a new message.
- */
-export declare const CellRectSchema: GenMessage<CellRect>;
 
 /**
  * Per-cell values over a grid: shape [rows, cols] or [rows, cols, d].
@@ -270,6 +236,43 @@ export declare type Embedding = Message<"a4.v1.Embedding"> & {
  * Use `create(EmbeddingSchema)` to create a new message.
  */
 export declare const EmbeddingSchema: GenMessage<Embedding>;
+
+/**
+ * The presets (see lib/page/spec.ts).
+ *
+ * @generated from enum a4.v1.Preset
+ */
+export enum Preset {
+  /**
+   * @generated from enum value: PRESET_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: PRESET_TERMINAL = 1;
+   */
+  TERMINAL = 1,
+
+  /**
+   * @generated from enum value: PRESET_PICA = 2;
+   */
+  PICA = 2,
+
+  /**
+   * @generated from enum value: PRESET_ELITE = 3;
+   */
+  ELITE = 3,
+
+  /**
+   * @generated from enum value: PRESET_DENSE = 4;
+   */
+  DENSE = 4,
+}
+
+/**
+ * Describes the enum a4.v1.Preset.
+ */
+export declare const PresetSchema: GenEnum<Preset>;
 
 /**
  * @generated from enum a4.v1.Granularity

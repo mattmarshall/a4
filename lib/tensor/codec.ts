@@ -70,11 +70,6 @@ export function decodeGrid(grid: Grid): string {
   return parts.join("");
 }
 
-/** Index of cell (row, col) in a row-major grid or plane. */
-export function cellIndex(row: number, col: number, cols: number): number {
-  return row * cols + col;
-}
-
 /**
  * The first row where two grids differ (shape, length, continuation, or
  * cells), or -1 when they are identical.

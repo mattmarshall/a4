@@ -83,12 +83,20 @@ module.exports = {
       to: {
         dependencyTypesNot: ["dynamic-import"],
         path: [
-          "^lib/models/fit/adapter\\.ts$",
-          "^lib/models/semantic/worker\\.ts$",
+          "^lib/models/plugins/fit/adapter\\.ts$",
+          "^lib/models/plugins/semantic/worker\\.ts$",
           "^lib/models/registry\\.ts$",
           "node_modules/(@anthropic-ai/sdk|@huggingface/transformers|onnxruntime-web)/",
         ],
       },
+    },
+    {
+      name: "ui-no-plugin-clients",
+      severity: "error",
+      comment:
+        "Only the host reaches a plugin. UI code can't import the manifest, a plugin's code, the client or transport that make raw clients, or consent internals, not even dynamically; it uses the host from lib/models/registry.ts.",
+      from: { path: "^(components|app)/" },
+      to: { path: ["^lib/models/(manifest|client|worker-transport|consent)\\.ts$", "^lib/models/plugins/"] },
     },
     layer("page", [], "The page (spec, layout, chars, geometry) is the base every layer shares."),
     layer("content", [], "Built-in page text: plain strings."),

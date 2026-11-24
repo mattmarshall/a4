@@ -2,36 +2,40 @@
 
 /**
  * The models list: every bundled plugin, what it does, where it runs, and
- * whether page text leaves the device, plus its controls and summary.
+ * whether page text leaves the device, rendered from its card. A plugin's own
+ * controls or summary go in its slot.
  */
 
 import type { ReactNode } from "react";
 import {
-  Placement,
-  type ModelCard,
   BUNDLED_CARDS,
-  formatBytes,
   type FindingResult,
+  type ModelCard,
+  type PlaneInfo,
+  planeLevel,
   pluginIdOf,
-  FIT_TO_PAGE_ID,
-  SEMANTIC_REPETITION_ID,
-  cellValue,
-  RESTATE_SIMILARITY,
-  SIMILARITY_FLOOR,
+  remoteHost,
+  SEMANTIC_REPETITION,
 } from "@/lib/models";
 import { heatFill } from "@/lib/render";
 import { InspectorSection } from "./InspectorSection";
 import type { ModelsState } from "./useModels";
 
-export function whereItRuns(card: ModelCard): string {
-  if (card.sendsTextOffDevice) return `Sends the page to ${card.destinationHost}, only after you confirm each request`;
-  if (card.placement === Placement.BROWSER) return "Runs in your browser; page text stays on this device";
-  return "Runs on this device";
+/** "38.0 MB" (decimal megabytes, as download sizes are usually given). */
+function formatBytes(bytes: number): string {
+  if (bytes < 1_000_000) return `${Math.max(1, Math.round(bytes / 1000))} KB`;
+  return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-/** A swatch showing the exact tint a similarity gets on the sheet. */
-export function HeatSwatch({ similarity }: { similarity: number }) {
-  const fill = heatFill(cellValue(similarity));
+export function whereItRuns(card: ModelCard): string {
+  const host = remoteHost(card);
+  if (host !== null) return `Sends the page to ${host}, only after you confirm each request`;
+  return "Runs in your browser; page text stays on this device";
+}
+
+/** A swatch showing the exact tint a value gets on the plane's sheet. */
+export function HeatSwatch({ plane, value }: { plane: PlaneInfo; value: number }) {
+  const fill = heatFill(planeLevel(plane, value));
   return (
     <span
       className="heat-swatch"
@@ -51,22 +55,72 @@ export interface SemanticSummary {
   stale: boolean;
 }
 
-export function ModelsPanel({
-  models,
-  semanticActive,
-  onScore,
+const { card: SEMANTIC_CARD, names: SEMANTIC_NAMES } = SEMANTIC_REPETITION;
+
+/** The Semantic repetition summary: how much of the page restates itself, and the closest pairs. */
+export function SemanticSummaryView({
   summary,
   onSelectPair,
-  fit,
+}: {
+  summary: SemanticSummary;
+  onSelectPair: (pair: FindingResult) => void;
+}) {
+  const score = SEMANTIC_CARD.score;
+  const plane = score?.planes.find((p) => p.name === SEMANTIC_NAMES.plane);
+  if (!score || !plane) return null;
+  const label = (name: string) => score.scores.find((x) => x.name === name)?.label ?? name;
+  const restates = plane.legend[0]?.value ?? plane.max;
+  const pairsLabel = score.findings.find((f) => f.kind === SEMANTIC_NAMES.findings.similar)?.label ?? "";
+  return (
+    <div className="model-summary" aria-live="polite">
+      <span className="model-status">
+        {summary.sheet ? `Sheet ${summary.sheet}: ` : ""}
+        {summary.stale
+          ? "Rescoring…"
+          : `${summary.restating === 0 ? "None" : summary.restating} of ${summary.units} ${label(SEMANTIC_NAMES.scores.units)} ${label(SEMANTIC_NAMES.scores.restating)} (${restates.toFixed(2)} or more).`}
+      </span>
+      {!summary.stale ? (
+        summary.pairs.length ? (
+          <>
+            <span className="model-status">{pairsLabel}:</span>
+            <ol className="restate-list">
+              {summary.pairs.map((pair) => (
+                <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
+                  <button
+                    type="button"
+                    className="restate-pair"
+                    data-restates={pair.value >= restates ? "" : undefined}
+                    onClick={() => onSelectPair(pair)}
+                    title="Select the later sentence"
+                  >
+                    <HeatSwatch plane={plane} value={pair.value} />
+                    <span className="num">{pair.value.toFixed(2)}</span>
+                    <span>{pair.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          </>
+        ) : (
+          <span className="model-status">No pairs score {plane.min.toFixed(2)} or more.</span>
+        )
+      ) : null}
+    </div>
+  );
+}
+
+export function ModelsPanel({
+  models,
+  scoreActive,
+  onScore,
+  slots,
 }: {
   models: ModelsState;
-  /** The Semantic repetition lens is showing. */
-  semanticActive: boolean;
+  /** A model lens is showing. */
+  scoreActive: boolean;
   onScore: (id: string) => void;
-  summary: SemanticSummary | null;
-  onSelectPair: (pair: FindingResult) => void;
-  /** Fit to page controls, shown in its card. */
-  fit?: ReactNode;
+  /** Each plugin's own controls or summary, by plugin id, shown in its card. */
+  slots: Readonly<Record<string, ReactNode>>;
 }) {
   return (
     <InspectorSection
@@ -74,7 +128,7 @@ export function ModelsPanel({
       title="Models"
       label="Models"
       defaultOpen={false}
-      openWhen={semanticActive}
+      openWhen={scoreActive}
       className="models"
     >
       <ul className="model-list">
@@ -89,7 +143,6 @@ export function ModelsPanel({
               <span>{card.description}</span>
               <span className="model-where">{whereItRuns(card)}</span>
               {card.model ? <span className="model-where">Model: {card.model}</span> : null}
-              {card.id === FIT_TO_PAGE_ID ? fit : null}
 
               {status === "checking" ? <span className="model-status">Checking…</span> : null}
               {status === "not-downloaded" ? (
@@ -114,15 +167,15 @@ export function ModelsPanel({
                   <progress max={progress?.total || size} value={progress?.loaded ?? 0} />
                 </span>
               ) : null}
-              {status === "ready" && card.id === SEMANTIC_REPETITION_ID ? (
+              {status === "ready" && card.score?.planes.length ? (
                 <div className="panel-actions">
                   <button
                     type="button"
                     className="btn btn-outline"
-                    aria-pressed={semanticActive}
+                    aria-pressed={scoreActive}
                     onClick={() => onScore(card.id)}
                   >
-                    {semanticActive ? "Rescore page" : "Show on the page"}
+                    {scoreActive ? "Rescore page" : "Show on the page"}
                   </button>
                 </div>
               ) : null}
@@ -132,43 +185,7 @@ export function ModelsPanel({
                   {error}
                 </span>
               ) : null}
-
-              {card.id === SEMANTIC_REPETITION_ID && summary ? (
-                <div className="model-summary" aria-live="polite">
-                  <span className="model-status">
-                    {summary.sheet ? `Sheet ${summary.sheet}: ` : ""}
-                    {summary.stale
-                      ? "Rescoring…"
-                      : `${summary.restating === 0 ? "None" : summary.restating} of ${summary.units} sentences and fields restate another (${RESTATE_SIMILARITY.toFixed(2)} or more).`}
-                  </span>
-                  {!summary.stale ? (
-                    summary.pairs.length ? (
-                      <>
-                        <span className="model-status">Closest pairs, most similar first:</span>
-                        <ol className="restate-list">
-                          {summary.pairs.map((pair) => (
-                            <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
-                              <button
-                                type="button"
-                                className="restate-pair"
-                                data-restates={pair.value >= RESTATE_SIMILARITY ? "" : undefined}
-                                onClick={() => onSelectPair(pair)}
-                                title="Select the later sentence"
-                              >
-                                <HeatSwatch similarity={pair.value} />
-                                <span className="num">{pair.value.toFixed(2)}</span>
-                                <span>{pair.label}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ol>
-                      </>
-                    ) : (
-                      <span className="model-status">No pairs score {SIMILARITY_FLOOR.toFixed(2)} or more.</span>
-                    )
-                  ) : null}
-                </div>
-              ) : null}
+              {slots[card.id] ?? null}
             </li>
           );
         })}

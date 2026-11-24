@@ -3,12 +3,12 @@
  * Models section is collapsed, the inspector is hidden, or focus mode is on.
  *
  * idle → confirm (the consent dialog) → running → idle, or → failed.
- * Consent is minted only by `send()`, for exactly the text the dialog showed.
+ * Consent is approved only by `send()`, for exactly the text the dialog showed.
  */
 
-import type { ConsentToken } from "../consent.ts";
-import type { TransformResult } from "../host.ts";
-import { ErrorCode, isModelError } from "../errors.ts";
+import type { ConsentToken } from "./consent.ts";
+import type { TransformResult } from "./host.ts";
+import { ErrorCode, isModelError } from "./errors.ts";
 
 export type FitJobState<R> =
   | { readonly kind: "idle" }
@@ -17,7 +17,8 @@ export type FitJobState<R> =
       readonly kind: "running";
       readonly name: string;
       readonly attempt: number;
-      readonly maxAttempts: number;
+      /** The most attempts the host allows, once it reports them. */
+      readonly maxAttempts: number | null;
       readonly characters: number;
       readonly note: string | null;
     }
@@ -26,20 +27,19 @@ export type FitJobState<R> =
 export interface FitRunOptions {
   consent: ConsentToken;
   signal: AbortSignal;
-  onProgress: (progress: { attempt: number; characters: number }) => void;
-  onAttempt: (attempt: { attempt: number; rowsUsed: number; fits: boolean }) => void;
+  onProgress: (progress: { attempt: number; maxAttempts: number; characters: number }) => void;
+  onAttempt: (attempt: { attempt: number; maxAttempts: number; rowsUsed: number; fits: boolean }) => void;
 }
 
 export interface FitJobDeps<R> {
-  /** Mint a consent token for exactly this text. */
-  grant: (text: string) => ConsentToken;
+  /** Approve consent for exactly this text: the dialog's Send (the host owns the token). */
+  grant: (text: string) => Promise<ConsentToken> | ConsentToken;
   /** Run the transform. */
   run: (text: string, options: FitRunOptions) => Promise<TransformResult>;
   /** Save the result beside the source; resolves once it's open. */
   onResult: (name: string, result: TransformResult, ref: R) => Promise<void>;
   /** The key was rejected. */
   onAuthFailed?: () => void;
-  maxAttempts: number;
 }
 
 export class FitJob<R> {
@@ -83,24 +83,25 @@ export class FitJob<R> {
     this.#abort?.abort();
   }
 
-  /** The dialog's Send: mint consent for the text shown, and run. */
+  /** The dialog's Send: approve consent for the text shown, and run. */
   async send(): Promise<void> {
     const state = this.#state;
     if (state.kind !== "confirm") return;
     const { name, ref, text } = state;
-    const consent = this.#deps.grant(text);
     const controller = new AbortController();
     this.#abort = controller;
-    const max = this.#deps.maxAttempts;
-    this.#set({ kind: "running", name, attempt: 1, maxAttempts: max, characters: 0, note: null });
+    this.#set({ kind: "running", name, attempt: 1, maxAttempts: null, characters: 0, note: null });
     const update = (patch: Partial<Extract<FitJobState<R>, { kind: "running" }>>) => {
       if (this.#state.kind === "running") this.#set({ ...this.#state, ...patch });
     };
     try {
+      // The host may still be loading: wait for the approval only when it's pending.
+      const approval = this.#deps.grant(text);
+      const consent = approval instanceof Promise ? await approval : approval;
       const result = await this.#deps.run(text, {
         consent,
         signal: controller.signal,
-        onProgress: ({ attempt, characters }) => update({ attempt, characters }),
+        onProgress: ({ attempt, maxAttempts, characters }) => update({ attempt, maxAttempts, characters }),
         onAttempt: ({ attempt, rowsUsed, fits }) => {
           if (!fits)
             update({ note: `Attempt ${attempt} used ${rowsUsed} rows; asking for a shorter version.`, characters: 0 });

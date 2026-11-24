@@ -8,10 +8,20 @@ syntax = "proto3";
 
 package a4.v1;
 
+// The presets (see lib/page/spec.ts).
+enum Preset {
+  PRESET_UNSPECIFIED = 0;
+  PRESET_TERMINAL = 1;
+  PRESET_PICA = 2;
+  PRESET_ELITE = 3;
+  PRESET_DENSE = 4;
+}
+
 // The page's grid geometry (see lib/page/spec.ts).
 message PageSpec {
-  // "terminal", "pica", "elite", or "dense".
-  string preset = 1;
+  // Field 1 was the preset id as a string.
+  reserved 1;
+  Preset preset = 8;
   uint32 cols = 2;
   uint32 rows = 3;
   double cell_w_mm = 4;
@@ -36,11 +46,12 @@ message Grid {
   repeated bool continuation = 6;
 }
 
-// One page: its spec, its text, and its grid. Readers reject a record whose
-// grid does not decode to its text.
+// One page: its spec, and its text, its grid, or both. A sheet sent to a
+// plugin carries the views its card declares and nothing else. Readers
+// reject a sheet with neither, or whose grid does not decode to its text.
 message Sheet {
   PageSpec spec = 1;
-  string text = 2;
+  optional string text = 2;
   Grid grid = 3;
 }
 
@@ -48,14 +59,6 @@ message Sheet {
 message TextSpan {
   uint32 start = 1;
   uint32 end = 2;
-}
-
-// A rectangle of cells.
-message CellRect {
-  uint32 row = 1;
-  uint32 col = 2;
-  uint32 rows = 3;
-  uint32 cols = 4;
 }
 
 // Per-cell values over a grid: shape [rows, cols] or [rows, cols, d].

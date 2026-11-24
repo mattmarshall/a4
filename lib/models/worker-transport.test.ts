@@ -1,13 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import {
-  DescribeRequestSchema,
-  ModelCardSchema,
-  Operation,
-  Placement,
-  ScoreRequestSchema,
-} from "../gen/a4/v1/model_pb.js";
+import { DescribeRequestSchema, ModelCardSchema, Operation, ScoreRequestSchema } from "../gen/a4/v1/model_pb.js";
 import { RpcFrameSchema, type RpcFrame } from "../gen/a4/v1/rpc_pb.js";
 import { PRESETS } from "../page/index.ts";
 import { sheetRecord } from "../tensor/record.ts";
@@ -20,7 +14,7 @@ const card = create(ModelCardSchema, {
   id: "echo",
   name: "Echo",
   operations: [Operation.SCORE],
-  placement: Placement.BROWSER,
+  placement: { case: "browser", value: {} },
 });
 
 function pair(handlers: Parameters<typeof implement>[0]) {
@@ -39,9 +33,14 @@ test("worker transport: Describe and Score round-trip as protobuf frames", async
   const { client, close } = pair({
     score: (req) => ({
       planes: [
-        { name: "len", shape: [60, 80], values: new Array(4800).fill(req.sheet!.text.length), text: req.sheet!.text },
+        {
+          name: "len",
+          shape: [60, 80],
+          values: new Array(4800).fill((req.sheet?.text ?? "").length),
+          text: req.sheet?.text ?? "",
+        },
       ],
-      scores: [{ name: "chars", value: req.sheet!.text.length }],
+      scores: [{ name: "chars", value: (req.sheet?.text ?? "").length }],
     }),
   });
   try {

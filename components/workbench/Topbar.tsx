@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { LENSES, type VerdictId } from "@/lib/analysis";
-import { type FitJob, SEMANTIC_REPETITION_ID } from "@/lib/models";
+import { type FitJob, SEMANTIC_REPETITION } from "@/lib/models";
 import type { LensId } from "@/lib/page";
 import type { PageName, PageRef } from "@/lib/persist";
 import type { SlotSnapshot } from "@/lib/workspace";
@@ -155,7 +155,7 @@ export function Topbar({
             <button
               type="button"
               className="lens-model"
-              aria-pressed={semantic.active === SEMANTIC_REPETITION_ID}
+              aria-pressed={semantic.active === SEMANTIC_REPETITION.id}
               title="Model lens: sentences and fields that restate one another (runs in your browser)"
               onClick={semantic.show}
             >
