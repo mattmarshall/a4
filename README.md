@@ -36,6 +36,55 @@ pnpm dev          # http://localhost:5173
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `pnpm run deploy` | Deploy the Worker to Cloudflare (see below). Use `run`: bare `pnpm deploy` is a built-in pnpm command |
 
+## The workspace
+
+The app is exactly one window tall. One row of controls sits at the top, and
+the desk fills the rest, with the page as large as the window allows. Every
+other control is one click away.
+
+- **Top bar**, left to right:
+  - the A4 mark;
+  - **Pages**, which opens the library;
+  - the page's name and save status;
+  - the lens, with **Semantic** beside the built-in lenses;
+  - **Single** or **Compare**;
+  - zoom: −, the percentage (select it to fit the page again), and +;
+  - three menus, described below;
+  - the **Inspector** toggle.
+
+  Below 1,360 px wide, the bar tightens to stay one row down to 1,100 px:
+  Pages shows only its icon, and the save status shows only its colored dot
+  (hover it for the text).
+- **Page menu**: new pages (blank, the templates, the worked samples, and
+  Welcome), **Copy text**, **Download .md**, **Print**, and **Clear**.
+- **View menu**: the grid preset, **Show cell grid**, **3D** or **Flat**,
+  **Fit to the desk** or **Actual size (1:1)**, **Pose and camera**, and
+  **Focus mode**.
+- **Help menu**: **Why A4?** (`/why`) and the `<a4-sheet>` element
+  (`/element`).
+- **On the desk**: in 3D, **Fold** plays the letter fold, and **Pose…** opens
+  the fold, curl, tilt, turn, and light controls in a small panel. Close it
+  with × or Esc. Any lens other than Ink shows its legend as a chip in the
+  desk's lower-left corner.
+- **Inspector**: the analysis on the right, in sections:
+  - Verdict, The page, and Findings start open.
+  - Shape, Most repeated, and Models start closed.
+  - Select a section's title to open or close it. The browser remembers each
+    section's state.
+  - Findings shows its count even while closed.
+  - Turning on a model lens opens Models.
+  - In Compare, the inspector compares the two pages.
+- **Hiding the inspector**: its toggle gives the desk the full width, and the
+  verdict then shows as a chip in the top bar. Below 1,100 px wide, the
+  inspector and the library open as drawers over the desk, and the inspector
+  starts hidden.
+- **Focus mode**: choose **View → Focus mode**, or press **F** when no text
+  field or sheet has focus. Only the desk and the page remain. Esc or the
+  **Exit focus** pill brings everything back. Typing F on the page just types
+  an F.
+- **Fit**: at **Fit to the desk**, the page fits the desk's width and height
+  in both 3D and Flat, so the whole sheet shows without scrolling.
+
 ## How it works
 
 - **Page model** (`lib/page-spec.ts`): A4 geometry in millimeters. The
@@ -206,7 +255,7 @@ holds the host, the transports, and the bundled plugins.
   - where it runs: in the browser, a local service, or a remote service;
   - whether it sends page text off the device, and to which host.
 
-  The sidebar's Models list shows each card. Cards are static, so listing
+  The inspector's Models section shows each card. Cards are static, so listing
   them loads no model code.
 - **Operations.** Encode turns a sheet into embeddings, and Score into
   per-cell planes, named scores, and findings. Transform turns a sheet into a
@@ -247,12 +296,12 @@ holds the host, the transports, and the bundled plugins.
 The first bundled model. It finds sentences and fields that say the same
 thing in different words, which the string-based Repetition lens can't see.
 
-- **Using it.** In the sidebar's Models list, choose **Download (38.0 MB)**
+- **Using it.** In the inspector's Models section, choose **Download (38.0 MB)**
   once. Then turn on the **Semantic** lens, next to the built-in lenses.
   - The sheet tints each unit on a continuous scale by how close its nearest
     match is in meaning: faint at 0.60 (loosely related) up to the darkest
     at 1.0 (the same idea). Unrelated text stays clear.
-  - The sidebar counts the units that restate another (0.85 or more). It also
+  - The inspector counts the units that restate another (0.85 or more). It also
     lists the 5 closest pairs on the page at 0.60 or more, each with its
     similarity and a swatch of its tint. Selecting a pair selects the later
     sentence, the one to consider cutting.

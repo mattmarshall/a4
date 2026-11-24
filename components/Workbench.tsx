@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { analyze, compressibility } from "@/lib/analyze";
 import type { SaveStatus } from "@/lib/autosave";
 import { describeImport } from "@/lib/import";
@@ -21,7 +21,8 @@ import { FLAT, type Pose } from "@/lib/paper/deform";
 import { slugFromText } from "@/lib/text";
 import { ComparePanel } from "./ComparePanel";
 import { LibraryPanel } from "./LibraryPanel";
-import { MetricsPanel } from "./MetricsPanel";
+import { LensLegend, MetricsPanel, VerdictChip } from "./MetricsPanel";
+import { Menu, MenuItem } from "./Menu";
 import { FitToPage } from "./FitToPage";
 import { ModelsPanel, type SemanticSummary } from "./ModelsPanel";
 import { A4Sheet, type A4SheetHandle } from "./A4Sheet";
@@ -71,30 +72,11 @@ function useCompressibility(text: string): number | null {
   return value;
 }
 
-function useOutsideClose(open: boolean, close: () => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    function onDown(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") close();
-    }
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
-  return ref;
-}
 
 export function SaveStatusPill({ status }: { status: SaveStatus }) {
   return (
-    <span className="save-pill" data-status={status} role="status" aria-live="polite">
-      {STATUS_LABEL[status]}
+    <span className="save-pill" data-status={status} role="status" aria-live="polite" title={STATUS_LABEL[status]}>
+      <span className="save-label">{STATUS_LABEL[status]}</span>
     </span>
   );
 }
@@ -156,12 +138,12 @@ export function Workbench() {
   const sheetA = useRef<A4SheetHandle>(null);
   const sheetB = useRef<A4SheetHandle>(null);
   const [zoom, setZoom] = useState<Zoom>({ kind: "fit" });
-  const [deskWidth, setDeskWidth] = useState(0);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [desk, setDesk] = useState({ width: 0, height: 0 });
+  const [showInspector, setShowInspector] = useState(true);
+  const [posePanel, setPosePanel] = useState(false);
+  const [focus, setFocus] = useState(false);
   const [toast, setToast] = useState<Toast | null>(null);
   const deskRef = useRef<HTMLDivElement>(null);
-  const closeMenu = useCallback(() => setMenuOpen(false), []);
-  const menuRef = useOutsideClose(menuOpen, closeMenu);
 
   const notify = useCallback((message: string, tone: "info" | "warn" = "info") => {
     setToast({ message, tone });
@@ -189,6 +171,9 @@ export function Workbench() {
     if (r === "3d" || r === "flat") setRender(r);
     if (lb !== null) setShowLibrary(lb === "1");
     else if (window.innerWidth < 1100) setShowLibrary(false);
+    const ins = readKey(KEYS.inspector);
+    if (ins !== null) setShowInspector(ins === "1");
+    else if (window.innerWidth < 1100) setShowInspector(false);
     setSettingsReady(true);
   }, []);
 
@@ -200,7 +185,8 @@ export function Workbench() {
     writeKey(KEYS.mode, mode);
     writeKey(KEYS.render, render);
     writeKey(KEYS.library, showLibrary ? "1" : "0");
-  }, [settingsReady, presetId, lens, showGrid, mode, render, showLibrary]);
+    writeKey(KEYS.inspector, showInspector ? "1" : "0");
+  }, [settingsReady, presetId, lens, showGrid, mode, render, showLibrary, showInspector]);
 
   // Keep slot B open exactly while comparing.
   useEffect(() => {
@@ -222,22 +208,50 @@ export function Workbench() {
     return () => window.removeEventListener("keydown", onKey);
   }, [lib, notify]);
 
-  // Track available desk width for fit-to-width zoom.
+  // Focus mode: F toggles it when nothing editable has focus; Esc closes the
+  // pose panel first, then leaves focus mode.
+  useEffect(() => {
+    function editable(el: Element | null): boolean {
+      if (!el || el === document.body) return false;
+      const tag = el.tagName;
+      return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || tag === "A4-SHEET" || (el as HTMLElement).isContentEditable;
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        if (posePanel) setPosePanel(false);
+        else if (focus) setFocus(false);
+        return;
+      }
+      if ((e.key === "f" || e.key === "F") && !e.metaKey && !e.ctrlKey && !e.altKey && !editable(document.activeElement)) {
+        e.preventDefault();
+        setFocus((f) => !f);
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [posePanel, focus]);
+
+  // Track the desk's size: the page fits both its width and its height.
   useEffect(() => {
     const el = deskRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setDeskWidth(entry.contentRect.width));
+    const ro = new ResizeObserver(([entry]) => setDesk({ width: entry.contentRect.width, height: entry.contentRect.height }));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
   const pages = mode === "compare" ? 2 : 1;
+  /** Height the captions take above each sheet in Compare. */
+  const captionHeight = mode === "compare" ? 40 : 0;
+  /** The 3D stage fills the desk's height (less the Compare captions). */
+  const stageHeight = Math.max(320, Math.floor(desk.height - captionHeight));
   const fitMm = useMemo(() => {
-    if (!deskWidth) return PX_PER_MM_ACTUAL;
+    if (!desk.width || !desk.height) return PX_PER_MM_ACTUAL;
     const gap = 28 * (pages - 1);
-    const fit = (deskWidth - gap) / (210 * pages);
-    return Math.max(MIN_MM, Math.min(PX_PER_MM_ACTUAL, fit));
-  }, [deskWidth, pages]);
+    const byWidth = (desk.width - gap) / (210 * pages);
+    const byHeight = (desk.height - captionHeight) / 297;
+    return Math.max(MIN_MM, Math.min(PX_PER_MM_ACTUAL, byWidth, byHeight));
+  }, [desk.width, desk.height, pages, captionHeight]);
   const mm = zoom.kind === "fit" ? fitMm : zoom.mm;
   const zoomPct = Math.round((mm / PX_PER_MM_ACTUAL) * 100);
 
@@ -367,13 +381,11 @@ export function Workbench() {
   }
 
   async function newPage(desired: string, text: string) {
-    setMenuOpen(false);
     const name = await lib.createPage(desired, text, target);
     if (name) notify(`Created “${name}”.`);
   }
 
   async function loadPair(id: string) {
-    setMenuOpen(false);
     const p = SAMPLE_PAIRS.find((x) => x.id === id);
     if (!p) return;
     setMode("compare");
@@ -383,7 +395,6 @@ export function Workbench() {
   }
 
   function clearPage() {
-    setMenuOpen(false);
     if (!targetSlot.name || targetSlot.text === "") return;
     if (!window.confirm(`Clear all text on “${targetSlot.name}”?`)) return;
     lib.edit(target, "");
@@ -476,43 +487,37 @@ export function Workbench() {
     );
   }
 
+  const targetAnalysis = target === "a" ? analysisA : analysisB;
+  const legendShown = Boolean(modelLens) || lens !== "ink";
+  const sheetsStyle = { "--a4-3d-height": `${stageHeight}px` } as CSSProperties;
+
   return (
-    <div className="app">
-      <header className="topbar">
-        <Link href="/" className="brand" aria-label="A4 home">
-          <span className="brand-mark">A4</span>
-          <span className="brand-tag">one page of context</span>
-        </Link>
+    <div className="app" data-focus={focus ? "" : undefined}>
+      {!focus ? (
+        <header className="topbar">
+          <Link href="/" className="brand" aria-label="A4 home">
+            <span className="brand-mark">A4</span>
+          </Link>
 
-        <div className="toolbar" role="toolbar" aria-label="Page controls">
-          <button
-            type="button"
-            className="btn btn-outline"
-            aria-pressed={showLibrary}
-            onClick={() => setShowLibrary((s) => !s)}
-            title="Show or hide the page library"
-          >
-            ☰ Pages
-          </button>
-
-          <div className="tool-group" title={spec.blurb}>
-            <span className="tool-label">Grid</span>
-            <select
-              className="select"
-              aria-label="Page preset"
-              value={presetId}
-              onChange={(e) => setPresetId(e.target.value as PresetId)}
+          <div className="toolbar" role="toolbar" aria-label="Page controls">
+            <button
+              type="button"
+              className="btn btn-outline"
+              aria-pressed={showLibrary}
+              onClick={() => setShowLibrary((s) => !s)}
+              title="Show or hide the page library"
             >
-              {PRESET_ORDER.map((id) => (
-                <option key={id} value={id}>
-                  {PRESETS[id].name} · {PRESETS[id].cols}×{PRESETS[id].rows}
-                </option>
-              ))}
-            </select>
-          </div>
+              <span aria-hidden="true">☰</span>
+              <span className="btn-label">Pages</span>
+            </button>
 
-          <div className="tool-group">
-            <span className="tool-label">Lens</span>
+            <div className="doc-title">
+              <PageNameField name={targetSlot.name} onRename={(input) => lib.renamePage(targetSlot.name!, input)} />
+              <SaveStatusPill status={targetSlot.status} />
+            </div>
+
+            <span className="spacer" />
+
             <div className="seg" role="group" aria-label="Lens">
               {LENSES.map((l) => (
                 <button
@@ -537,18 +542,7 @@ export function Workbench() {
                 </button>
               ) : null}
             </div>
-          </div>
 
-          <div className="tool-group">
-            <button
-              type="button"
-              className="btn"
-              aria-pressed={showGrid}
-              onClick={() => setShowGrid((g) => !g)}
-              title="Show the cell grid"
-            >
-              Cells
-            </button>
             <div className="seg" role="group" aria-label="View">
               <button type="button" aria-pressed={mode === "single"} onClick={() => setModeAndFit("single")}>
                 Single
@@ -557,120 +551,165 @@ export function Workbench() {
                 Compare
               </button>
             </div>
-            <div className="seg" role="group" aria-label="Rendering">
+
+            <div className="tool-group zoom" aria-label="Zoom">
+              <button type="button" className="btn" onClick={() => stepZoom(-1)} aria-label="Zoom out">
+                −
+              </button>
               <button
                 type="button"
-                aria-pressed={effectiveRender === "3d"}
-                disabled={gpuMissing}
-                onClick={() => setRender("3d")}
-                title={gpuMissing ? "3D needs WebGPU" : "Render sheets in 3D (WebGPU)"}
+                className="btn zoom-value"
+                aria-live="polite"
+                title={zoom.kind === "fit" ? "Fitting the page to the desk" : "Fit the page to the desk"}
+                onClick={() => setZoom({ kind: "fit" })}
               >
-                3D
+                {zoomPct}%
               </button>
-              <button type="button" aria-pressed={effectiveRender === "flat"} onClick={() => setRender("flat")}>
-                Flat
+              <button type="button" className="btn" onClick={() => stepZoom(1)} aria-label="Zoom in">
+                +
               </button>
             </div>
-          </div>
 
-          <div className="tool-group" aria-label="Zoom">
-            <button type="button" className="btn" onClick={() => stepZoom(-1)} aria-label="Zoom out">
-              −
-            </button>
-            <span className="zoom-value" aria-live="polite">
-              {zoomPct}%
-            </span>
-            <button type="button" className="btn" onClick={() => stepZoom(1)} aria-label="Zoom in">
-              +
-            </button>
-            <button
-              type="button"
-              className="btn"
-              aria-pressed={zoom.kind === "fit"}
-              onClick={() => setZoom({ kind: "fit" })}
-            >
-              Fit
-            </button>
-            <button
-              type="button"
-              className="btn"
-              aria-pressed={zoom.kind === "fixed" && Math.abs(zoom.mm - PX_PER_MM_ACTUAL) < 0.01}
-              onClick={() => setZoom({ kind: "fixed", mm: PX_PER_MM_ACTUAL })}
-              title="Actual size: 1 mm on screen per mm of paper (96 dpi)"
-            >
-              1:1
-            </button>
-          </div>
+            <Menu label="Page" title="New page, copy, download, print">
+              {(close) => (
+                <>
+                  <div className="menu-heading">New</div>
+                  <MenuItem close={close} onSelect={() => void newPage("Untitled", "")}>
+                    <strong>Blank page</strong>
+                    <span>Start from an empty sheet</span>
+                  </MenuItem>
+                  {TEMPLATES.map((t) => (
+                    <MenuItem key={t.id} close={close} onSelect={() => void newPage(t.name, t.text)}>
+                      <strong>{t.name}</strong>
+                      <span>{t.blurb}</span>
+                    </MenuItem>
+                  ))}
+                  {SAMPLE_PAIRS.map((p) => (
+                    <MenuItem key={p.id} close={close} onSelect={() => void loadPair(p.id)}>
+                      <strong>{p.name}</strong>
+                      <span>Worked sample: creates two pages and opens Compare</span>
+                    </MenuItem>
+                  ))}
+                  <MenuItem close={close} onSelect={() => void newPage("Welcome", WELCOME)}>
+                    <strong>Welcome page</strong>
+                    <span>What A4 is, written as one page</span>
+                  </MenuItem>
+                  <div className="menu-sep" />
+                  <MenuItem close={close} onSelect={() => void copyText()}>
+                    <strong>Copy text</strong>
+                  </MenuItem>
+                  <MenuItem close={close} onSelect={downloadText}>
+                    <strong>Download .md</strong>
+                  </MenuItem>
+                  <MenuItem close={close} onSelect={() => window.print()}>
+                    <strong>Print</strong>
+                  </MenuItem>
+                  <div className="menu-sep" />
+                  <MenuItem close={close} onSelect={clearPage}>
+                    <strong>Clear “{targetSlot.name ?? "page"}”</strong>
+                    <span>Erase this page’s text (autosaved)</span>
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
 
-          <span className="spacer" />
+            <Menu label="View" title="Grid, rendering, zoom, pose, focus mode">
+              {(close) => (
+                <>
+                  <div className="menu-heading">Grid</div>
+                  {PRESET_ORDER.map((id) => (
+                    <MenuItem key={id} kind="radio" checked={presetId === id} close={close} onSelect={() => setPresetId(id)}>
+                      <strong>
+                        {PRESETS[id].name} · {PRESETS[id].cols}×{PRESETS[id].rows}
+                      </strong>
+                      <span>{PRESETS[id].blurb}</span>
+                    </MenuItem>
+                  ))}
+                  <MenuItem kind="checkbox" checked={showGrid} close={close} onSelect={() => setShowGrid((g) => !g)}>
+                    <strong>Show cell grid</strong>
+                  </MenuItem>
+                  <div className="menu-sep" />
+                  <div className="menu-heading">Rendering</div>
+                  <MenuItem
+                    kind="radio"
+                    checked={effectiveRender === "3d"}
+                    disabled={gpuMissing}
+                    title={gpuMissing ? "3D needs WebGPU" : undefined}
+                    close={close}
+                    onSelect={() => setRender("3d")}
+                  >
+                    <strong>3D</strong>
+                    <span>Paper you can fold, curl, and light (WebGPU)</span>
+                  </MenuItem>
+                  <MenuItem kind="radio" checked={effectiveRender === "flat"} close={close} onSelect={() => setRender("flat")}>
+                    <strong>Flat</strong>
+                  </MenuItem>
+                  <div className="menu-sep" />
+                  <div className="menu-heading">Zoom</div>
+                  <MenuItem kind="radio" checked={zoom.kind === "fit"} close={close} onSelect={() => setZoom({ kind: "fit" })}>
+                    <strong>Fit to the desk</strong>
+                  </MenuItem>
+                  <MenuItem
+                    kind="radio"
+                    checked={zoom.kind === "fixed" && Math.abs(zoom.mm - PX_PER_MM_ACTUAL) < 0.01}
+                    close={close}
+                    onSelect={() => setZoom({ kind: "fixed", mm: PX_PER_MM_ACTUAL })}
+                  >
+                    <strong>Actual size (1:1)</strong>
+                    <span>1 mm on screen per mm of paper (96 dpi)</span>
+                  </MenuItem>
+                  <div className="menu-sep" />
+                  <MenuItem
+                    kind="checkbox"
+                    checked={posePanel}
+                    disabled={effectiveRender !== "3d"}
+                    close={close}
+                    onSelect={() => setPosePanel((v) => !v)}
+                  >
+                    <strong>Pose and camera</strong>
+                    <span>Fold, curl, tilt, turn, and light</span>
+                  </MenuItem>
+                  <MenuItem kind="checkbox" checked={focus} close={close} onSelect={() => setFocus(true)}>
+                    <strong>Focus mode</strong>
+                    <span>Just the page and the desk. F to toggle, Esc to leave</span>
+                  </MenuItem>
+                </>
+              )}
+            </Menu>
 
-          <div className="menu" ref={menuRef}>
+            <Menu label="Help">
+              {() => (
+                <>
+                  <Link href="/why" role="menuitem" className="menu-item">
+                    <strong>Why A4?</strong>
+                    <span>The problem, the method, and narrative data for agents</span>
+                  </Link>
+                  <Link href="/element" role="menuitem" className="menu-item">
+                    <strong>The &lt;a4-sheet&gt; element</strong>
+                    <span>Embed an editable page anywhere</span>
+                  </Link>
+                </>
+              )}
+            </Menu>
+
+            {!showInspector ? <VerdictChip verdict={targetAnalysis.verdict} /> : null}
             <button
               type="button"
               className="btn btn-outline"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              onClick={() => setMenuOpen((o) => !o)}
+              aria-pressed={showInspector}
+              onClick={() => setShowInspector((v) => !v)}
+              title="Show or hide the inspector"
             >
-              New ▾
+              Inspector
             </button>
-            {menuOpen ? (
-              <div className="menu-list" role="menu">
-                <button type="button" role="menuitem" className="menu-item" onClick={() => void newPage("Untitled", "")}>
-                  <strong>Blank page</strong>
-                  <span>Start from an empty sheet</span>
-                </button>
-                <div className="menu-sep" />
-                <div className="menu-heading">From a narrative template</div>
-                {TEMPLATES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="menuitem"
-                    className="menu-item"
-                    onClick={() => void newPage(t.name, t.text)}
-                  >
-                    <strong>{t.name}</strong>
-                    <span>{t.blurb}</span>
-                  </button>
-                ))}
-                <div className="menu-sep" />
-                <div className="menu-heading">Worked samples</div>
-                {SAMPLE_PAIRS.map((p) => (
-                  <button key={p.id} type="button" role="menuitem" className="menu-item" onClick={() => void loadPair(p.id)}>
-                    <strong>{p.name}</strong>
-                    <span>Creates two pages and opens Compare</span>
-                  </button>
-                ))}
-                <button type="button" role="menuitem" className="menu-item" onClick={() => void newPage("Welcome", WELCOME)}>
-                  <strong>Welcome page</strong>
-                  <span>What A4 is, written as one page</span>
-                </button>
-                <div className="menu-sep" />
-                <button type="button" role="menuitem" className="menu-item" onClick={clearPage}>
-                  <strong>Clear “{targetSlot.name ?? "page"}”</strong>
-                  <span>Erase this page’s text (autosaved)</span>
-                </button>
-              </div>
-            ) : null}
           </div>
-          <button type="button" className="btn btn-outline" onClick={copyText}>
-            Copy
-          </button>
-          <button type="button" className="btn btn-outline" onClick={downloadText} title="Download this page as a .md file">
-            Download
-          </button>
-          <button type="button" className="btn btn-outline" onClick={() => window.print()}>
-            Print
-          </button>
-          <Link href="/why" className="btn">
-            Why A4?
-          </Link>
-        </div>
-      </header>
+        </header>
+      ) : null}
 
-      <div className={`workspace${showLibrary ? " with-library" : ""}`}>
-        {showLibrary ? (
+      <div
+        className={`workspace${showLibrary && !focus ? " with-library" : ""}${showInspector && !focus ? " with-inspector" : ""}`}
+      >
+        {showLibrary && !focus ? (
           <LibraryPanel
             pages={lib.pages}
             trash={lib.trash}
@@ -694,111 +733,154 @@ export function Workbench() {
           />
         ) : null}
 
-        <main className="desk" ref={deskRef}>
-          {lib.failure ? (
-            <div className="banner" role="alert">
-              Couldn’t open page storage: {lib.failure}
+        <main className="desk-frame">
+          <div className="desk" ref={deskRef}>
+            {lib.failure ? (
+              <div className="banner" role="alert">
+                Couldn’t open page storage: {lib.failure}
+              </div>
+            ) : null}
+            <div className={`sheets render-${effectiveRender}`} style={sheetsStyle}>
+              {(["a", "b"] as const)
+                .filter((slot) => slot === "a" || mode === "compare")
+                .map((slot) => {
+                  const state = slot === "a" ? lib.slotA : lib.slotB;
+                  const analysis = slot === "a" ? analysisA : analysisB;
+                  return (
+                    <div key={slot} className="sheet-col" data-active={mode === "compare" && target === slot ? "" : undefined}>
+                      {mode === "compare" ? (
+                        <div className="sheet-caption">
+                          <b>{slot.toUpperCase()}</b>
+                          {slotPicker(slot)}
+                          <SaveStatusPill status={state.status} />
+                          <span>
+                            {analysis.verdict} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
+                          </span>
+                        </div>
+                      ) : null}
+                      <A4Sheet
+                        ref={slot === "a" ? sheetA : sheetB}
+                        className={!ready || !state.name ? "sheet-hidden" : undefined}
+                        value={state.text}
+                        onValue={(t) => lib.edit(slot, t)}
+                        onFocus={() => setActive(slot)}
+                        onRender={onSheetRender}
+                        onViewChange={({ tilt, turn }) => setView((v) => ({ ...v, tilt, turn }))}
+                        onPoseChange={(pose) => setPoses((p) => ({ ...p, [slot]: pose }))}
+                        preset={presetId}
+                        lens={sheetLens}
+                        planes={slot === "a" ? planesA : planesB}
+                        render={effectiveRender}
+                        pose={poses[slot]}
+                        tilt={view.tilt}
+                        turn={view.turn}
+                        light={view.light}
+                        zoom={zoom.kind === "fit" ? (effectiveRender === "flat" ? fitMm : null) : zoom.mm}
+                        grid={showGrid}
+                        label={`${state.name ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
+                      />
+                    </div>
+                  );
+                })}
             </div>
-          ) : null}
-          {mode === "single" ? (
-            <div className="docbar">
-              <PageNameField name={lib.slotA.name} onRename={(input) => lib.renamePage(lib.slotA.name!, input)} />
-              <SaveStatusPill status={lib.slotA.status} />
-            </div>
-          ) : null}
-          {effectiveRender === "3d" ? (
-            <SheetControls
-              active={target}
-              compare={mode === "compare"}
-              pose={poses[target]}
-              onPose={(pose) => setPoses((p) => ({ ...p, [target]: pose }))}
-              view={view}
-              onView={setView}
-              onFold={() => (target === "a" ? sheetA : sheetB).current?.fold()}
-              onReset={() => {
-                setPoses({ a: FLAT, b: FLAT });
-                setView(DEFAULT_VIEW);
-              }}
-            />
-          ) : null}
-          <div className={`sheets render-${effectiveRender}`}>
-            {(["a", "b"] as const)
-              .filter((slot) => slot === "a" || mode === "compare")
-              .map((slot) => {
-                const state = slot === "a" ? lib.slotA : lib.slotB;
-                const analysis = slot === "a" ? analysisA : analysisB;
-                return (
-                  <div key={slot} className="sheet-col" data-active={mode === "compare" && target === slot ? "" : undefined}>
-                    {mode === "compare" ? (
-                      <div className="sheet-caption">
-                        <b>{slot.toUpperCase()}</b>
-                        {slotPicker(slot)}
-                        <SaveStatusPill status={state.status} />
-                        <span>
-                          {analysis.verdict} · ≈{analysis.tokens.toLocaleString("en-US")} tokens
-                        </span>
-                      </div>
-                    ) : null}
-                    <A4Sheet
-                      ref={slot === "a" ? sheetA : sheetB}
-                      className={!ready || !state.name ? "sheet-hidden" : undefined}
-                      value={state.text}
-                      onValue={(t) => lib.edit(slot, t)}
-                      onFocus={() => setActive(slot)}
-                      onRender={onSheetRender}
-                      onViewChange={({ tilt, turn }) => setView((v) => ({ ...v, tilt, turn }))}
-                      onPoseChange={(pose) => setPoses((p) => ({ ...p, [slot]: pose }))}
-                      preset={presetId}
-                      lens={sheetLens}
-                      planes={slot === "a" ? planesA : planesB}
-                      render={effectiveRender}
-                      pose={poses[slot]}
-                      tilt={view.tilt}
-                      turn={view.turn}
-                      light={view.light}
-                      zoom={zoom.kind === "fit" ? null : zoom.mm}
-                      grid={showGrid}
-                      label={`${state.name ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
-                    />
-                  </div>
-                );
-              })}
           </div>
+
+          {effectiveRender === "3d" && !focus ? (
+            <div className="desk-tools">
+              <button
+                type="button"
+                className="btn btn-outline"
+                onClick={() => (target === "a" ? sheetA : sheetB).current?.fold()}
+                title="Play the letter fold"
+              >
+                ▶ Fold
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                aria-pressed={posePanel}
+                aria-expanded={posePanel}
+                onClick={() => setPosePanel((v) => !v)}
+                title="Fold, curl, tilt, turn, and light"
+              >
+                Pose…
+              </button>
+            </div>
+          ) : null}
+
+          {posePanel && effectiveRender === "3d" && !focus ? (
+            <div className="pose-panel" role="dialog" aria-label="Pose and camera">
+              <button type="button" className="btn pose-close" onClick={() => setPosePanel(false)} aria-label="Close pose and camera">
+                ×
+              </button>
+              <SheetControls
+                active={target}
+                compare={mode === "compare"}
+                pose={poses[target]}
+                onPose={(pose) => setPoses((p) => ({ ...p, [target]: pose }))}
+                view={view}
+                onView={setView}
+                onFold={() => (target === "a" ? sheetA : sheetB).current?.fold()}
+                onReset={() => {
+                  setPoses({ a: FLAT, b: FLAT });
+                  setView(DEFAULT_VIEW);
+                }}
+              />
+            </div>
+          ) : null}
+
+          {legendShown && !focus ? (
+            <div className="lens-chip" aria-label="Lens legend">
+              <LensLegend lens={lens} model={modelLens ? modelLegend : null} />
+            </div>
+          ) : null}
+
+          {focus ? (
+            <button type="button" className="btn btn-outline focus-exit" onClick={() => setFocus(false)}>
+              Exit focus (Esc)
+            </button>
+          ) : null}
         </main>
 
-        <aside className="sidebar" aria-label="Page analysis">
-          {mode === "compare" ? (
-            <ComparePanel
-              a={analysisA}
-              b={analysisB}
-              compressA={compressA}
-              compressB={compressB}
-              lens={lens}
-              modelLegend={modelLegend}
-              onSwap={() => void lib.swapSlots()}
-              onCopyAToB={() => {
-                if (lib.slotA.name) void lib.duplicatePage(lib.slotA.name, "b");
-              }}
-            />
-          ) : (
-            <MetricsPanel analysis={analysisA} spec={spec} lens={lens} modelLegend={modelLegend} compress={compressA} />
-          )}
-          <ModelsPanel
-            models={models}
-            semanticActive={modelLens === SEMANTIC_REPETITION_ID}
-            onScore={() => showSemantic()}
-            summary={semanticSummary}
-            onSelectPair={selectLaterUnit}
-            fit={
-              <FitToPage
-                page={{ name: targetSlot.name, text: targetSlot.text }}
-                spec={spec}
-                host={models.host}
-                onResult={openFitResult}
+        {showInspector && !focus ? (
+          <aside className="sidebar inspector" aria-label="Inspector">
+            <div className="inspector-head">
+              <span>Inspector</span>
+              <button type="button" className="btn" onClick={() => setShowInspector(false)} aria-label="Close the inspector">
+                ×
+              </button>
+            </div>
+            {mode === "compare" ? (
+              <ComparePanel
+                a={analysisA}
+                b={analysisB}
+                compressA={compressA}
+                compressB={compressB}
+                onSwap={() => void lib.swapSlots()}
+                onCopyAToB={() => {
+                  if (lib.slotA.name) void lib.duplicatePage(lib.slotA.name, "b");
+                }}
               />
-            }
-          />
-        </aside>
+            ) : (
+              <MetricsPanel analysis={analysisA} spec={spec} compress={compressA} />
+            )}
+            <ModelsPanel
+              models={models}
+              semanticActive={modelLens === SEMANTIC_REPETITION_ID}
+              onScore={() => showSemantic()}
+              summary={semanticSummary}
+              onSelectPair={selectLaterUnit}
+              fit={
+                <FitToPage
+                  page={{ name: targetSlot.name, text: targetSlot.text }}
+                  spec={spec}
+                  host={models.host}
+                  onResult={openFitResult}
+                />
+              }
+            />
+          </aside>
+        ) : null}
       </div>
 
       {toast ? (

@@ -13,6 +13,7 @@ import { FIT_TO_PAGE_ID } from "@/lib/models/fit/card";
 import { SEMANTIC_REPETITION_ID } from "@/lib/models/semantic/card";
 import { cellValue, RESTATE_SIMILARITY, SIMILARITY_FLOOR } from "@/lib/models/semantic/similarity";
 import { heatFill } from "@/lib/paper/heat";
+import { InspectorSection } from "./InspectorSection";
 import type { ModelsState } from "./useModels";
 
 export function whereItRuns(card: ModelCard): string {
@@ -61,8 +62,7 @@ export function ModelsPanel({
   fit?: ReactNode;
 }) {
   return (
-    <section className="panel-section models" aria-label="Models">
-      <h2 className="panel-title">Models</h2>
+    <InspectorSection id="models" title="Models" label="Models" defaultOpen={false} openWhen={semanticActive} className="models">
       <ul className="model-list">
         {BUNDLED_CARDS.map((card) => {
           const status = models.status[card.id];
@@ -150,6 +150,6 @@ export function ModelsPanel({
           );
         })}
       </ul>
-    </section>
+    </InspectorSection>
   );
 }

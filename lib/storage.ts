@@ -18,6 +18,7 @@ export const KEYS = {
   openA: "open:a",
   openB: "open:b",
   library: "library",
+  inspector: "inspector",
 } as const;
 
 export function readKey(key: string): string | null {

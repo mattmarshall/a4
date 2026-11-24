@@ -1,8 +1,8 @@
 "use client";
 
 import { VERDICT_SUMMARY, type Analysis } from "@/lib/analyze";
-import type { LensId } from "@/lib/lenses";
-import { LensLegend, num, pct, VerdictChip, type ModelLegend } from "./MetricsPanel";
+import { InspectorSection } from "./InspectorSection";
+import { findingCount, num, pct, VerdictChip } from "./MetricsPanel";
 
 interface Row {
   name: string;
@@ -27,8 +27,6 @@ export function ComparePanel({
   b,
   compressA,
   compressB,
-  lens,
-  modelLegend,
   onSwap,
   onCopyAToB,
 }: {
@@ -36,8 +34,6 @@ export function ComparePanel({
   b: Analysis;
   compressA: number | null;
   compressB: number | null;
-  lens: LensId;
-  modelLegend?: ModelLegend | null;
   onSwap: () => void;
   onCopyAToB: () => void;
 }) {
@@ -62,8 +58,7 @@ export function ComparePanel({
 
   return (
     <>
-      <section className="panel-section">
-        <h2 className="panel-title">Verdicts</h2>
+      <InspectorSection id="compare-verdicts" title="Verdicts" defaultOpen>
         <div className="compare-verdicts">
           <div>
             <span>
@@ -80,10 +75,9 @@ export function ComparePanel({
             <span>{VERDICT_SUMMARY[b.verdict]}</span>
           </div>
         </div>
-      </section>
+      </InspectorSection>
 
-      <section className="panel-section">
-        <h2 className="panel-title">A vs B</h2>
+      <InspectorSection id="compare-metrics" title="A vs B" defaultOpen>
         <table className="compare-table">
           <thead>
             <tr>
@@ -116,10 +110,14 @@ export function ComparePanel({
             Duplicate A into B
           </button>
         </div>
-      </section>
+        <p className="panel-foot">
+          Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A,
+          write the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either
+          page from the menu above its sheet.
+        </p>
+      </InspectorSection>
 
-      <section className="panel-section">
-        <h2 className="panel-title">Findings for B</h2>
+      <InspectorSection id="compare-findings" title="Findings for B" defaultOpen badge={findingCount(b)}>
         <ul className="findings">
           {b.findings.map((f) => (
             <li key={f.id} className="finding" data-s={f.severity}>
@@ -128,18 +126,7 @@ export function ComparePanel({
             </li>
           ))}
         </ul>
-      </section>
-
-      <section className="panel-section">
-        <h2 className="panel-title">Lens</h2>
-        <LensLegend lens={lens} model={modelLegend} />
-      </section>
-
-      <section className="panel-section panel-foot">
-        Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A, write
-        the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either page
-        from the menu above its sheet.
-      </section>
+      </InspectorSection>
     </>
   );
 }

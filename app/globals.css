@@ -95,21 +95,25 @@ select {
    App chrome
    ------------------------------------------------------------------------ */
 
+/* The app is exactly one window tall: the desk scrolls, not the page. */
 .app {
   display: grid;
-  grid-template-rows: auto 1fr;
-  min-height: 100dvh;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app[data-focus] {
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 20;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
-  padding: 10px 16px;
+  gap: 8px 12px;
+  padding: 7px 14px;
   background: color-mix(in srgb, var(--desk) 88%, transparent);
   backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--desk-line);
@@ -143,8 +147,36 @@ select {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
+  min-width: 0;
+}
+
+/* Segmented controls sit in the top bar on a pill, like a tool group. */
+.toolbar > .seg {
+  padding: 2px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.doc-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.doc-title .name-field {
+  min-width: 0;
+}
+
+.doc-title .page-name {
+  min-width: 110px;
+  width: clamp(110px, 13vw, 200px);
+  height: 28px;
+  font-size: 14px;
+  text-align: left;
 }
 
 .spacer {
@@ -309,20 +341,107 @@ select {
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 340px;
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
+  height: 100%;
+}
+
+.workspace.with-inspector {
+  grid-template-columns: minmax(0, 1fr) 340px;
 }
 
 .workspace.with-library {
+  grid-template-columns: 264px minmax(0, 1fr);
+}
+
+.workspace.with-library.with-inspector {
   grid-template-columns: 264px minmax(0, 1fr) 340px;
 }
 
-.desk {
+/* The desk frame holds the scrolling desk and the tools floating over it. */
+.desk-frame {
+  position: relative;
   min-width: 0;
-  padding: 28px 24px 80px;
-  overflow-x: auto;
+  min-height: 0;
+  overflow: hidden;
   background-image: radial-gradient(var(--desk-line) 1px, transparent 1px);
   background-size: 18px 18px;
+}
+
+.desk {
+  height: 100%;
+  box-sizing: border-box;
+  padding: 14px 20px 14px;
+  overflow: auto;
+}
+
+.desk-tools {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 6;
+  display: flex;
+  gap: 6px;
+}
+
+.desk-tools .btn:not([aria-pressed="true"]),
+.focus-exit {
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  backdrop-filter: blur(6px);
+}
+
+.pose-panel {
+  position: absolute;
+  top: 48px;
+  left: 12px;
+  z-index: 7;
+  max-width: calc(100% - 24px);
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.pose-panel .sheet-controls {
+  margin: 0;
+  padding: 0 28px 0 0;
+  border: 0;
+  background: none;
+}
+
+.pose-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}
+
+.lens-chip {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 5;
+  max-width: min(340px, calc(100% - 24px));
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--panel) 92%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.focus-exit {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 8;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+}
+
+.focus-exit:hover,
+.focus-exit:focus-visible {
+  opacity: 1;
 }
 
 .sheets {
@@ -341,9 +460,9 @@ select {
   gap: 10px;
 }
 
+/* The 3D stage height comes from the desk (set inline on .sheets). */
 .sheet-col a4-sheet {
   width: 100%;
-  --a4-3d-height: max(420px, calc(100dvh - 230px));
 }
 
 .sheet-col[data-active] a4-sheet {
@@ -423,24 +542,100 @@ select {
 .sidebar {
   border-left: 1px solid var(--desk-line);
   background: var(--panel);
-  padding: 18px 18px 60px;
+  padding: 12px 18px 40px;
   overflow-y: auto;
-  max-height: calc(100dvh - 53px);
-  position: sticky;
-  top: 53px;
+  min-height: 0;
 }
 
-@media (max-width: 1100px) {
+/* Shown only when the inspector is a drawer (narrow windows). */
+.inspector-head {
+  display: none;
+}
+
+/* Medium windows: tighten the top bar so it stays one row. The Pages label
+   and the save status text are hidden visually but stay in the accessible
+   name; the save status keeps its colored dot and a tooltip. */
+@media (max-width: 1359px) {
+  .topbar {
+    gap: 8px;
+    padding: 7px 10px;
+  }
+
+  .toolbar {
+    gap: 4px;
+  }
+
+  .seg button {
+    padding: 0 6px;
+  }
+
+  .topbar .btn {
+    padding: 0 7px;
+  }
+
+  .doc-title {
+    gap: 6px;
+  }
+
+  .doc-title .page-name {
+    min-width: 96px;
+    width: clamp(96px, 10vw, 160px);
+  }
+
+  .topbar .save-pill {
+    gap: 0;
+    padding: 6px;
+  }
+
+  .topbar .btn-label,
+  .topbar .save-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* Narrow windows: the library and inspector open as drawers over the desk,
+   so the page underneath keeps its size. */
+@media (max-width: 1099px) {
   .workspace,
-  .workspace.with-library {
-    grid-template-columns: 1fr;
+  .workspace.with-library,
+  .workspace.with-inspector,
+  .workspace.with-library.with-inspector {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar,
+  .library {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(360px, 92vw);
+    max-height: none;
+    box-shadow: var(--shadow);
   }
 
   .sidebar {
-    position: static;
-    max-height: none;
-    border-left: 0;
-    border-top: 1px solid var(--desk-line);
+    right: 0;
+  }
+
+  .library {
+    left: 0;
+  }
+
+  .inspector-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--muted);
   }
 }
 
@@ -478,21 +673,10 @@ select {
   padding: 16px 12px;
   background: var(--panel);
   border-right: 1px solid var(--desk-line);
-  position: sticky;
-  top: 53px;
-  max-height: calc(100dvh - 53px);
+  min-height: 0;
   overflow-y: auto;
 }
 
-/* Narrow screens: the library stacks above the sheet (toggled by "Pages"). */
-@media (max-width: 1100px) {
-  .library {
-    position: static;
-    max-height: 45vh;
-    border-right: 0;
-    border-bottom: 1px solid var(--desk-line);
-  }
-}
 
 .lib-head {
   display: flex;
@@ -686,14 +870,6 @@ select {
   color: var(--muted);
 }
 
-.docbar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin: 0 auto 14px;
-  max-width: 100%;
-}
 
 .name-field {
   display: inline-grid;
@@ -1123,6 +1299,98 @@ select {
 }
 
 /* ------------------------------------------------------------------------
+   Inspector sections
+   ------------------------------------------------------------------------ */
+
+.section-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+
+.section-toggle .chevron {
+  display: inline-block;
+  font-size: 9px;
+  transition: transform 0.15s;
+}
+
+.section-toggle[aria-expanded="true"] .chevron {
+  transform: rotate(90deg);
+}
+
+.panel-section:not([data-open]) .panel-title {
+  margin-bottom: 0;
+}
+
+.section-badge {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-align: center;
+}
+
+.verdict-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-body > .panel-foot {
+  margin: 12px 0 0;
+}
+
+/* Menus: radio and checkbox items show a check. */
+.menu-list {
+  max-height: min(70vh, 640px);
+  overflow-y: auto;
+}
+
+.menu-list[data-align="left"] {
+  right: auto;
+  left: 0;
+}
+
+.menu-item {
+  position: relative;
+  padding-left: 26px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.menu-item[aria-checked="true"]::before {
+  content: "✓";
+  position: absolute;
+  left: 9px;
+  top: 7px;
+  font-size: 12px;
+}
+
+.menu-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.zoom-value.btn {
+  min-width: 52px;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+/* ------------------------------------------------------------------------
    Sidebar: models
    ------------------------------------------------------------------------ */
 
@@ -1523,24 +1791,33 @@ select {
   .topbar,
   .sidebar,
   .library,
-  .docbar,
   .banner,
+  .desk-tools,
+  .pose-panel,
+  .lens-chip,
+  .focus-exit,
   .sheet-caption,
   .sheet-controls,
   .toast {
     display: none !important;
   }
 
+  .app,
   .workspace,
+  .desk-frame,
   .sheets,
   .sheet-col {
     display: block !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
-  .desk {
+  .desk,
+  .desk-frame {
     padding: 0 !important;
     background: none !important;
     overflow: visible !important;
+    height: auto !important;
   }
 
   .element-demo-grid,

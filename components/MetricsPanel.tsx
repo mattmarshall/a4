@@ -2,6 +2,7 @@
 
 import { THRESHOLDS, VERDICT_SUMMARY, type Analysis } from "@/lib/analyze";
 import { KIND_LABEL, LENSES, type LensId } from "@/lib/lenses";
+import { InspectorSection } from "./InspectorSection";
 import { fontSizePt, type PageSpec } from "@/lib/page-spec";
 
 export function pct(x: number | null | undefined, digits = 0): string {
@@ -147,30 +148,32 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
   );
 }
 
+/** Warnings and critical findings, shown as a badge even while Findings is collapsed. */
+export function findingCount(a: Analysis): number | null {
+  const n = a.findings.filter((f) => f.severity !== "info").length;
+  return n > 0 ? n : null;
+}
+
 export function MetricsPanel({
   analysis: a,
   spec,
-  lens,
-  modelLegend,
   compress,
 }: {
   analysis: Analysis;
   spec: PageSpec;
-  lens: LensId;
-  modelLegend?: ModelLegend | null;
   compress: number | null;
 }) {
   const t = THRESHOLDS;
   return (
     <>
-      <section className="panel-section verdict" aria-live="polite">
-        <h2 className="panel-title">Verdict</h2>
-        <VerdictChip verdict={a.verdict} />
-        <p>{VERDICT_SUMMARY[a.verdict]}</p>
-      </section>
+      <InspectorSection id="verdict" title="Verdict" defaultOpen className="verdict">
+        <div className="verdict-body" aria-live="polite">
+          <VerdictChip verdict={a.verdict} />
+          <p>{VERDICT_SUMMARY[a.verdict]}</p>
+        </div>
+      </InspectorSection>
 
-      <section className="panel-section capacity">
-        <h2 className="panel-title">The page</h2>
+      <InspectorSection id="page" title="The page" defaultOpen className="capacity">
         <div className="cap-row">
           <div className="cap-head">
             <span>Rows used</span>
@@ -204,10 +207,14 @@ export function MetricsPanel({
             <span className="lbl">chars / token</span>
           </div>
         </div>
-      </section>
+        <p className="panel-foot">
+          {spec.name} page: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} × {spec.cellH.toFixed(2)} mm
+          ({fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate. Nothing you write leaves
+          this browser.
+        </p>
+      </InspectorSection>
 
-      <section className="panel-section">
-        <h2 className="panel-title">Findings</h2>
+      <InspectorSection id="findings" title="Findings" defaultOpen badge={findingCount(a)}>
         <ul className="findings">
           {a.findings.map((f) => (
             <li key={f.id} className="finding" data-s={f.severity}>
@@ -216,10 +223,9 @@ export function MetricsPanel({
             </li>
           ))}
         </ul>
-      </section>
+      </InspectorSection>
 
-      <section className="panel-section">
-        <h2 className="panel-title">Shape</h2>
+      <InspectorSection id="shape" title="Shape" defaultOpen={false}>
         <div className="metric-list">
           <Metric
             name="Syntax overhead"
@@ -264,11 +270,10 @@ export function MetricsPanel({
             note="Deflated size ÷ raw size. Lower means more redundant text."
           />
         </div>
-      </section>
+      </InspectorSection>
 
       {a.repeatedTerms.length > 0 ? (
-        <section className="panel-section">
-          <h2 className="panel-title">Most repeated</h2>
+        <InspectorSection id="repeated" title="Most repeated" defaultOpen={false}>
           <div className="terms">
             {a.repeatedTerms.slice(0, 10).map((term) => (
               <span key={term.term} className="term">
@@ -277,19 +282,8 @@ export function MetricsPanel({
               </span>
             ))}
           </div>
-        </section>
+        </InspectorSection>
       ) : null}
-
-      <section className="panel-section">
-        <h2 className="panel-title">Lens</h2>
-        <LensLegend lens={lens} model={modelLegend} />
-      </section>
-
-      <section className="panel-section panel-foot">
-        {spec.name} page: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} × {spec.cellH.toFixed(2)} mm (
-        {fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate. Nothing you write leaves this
-        browser.
-      </section>
     </>
   );
 }
