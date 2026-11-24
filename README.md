@@ -292,11 +292,12 @@ Anything that crosses a worker, process, or file boundary is a protobuf
 message from `proto/a4/v1/`:
 
 - `sheet.proto`: `Sheet` (spec, text, grid), `Grid`, `PageSpec`, `Plane`
-  (per-cell values plus the text they were computed for), `TextSpan`,
-  `CellRect`, and `Embedding`.
-- `model.proto`: `ModelCard`, the `SheetModelService` operations (Describe,
-  Status, Prepare, Encode, Score, Transform, Generate), and the `ErrorCode`
-  every model error carries.
+  (per-cell values plus the text they were computed for), `TextSpan`, and
+  `Embedding`.
+- `model.proto`: `ModelCard` and its capabilities (`ScoreCapability`,
+  `TransformCapability`, and `CredentialRequirement`), the
+  `SheetModelService` operations (Describe, Status, Prepare, Encode, Score,
+  Transform, Generate), and the `ErrorCode` every model error carries.
 - `rpc.proto`: `RpcFrame`, the worker transport's message: a call, a cancel,
   a streamed message, an end, or an error, each tagged with its call's id.
 - `library_event.proto`: `LibraryEvent`, what a tab tells the others when the
@@ -304,7 +305,8 @@ message from `proto/a4/v1/`:
 
 `lib/tensor/record.ts` reads and writes `Sheet` records. A reader rejects a
 record whose grid isn't exactly the encoding of its text, and names the first
-row that differs. A full Terminal page is about 10 KB on the wire: about 5 KB
+row that differs. A sheet the host sends a plugin may carry only the text or
+only the grid; `verifySheet` checks the views it declares. A full Terminal page is about 10 KB on the wire: about 5 KB
 of text and 5 KB of grid, one byte per ASCII cell.
 
 Generated code is JavaScript with `.d.ts` files, not TypeScript, because the
@@ -314,48 +316,65 @@ Node test runner strips types and can't run TypeScript `enum`s. Edit the
 ### Model plugins
 
 Every model plugs into the same contract, `SheetModelService`. `lib/models/`
-holds the host, the transports, and the bundled plugins.
+holds the host, the transports, and the manifest, and each bundled plugin
+has a folder under `lib/models/plugins/`.
 
 - **Model cards.** A plugin describes itself with a card that gives:
   - its name and what it does;
   - its operations;
   - the sheet views it reads: text, grid, or pixels (reserved);
   - its presets;
-  - where it runs: in the browser, a local service, or a remote service;
-  - whether it sends page text off the device, and to which host.
+  - where it runs: in the browser, or on a remote service at a named host;
+  - whether it sends page text off the device;
+  - for Score, its planes (each with a label and scale), scores, and
+    finding kinds; for Transform, its instructions and most attempts;
+  - any credential it needs, such as an API key.
 
-  The inspector's Models section shows each card. Cards are static, so listing
-  them loads no model code.
+  The inspector's Models section and the Semantic legend render from the
+  cards, with one panel slot per plugin for its own controls. A card and its
+  typed score, finding, and plane names live in the plugin's light
+  `descriptor.ts`, so listing cards loads no model code.
 - **Operations.** Encode turns a sheet into embeddings, and Score into
   per-cell planes, named scores, and findings. Transform turns a sheet into a
   new sheet, and Generate turns source material into one. The host calls
   only the operations a card declares. Any other request is refused without
   contacting the plugin.
-- **Views.** A plugin receives only the views its card declares. The text and
-  grid always describe the same page.
+- **Presets and instructions.** The host refuses a preset or a Transform
+  instruction the card doesn't declare, without contacting the plugin.
+- **Views.** A plugin receives only the views its card declares. When a sheet
+  carries both, the text and grid describe the same page.
 - **Planes.** A Score plane must match the scored grid's shape and carry the
   text it was computed for. The host rejects any other plane.
 - **The host decides fit.** For Transform and Generate, the host lays out each
   result on the page's preset: a result fits in 60 rows on Terminal. If it
-  doesn't fit, the host asks again with the overflow, for at most 3 attempts,
-  and keeps the attempt with the fewest rows. A plugin can't claim to fit.
+  doesn't fit, the host asks again with the overflow, for at most the
+  attempts the card declares (3 for Fit to page), and keeps the attempt with
+  the fewest rows. A plugin can't claim to fit.
 - **No overwrites.** Model output never changes an existing page, the verdict,
   or the built-in metrics. Transform and Generate results become new pages,
   and Score results appear only as model lenses and model summaries.
 - **Privacy gate.** A plugin that sends page text off the device needs a
-  consent token for every call. Only the confirmation dialog can mint one, and
-  each token is:
-  - bound to one plugin and one exact page text;
+  consent token for every call. The host owns the `ConsentBroker`, only the
+  confirmation dialog can mint a token, and each token is:
+  - bound to one plugin, one operation, and one exact page text;
   - usable once.
 
-  Without a fresh, matching token, the host refuses the call before the
-  plugin runs.
+  One egress guard checks every call that sends text off the device,
+  including remote scoring. Without a fresh, matching token, the host refuses
+  the call before the plugin runs.
+- **Credentials.** The host keeps keys in memory, in a `CredentialStore`
+  keyed by plugin and credential kind. A plugin gets a getter for the kinds
+  its card declares, and the host refuses any other kind.
 - **On-device plugins stay on the device.** An in-browser plugin makes no
   network request carrying page text. It downloads model files only after you
   ask, shows the size first, and keeps them for later sessions.
-- **Bundled plugins only.** The registry (`lib/models/registry.ts`) lists the
-  plugins that ship with the app. No plugin code is loaded from pages,
-  imports, or URLs.
+- **Bundled plugins only.** The manifest (`lib/models/manifest.ts`) is the
+  only place a plugin is registered: one `definePlugin` entry with its
+  descriptor and lazy `connect` and `isDownloaded`. The registry, the card
+  list, and the download checks derive from it, and a plugin needs a
+  download when its card's `download_bytes` is above 0. No plugin code is
+  loaded from pages, imports, or URLs, and UI code imports descriptors,
+  never a plugin's implementation.
 - **Worker isolation.** In-browser plugins run in a module Web Worker, so
   editing stays responsive. Every message over the worker port is an
   `RpcFrame` protobuf. A frame that can't be decoded but has a call id gets
@@ -408,6 +427,9 @@ thing in different words, which the string-based Repetition lens can't see.
   - Another plugin keeps transformers.js's `typeof window` guard intact in
     worker builds; the bundler would otherwise fold it away and throw in a
     worker. It fails the build if a library update changes that line.
+  - `browserOnlyPlugins()` resolves each plugin's `connect.ts` to a stub
+    outside client builds, so the worker and the ONNX runtime stay out of
+    the server bundle.
 
 ### Fit to page
 
@@ -661,6 +683,8 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-24-refactor-typed-contracts` (types only, with no spec changes)
 - `2026-11-24-refactor-workspace-controller` (structure only, with no spec changes)
 - `2026-11-24-refactor-lib-layout` (structure only, with no spec changes)
+- `2026-11-24-refactor-model-plugins` (structure and contracts, with no spec
+  changes)
 
 ```bash
 openspec list --specs
