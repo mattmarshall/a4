@@ -834,7 +834,7 @@ export function Workbench() {
                       ) : null}
                       <A4Sheet
                         ref={slot === "a" ? sheetA : sheetB}
-                        className={!ready || !state.name ? "sheet-hidden" : undefined}
+                        className={!ready || !state.ref ? "sheet-hidden" : undefined}
                         value={state.text}
                         onValue={(t) => lib.edit(slot, t)}
                         onFocus={() => setActive(slot)}
@@ -851,7 +851,7 @@ export function Workbench() {
                         light={view.light}
                         zoom={zoom.kind === "fit" ? (effectiveRender === "flat" ? fitMm : null) : zoom.mm}
                         grid={showGrid}
-                        label={`${state.name ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
+                        label={`${state.label ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
                       />
                     </div>
                   );
