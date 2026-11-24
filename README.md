@@ -562,7 +562,8 @@ The living specs are in `openspec/specs/`:
   `visual-lenses`, and `page-comparison`.
 - **The workspace:** `workspace-layout`.
 - **Guidance and export:** `narrative-guidance` and `page-export`.
-- **Pages and storage:** `page-library`, `page-storage`, and `autosave`.
+- **Pages and storage:** `page-library`, `page-storage`, `autosave`, and
+  `folder-pages`.
 - **The element and 3D:** `a4-sheet-element` and `paper-view`.
 - **Models:** `sheet-tensor`, `model-plugins`, `semantic-repetition`, and
   `fit-to-page`.
@@ -580,6 +581,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-23-add-sheet-model-plugins`
 - `2026-11-23-add-semantic-overlaps`
 - `2026-11-23-add-workspace-focus`
+- `2026-11-23-add-folder-pages`
 
 ```bash
 openspec list --specs

@@ -8,10 +8,11 @@ keep the one that carries more meaning per cell.
 ## Requirements
 
 ### Requirement: Two-page compare mode
-The system SHALL offer a compare mode that shows two library pages, A and B,
-as two sheets side by side in the current rendering (3D or Flat), on the same
-preset and lens. Each sheet SHALL be independently editable and autosaved. The
-user SHALL choose which page is shown in each slot from the library.
+The system SHALL offer a compare mode that shows two pages, A and B, as two
+sheets side by side in the current rendering (3D or Flat), on the same preset
+and lens. Each sheet SHALL be independently editable and autosaved. The user
+SHALL choose which page is shown in each slot from the library or, when a
+folder is open, from the folder's files.
 
 #### Scenario: Entering compare mode
 - **WHEN** the user switches to compare mode
@@ -25,6 +26,11 @@ user SHALL choose which page is shown in each slot from the library.
 - **GIVEN** the 3D rendering
 - **WHEN** the user switches to compare mode
 - **THEN** both pages render as 3D sheets that share the camera and light, and each keeps its own fold and curl
+
+#### Scenario: A file beside a library page
+- **GIVEN** the folder "a4" is open
+- **WHEN** the user picks "AGENTS.md" for slot A and the library page "Charter" for slot B
+- **THEN** sheet A shows the file, sheet B shows "Charter", and edits to A are saved to the file
 
 ### Requirement: Metric deltas
 In compare mode the system SHALL show each metric for A and B with the
