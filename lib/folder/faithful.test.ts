@@ -40,8 +40,7 @@ function rawLines(raw: string): [string, string][] {
   const body = raw.startsWith("﻿") ? raw.slice(1) : raw;
   const out: [string, string][] = [];
   const re = /([^\r\n]*)(\r\n|\n|\r|$)/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(body)) && m[0] !== "") {
+  for (let m = re.exec(body); m && m[0] !== ""; m = re.exec(body)) {
     out.push([m[1], m[2]]);
   }
   return out;

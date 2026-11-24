@@ -30,7 +30,7 @@ function push(out: Segment[], text: string, cls?: string) {
   if (!text) return;
   const last = out[out.length - 1];
   if (last && last.cls === cls) last.text += text;
-  else out.push({ text, cls });
+  else out.push(cls === undefined ? { text } : { text, cls });
 }
 
 function syntaxSegments(text: string): Segment[] {
@@ -92,7 +92,7 @@ function tokenSegments(text: string): Segment[] {
     if (p.start > cursor) out.push({ text: text.slice(cursor, p.start) });
     const piece = text.slice(p.start, p.end);
     // Newline-only pieces carry no visible shade.
-    out.push({ text: piece, cls: piece.includes("\n") ? undefined : i % 2 ? "lens-tok-b" : "lens-tok-a" });
+    out.push(piece.includes("\n") ? { text: piece } : { text: piece, cls: i % 2 ? "lens-tok-b" : "lens-tok-a" });
     cursor = p.end;
   });
   if (cursor < text.length) out.push({ text: text.slice(cursor) });

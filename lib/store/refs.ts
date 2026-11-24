@@ -20,6 +20,7 @@ export const MAX_PATH_LENGTH = 512;
 export const FILE_EXTENSIONS = [".md", ".mdc"] as const;
 
 // Control characters and backslashes are never part of a path we accept.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: this regex exists to reject control characters.
 const FORBIDDEN_PATH = /[\\\u0000-\u001f\u007f]/;
 
 /** True when `name` ends in one of the editable extensions (ignoring case). */

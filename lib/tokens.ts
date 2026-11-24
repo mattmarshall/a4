@@ -22,6 +22,7 @@ export interface TokenPiece {
 
 const PIECE = /\n+| +(?= \S)|[ ]?\p{L}+|[ ]?\p{N}+|[ ]?[^\s\p{L}\p{N}]+| +|\s/gu;
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: U+0000 is only the low end of the Latin range.
 const NON_LATIN = /[^\u0000-ɏ]/u;
 
 function costOf(piece: string): number {

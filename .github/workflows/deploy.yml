@@ -27,10 +27,32 @@ jobs:
           node-version: 26
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm test
       - run: pnpm typecheck
+      # buf breaking compares proto/ with the pull request's base, or with the
+      # previous main commit on a push. The checkout is shallow, so fetch it.
+      - name: Fetch the proto comparison base
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = "pull_request" ]; then
+            ref="$BASE_REF"
+          elif [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ]; then
+            ref="$BEFORE"
+          else
+            ref=main
+          fi
+          if git fetch --no-tags --depth=1 origin "$ref"; then
+            echo "PROTO_BASE=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Couldn't fetch $ref; buf breaking compares with the checked-out main instead."
+          fi
       - run: pnpm proto:check
       - run: pnpm build
+      - run: pnpm check:bundle
 
   deploy:
     name: Deploy to a4.marsh.build

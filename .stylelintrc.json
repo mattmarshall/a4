@@ -1,0 +1,9 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "defaultSeverity": "warning",
+  "rules": {
+    "no-duplicate-selectors": [true, { "severity": "error" }],
+    "declaration-no-important": [true, { "severity": "error" }],
+    "no-unknown-custom-properties": [true, { "severity": "error" }]
+  }
+}

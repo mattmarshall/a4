@@ -22,12 +22,13 @@ test("every lens covers the text exactly, without altering it", () => {
 test("syntax lens emphasizes braces and quotes, dims letters and digits", () => {
   const text = '{"a": 1}';
   const segs = segmentsFor("syntax", text, analyze(text, T));
-  const clsAt = (i: number) => {
+  const clsAt = (i: number): string | undefined => {
     let pos = 0;
     for (const s of segs) {
       if (i < pos + s.text.length) return s.cls;
       pos += s.text.length;
     }
+    return undefined;
   };
   for (const i of [0, 1, 3, 4, 7]) assert.equal(clsAt(i), "lens-syn", `index ${i}`);
   assert.equal(clsAt(2), "lens-dim");

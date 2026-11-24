@@ -42,5 +42,6 @@ export function ElementDemo() {
     });
     return () => cleanup();
   }, []);
+  // biome-ignore lint/security/noDangerouslySetInnerHtml: MARKUP is a constant in this file; no page or user text reaches it.
   return <div dangerouslySetInnerHTML={{ __html: MARKUP }} />;
 }

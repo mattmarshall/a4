@@ -6,7 +6,7 @@ declare module "react" {
     interface IntrinsicElements {
       "a4-sheet": DetailedHTMLProps<HTMLAttributes<A4SheetElement>, A4SheetElement> & {
         ref?: Ref<A4SheetElement>;
-        class?: string;
+        class?: string | undefined;
       };
     }
   }

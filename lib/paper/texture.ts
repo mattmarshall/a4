@@ -66,7 +66,7 @@ export interface PaintOptions {
    * A model lens: one value in [0, 1] per cell of the page's grid (row-major,
    * `cols` wide). Each cell is tinted in proportion to its value.
    */
-  heat?: { values: Float32Array; cols: number };
+  heat?: { values: Float32Array; cols: number } | undefined;
 }
 
 // Model-lens tint; shared with the UI's swatches, so it lives in its own module.

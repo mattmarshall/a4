@@ -45,6 +45,7 @@ function RenameField({
   return (
     <div className="lib-rename">
       <input
+        // biome-ignore lint/a11y/noAutofocus: the field appears when the user asks to rename.
         autoFocus
         className="lib-input"
         aria-label="New page name"
@@ -364,6 +365,7 @@ function PathForm({
       <label className="lib-path-label">
         {label}
         <input
+          // biome-ignore lint/a11y/noAutofocus: the form appears when the user asks to save or create a file.
           autoFocus
           className="lib-input"
           value={value}

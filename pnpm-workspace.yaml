@@ -6,3 +6,10 @@ allowBuilds:
   # Pulled in by onnxruntime-node; its install script only builds a CLI.
   protobufjs: false
   workerd: true
+packageExtensions:
+  # dependency-cruiser parses TypeScript with the compiler's JS API, which the
+  # native TypeScript 7 doesn't publish yet. Give it TypeScript 6 of its own;
+  # the app still compiles with TypeScript 7.
+  dependency-cruiser:
+    dependencies:
+      typescript: 6.0.3

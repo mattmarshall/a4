@@ -28,13 +28,56 @@ pnpm dev          # http://localhost:5173
 | `pnpm dev` | vinext dev server (Vite, running in workerd) |
 | `pnpm test` | Unit tests for the page model and analysis (Node's built-in test runner) |
 | `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm lint` | All the lint guardrails below, in order (also runs in CI) |
+| `pnpm lint:code` | Biome: lint TypeScript and JSON, and check their formatting |
+| `pnpm lint:deps` | dependency-cruiser: import boundaries and cycles |
+| `pnpm lint:unused` | knip: unused files and dependencies fail; unused exports are reported |
+| `pnpm lint:css` | stylelint on `app/globals.css` |
+| `pnpm format` | Format TypeScript and JSON with Biome |
 | `pnpm build` | Production build to `.cloudflare/output`, with `/` and `/why` prerendered |
+| `pnpm check:bundle` | After a build, fail if the home page's first load contains plugin code or a model library |
 | `pnpm start` | Serve the production build locally in workerd |
 | `pnpm proto` | Lint `proto/` and regenerate the protobuf code in `lib/gen/` (commit the result) |
-| `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation (also runs in CI) |
-| `pnpm check` | test, typecheck, proto:check, and build |
+| `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation, or `proto/` breaks compatibility with `main` (also runs in CI) |
+| `pnpm check` | lint, test, typecheck, proto:check, build, and check:bundle |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `pnpm run deploy` | Deploy the Worker to Cloudflare (see below). Use `run`: bare `pnpm deploy` is a built-in pnpm command |
+
+### Guardrails
+
+`pnpm check` runs every guardrail locally, and CI runs the same ones on every
+push and pull request.
+
+- **Compiler:** strict TypeScript, plus `exactOptionalPropertyTypes`,
+  `noImplicitReturns`, `noImplicitOverride`, `noFallthroughCasesInSwitch`,
+  `verbatimModuleSyntax`, and `erasableSyntaxOnly`.
+- **Biome** (`biome.json`): the recommended rules, plus unused imports, type
+  imports, and unhandled promises as errors. Non-null assertions, nested
+  ternaries, and `role="group"` divs are warnings until the refactors reach
+  them. Code that breaks a rule on purpose carries a `biome-ignore` comment
+  with the reason.
+- **Import boundaries** (`.dependency-cruiser.cjs`):
+  - No cycles.
+  - `lib/` doesn't import `components/`, `app/`, React, or the `@/` alias.
+  - UI code doesn't statically import plugin code or the model libraries.
+  - Storage, autosave, and folders don't import models or rendering.
+
+  dependency-cruiser reads TypeScript with the TypeScript 6 API, so
+  `pnpm-workspace.yaml` gives it its own TypeScript 6.
+- **Unused code** (`knip.jsonc`): unused files and dependencies fail. Unused
+  exports are reported. `lib/models/semantic/calibration-pairs.ts` is kept on
+  purpose: it's the fixture set for recalibrating the semantic thresholds by
+  hand.
+- **CSS** (`.stylelintrc.json`): duplicate selectors, `!important` outside the
+  print styles, and unknown custom properties fail. Other standard rules are
+  warnings until refactor-styles.
+- **Protobuf compatibility:** `buf breaking` compares `proto/` with `main`
+  locally, and in CI with the pull request's base or the previous `main`
+  commit.
+- **First load:** the build records each client chunk's modules in
+  `dist/client-chunks.json`. `pnpm check:bundle` fails if the chunks the home
+  page loads contain the Fit to page adapter, the semantic worker,
+  `@anthropic-ai/sdk`, `@huggingface/transformers`, or `onnxruntime-web`.
 
 ## The workspace
 

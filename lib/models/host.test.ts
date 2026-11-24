@@ -278,7 +278,7 @@ test("changing a card after registration can't turn consent off", async () => {
 
 test("the host rejects spans outside the page, deep planes, and duplicate plane names", async () => {
   const text = "Short page.";
-  const cases: [string, Parameters<typeof implement>[0]["score"]][] = [
+  const cases: [string, NonNullable<Parameters<typeof implement>[0]["score"]>][] = [
     [
       "span past the end",
       () => ({ findings: [{ kind: "similar", spans: [{ start: 2, end: 120 }], value: 1, label: "x" }] }),

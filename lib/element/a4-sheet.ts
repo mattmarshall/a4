@@ -292,7 +292,7 @@ export class A4SheetElement extends HTMLElement {
 
   connectedCallback() {
     // A property set before upgrade shadows the accessor; re-apply it.
-    if (Object.prototype.hasOwnProperty.call(this, "value")) {
+    if (Object.hasOwn(this, "value")) {
       const v = (this as unknown as { value: string }).value;
       delete (this as unknown as { value?: string }).value;
       this.value = v;

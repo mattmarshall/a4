@@ -23,7 +23,7 @@ interface Reply {
 
 /** A stub SDK client: records each request, streams `text`, then resolves the final message. */
 function stub(replies: Reply[]) {
-  const requests: { body: Record<string, unknown>; signal?: AbortSignal }[] = [];
+  const requests: { body: Record<string, unknown>; signal: AbortSignal | undefined }[] = [];
   const client: StreamingClient = {
     beta: {
       messages: {

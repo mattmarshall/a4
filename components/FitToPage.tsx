@@ -50,6 +50,7 @@ export function FitToPage({
   const dialog = useRef<HTMLDialogElement>(null);
 
   // The key module outlives this component only within the tab.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-read the key store each time the job changes phase.
   useEffect(() => setKeySet(hasApiKey()), [phase.kind]);
 
   useEffect(() => {
@@ -171,6 +172,7 @@ export function FitToPage({
               <button type="button" className="btn" onClick={() => job.dismiss()}>
                 Cancel
               </button>
+              {/* biome-ignore lint/a11y/noAutofocus: the dialog opens on a click, and Send is its primary action. */}
               <button type="submit" className="btn btn-outline" autoFocus>
                 Send
               </button>

@@ -25,7 +25,7 @@ export interface A4SheetProps {
   /** A built-in lens, or `model:<name>` to show the plane named `name`. */
   lens: LensId | `model:${string}`;
   /** Model planes by name, shown with `lens="model:<name>"`. */
-  planes?: Readonly<Record<string, A4Plane>>;
+  planes?: Readonly<Record<string, A4Plane>> | undefined;
   render: A4RenderRequest;
   pose: Pose;
   tilt: number;
@@ -35,7 +35,7 @@ export interface A4SheetProps {
   zoom: number | null;
   grid: boolean;
   label: string;
-  className?: string;
+  className?: string | undefined;
   onFocus?: () => void;
   onRender?: (render: A4Render) => void;
   onViewChange?: (view: { tilt: number; turn: number }) => void;
@@ -46,6 +46,29 @@ let defining: Promise<void> | null = null;
 function ensureDefined(): Promise<void> {
   defining ??= import("@/lib/element/a4-sheet").then((m) => m.defineA4Sheet());
   return defining;
+}
+
+function syncPlanes(
+  el: A4SheetElement,
+  planes: Readonly<Record<string, A4Plane>> | undefined,
+  shown: Map<string, A4Plane>,
+) {
+  const next = planes ?? {};
+  for (const [name, plane] of Object.entries(next)) {
+    if (shown.get(name) === plane) continue;
+    try {
+      el.setPlane(name, plane);
+      shown.set(name, plane);
+    } catch {
+      // A plane for another preset: leave it off rather than crash the page.
+    }
+  }
+  for (const name of [...shown.keys()]) {
+    if (!(name in next)) {
+      el.removePlane(name);
+      shown.delete(name);
+    }
+  }
 }
 
 export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(props, ref) {
@@ -104,31 +127,12 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
     void ensureDefined().then(() => {
       const el = host.current;
       if (cancelled || !el) return;
-      syncPlanes(el);
+      syncPlanes(el, planes, shownPlanes.current);
     });
     return () => {
       cancelled = true;
     };
   }, [planes]);
-
-  function syncPlanes(el: A4SheetElement) {
-    const next = planes ?? {};
-    for (const [name, plane] of Object.entries(next)) {
-      if (shownPlanes.current.get(name) === plane) continue;
-      try {
-        el.setPlane(name, plane);
-        shownPlanes.current.set(name, plane);
-      } catch {
-        // A plane for another preset: leave it off rather than crash the page.
-      }
-    }
-    for (const name of [...shownPlanes.current.keys()]) {
-      if (!(name in next)) {
-        el.removePlane(name);
-        shownPlanes.current.delete(name);
-      }
-    }
-  }
 
   // Attributes.
   const { preset, lens, render, pose, tilt, turn, light, zoom, grid, label } = props;

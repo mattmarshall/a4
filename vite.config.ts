@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { relative } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import vinext from "vinext";
 import { cloudflare } from "@cloudflare/vite-plugin";
@@ -52,6 +54,31 @@ function keepWindowGuardInWorkers(): Plugin {
   };
 }
 
+/** Where recordClientChunks writes, outside the served assets. */
+const CLIENT_CHUNKS_REPORT = "dist/client-chunks.json";
+
+/**
+ * Records the source modules in each client chunk, so scripts/check-bundle.ts
+ * can tell exactly what the first page load contains.
+ */
+function recordClientChunks(): Plugin {
+  return {
+    name: "a4:record-client-chunks",
+    apply: "build",
+    generateBundle(_options, bundle) {
+      if (this.environment.name !== "client") return;
+      const root = this.environment.config.root;
+      const chunks: Record<string, string[]> = {};
+      for (const [file, output] of Object.entries(bundle)) {
+        if (output.type === "chunk")
+          chunks[file] = output.moduleIds.map((id) => (id.startsWith("/") ? relative(root, id) : id));
+      }
+      mkdirSync("dist", { recursive: true });
+      writeFileSync(CLIENT_CHUNKS_REPORT, `${JSON.stringify(chunks, null, 1)}\n`);
+    },
+  };
+}
+
 export default defineConfig({
   worker: {
     // ES module workers can code-split, so the inference library loads only
@@ -70,5 +97,6 @@ export default defineConfig({
       },
     }),
     dropUnusedOrtWasm(),
+    recordClientChunks(),
   ],
 });

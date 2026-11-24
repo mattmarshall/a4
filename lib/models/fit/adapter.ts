@@ -27,7 +27,7 @@ export interface StreamingClient {
     messages: {
       stream(
         body: StreamParams,
-        options?: { signal?: AbortSignal },
+        options?: { signal?: AbortSignal | undefined },
       ): AsyncIterable<{ type: string; delta?: { type: string; text?: string } }> & {
         finalMessage(): Promise<Anthropic.Beta.BetaMessage>;
       };

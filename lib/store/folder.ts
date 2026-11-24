@@ -135,7 +135,8 @@ async function writeFile(handle: FileSystemFileHandle, text: string): Promise<Fi
 export interface FolderPageFilesOptions {
   /** Distinguishes this folder in lock names. */
   id: string;
-  locks?: LockLike | null;
+  /** Omitted or undefined: the browser's lock manager. Null: no locking. */
+  locks?: LockLike | null | undefined;
 }
 
 export class FolderPageFiles implements PageFiles<FilePath> {

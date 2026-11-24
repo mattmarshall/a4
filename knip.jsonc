@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/knip/schema-jsonc.json",
+  "entry": [
+    "app/**/{page,layout,not-found}.tsx",
+    "lib/**/*.test.ts",
+    "lib/models/semantic/worker.ts",
+    "scripts/*.ts",
+    "cloudflare.config.ts"
+  ],
+  "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
+  "ignore": [
+    // The fixture pairs the semantic thresholds were calibrated on (see the
+    // archived changes' calibration.md). Calibration runs by hand in the
+    // browser, so nothing imports it; the next recalibration reuses it.
+    "lib/models/semantic/calibration-pairs.ts"
+  ],
+  "ignoreDependencies": [
+    // vinext provides the next/* modules.
+    "next",
+    // Imported from app/globals.css, which knip doesn't read.
+    "tailwindcss"
+  ],
+  // Unused files and dependencies fail; unused exports are reported until the
+  // refactors that touch each area remove them.
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "error",
+    "exports": "warn",
+    "types": "warn",
+    "nsExports": "warn",
+    "nsTypes": "warn",
+    "enumMembers": "warn",
+    "duplicates": "warn"
+  }
+}

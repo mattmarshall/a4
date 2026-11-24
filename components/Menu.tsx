@@ -81,11 +81,12 @@ export function MenuItem({
   checked?: boolean;
   kind?: "item" | "radio" | "checkbox";
   disabled?: boolean;
-  title?: string;
+  title?: string | undefined;
   children: ReactNode;
 }) {
   const role = kind === "radio" ? "menuitemradio" : kind === "checkbox" ? "menuitemcheckbox" : "menuitem";
   return (
+    // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-checked is set only when role is menuitemradio or menuitemcheckbox.
     <button
       type="button"
       role={role}

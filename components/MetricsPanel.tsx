@@ -14,7 +14,15 @@ export function num(x: number): string {
   return x.toLocaleString("en-US");
 }
 
-function Bar({ value, threshold, state }: { value: number; threshold?: number; state?: "over" | "warn" | "good" }) {
+function Bar({
+  value,
+  threshold,
+  state,
+}: {
+  value: number;
+  threshold?: number | undefined;
+  state?: "over" | "warn" | "good" | undefined;
+}) {
   return (
     <div className="bar" data-state={state}>
       <i style={{ width: `${Math.max(0, Math.min(1, value)) * 100}%` }} />

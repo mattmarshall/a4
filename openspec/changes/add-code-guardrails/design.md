@@ -74,11 +74,19 @@ rewrites them for the new layout.
 
 ### 4. Bundle check
 
-`scripts/check-bundle.ts` reads the client build's manifest (or the HTML
-entry's module graph), collects the chunks the home route loads before
-interaction, and fails if any contains the markers of the heavy dependencies
-(`@anthropic-ai/sdk`, `@huggingface/transformers`, `onnxruntime-web`). It
-runs after `pnpm build` in `pnpm check`.
+`scripts/check-bundle.ts` collects the chunks the home route loads before
+interaction: the scripts and module preloads in the prerendered home page,
+plus their static imports from the client build's Vite manifest.
+
+- **What it looks for:** plugin implementations (the Fit to page adapter, the
+  semantic worker) and the heavy dependencies (`@anthropic-ai/sdk`,
+  `@huggingface/transformers`, `onnxruntime-web`).
+- **How it sees them:** a build plugin records each client chunk's source
+  modules in `dist/client-chunks.json`. Bundling merges a statically imported
+  module into the importing chunk, and the adapter loads the SDK lazily
+  itself, so text markers of the libraries alone would miss a static import
+  of the adapter.
+- **When it runs:** after `pnpm build`, in `pnpm check` and in CI.
 
 ## Risks / Trade-offs
 

@@ -559,7 +559,7 @@ export function useLibrary(notify: Notify) {
   // Boot: open the store, recover, migrate, open the last pages, reconnect the folder.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    void (async () => {
       try {
         const b = await boot();
         if (cancelled) return;

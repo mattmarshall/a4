@@ -15,6 +15,7 @@
     "vinext": "^1.4.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.6.6",
     "@bufbuild/buf": "1.75.0",
     "@bufbuild/protoc-gen-es": "2.17.0",
     "@cloudflare/vite-plugin": "2.0.0-rc.3",
@@ -25,6 +26,10 @@
     "@vitejs/plugin-react": "^6.3.0",
     "@vitejs/plugin-rsc": "^0.5.39",
     "cf": "1.0.0-rc.2",
+    "dependency-cruiser": "18.7.2",
+    "knip": "6.44.2",
+    "stylelint": "18.0.0",
+    "stylelint-config-standard": "41.0.0",
     "tailwindcss": "^4.3.5",
     "typescript": "^7.0.2",
     "vite": "8.3.0"
@@ -36,9 +41,16 @@
     "start": "vite preview",
     "test": "node --test 'lib/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
+    "lint": "pnpm lint:code && pnpm lint:deps && pnpm lint:unused && pnpm lint:css",
+    "lint:code": "biome check .",
+    "lint:deps": "depcruise app components lib scripts types",
+    "lint:unused": "knip --no-progress",
+    "lint:css": "stylelint app/globals.css",
+    "format": "biome format --write .",
     "proto": "buf lint && buf generate --clean",
-    "proto:check": "buf lint && node scripts/check-proto.ts",
-    "check": "pnpm test && pnpm typecheck && pnpm proto:check && pnpm build",
+    "proto:check": "buf lint && node scripts/check-proto.ts && node scripts/check-proto-breaking.ts",
+    "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm proto:check && pnpm build && pnpm check:bundle",
+    "check:bundle": "node scripts/check-bundle.ts",
     "deploy": "vinext-cloudflare deploy"
   },
   "engines": {

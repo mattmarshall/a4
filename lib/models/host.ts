@@ -211,7 +211,7 @@ export class ModelHost {
     if (this.#policy(id).egress !== "none")
       throw new ModelError("consent-required", "Scoring with a remote model isn't supported.");
     const client = await this.#client(id);
-    let response;
+    let response: Awaited<ReturnType<SheetModelClient["score"]>>;
     try {
       response = await client.score(create(ScoreRequestSchema, { sheet: this.#sheet(card, text, spec) }), signal);
     } catch (error) {

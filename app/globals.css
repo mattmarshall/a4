@@ -6,8 +6,10 @@
 
 :root {
   color-scheme: light;
+  /* stylelint-disable no-unknown-custom-properties -- next/font defines the --font-plex-* properties in app/layout.tsx. */
   --font-mono: var(--font-plex-mono), "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --font-sans: var(--font-plex-sans), "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  /* stylelint-enable no-unknown-custom-properties */
 
   --desk: #e8e5de;
   --desk-line: #d6d2c8;
@@ -1532,6 +1534,7 @@ select {
 }
 
 /* Menus: radio and checkbox items show a check. */
+/* stylelint-disable-next-line no-duplicate-selectors -- refactor-styles merges this into the first .menu-list rule. */
 .menu-list {
   max-height: min(70vh, 640px);
   overflow-y: auto;
@@ -1542,6 +1545,7 @@ select {
   left: 0;
 }
 
+/* stylelint-disable-next-line no-duplicate-selectors -- refactor-styles merges this into the first .menu-item rule. */
 .menu-item {
   position: relative;
   padding-left: 26px;
@@ -1960,6 +1964,7 @@ select {
   margin: 0;
 }
 
+/* stylelint-disable declaration-no-important -- print styles must override the screen layout. */
 @media print {
   html,
   body {
@@ -2011,6 +2016,7 @@ select {
     display: none !important;
   }
 }
+/* stylelint-enable declaration-no-important */
 
 /* ------------------------------------------------------------------------
    <a4-sheet> hosts and the element demo

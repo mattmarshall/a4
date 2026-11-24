@@ -135,8 +135,8 @@ export function ModelsPanel({
                       <>
                         <span className="model-status">Closest pairs, most similar first:</span>
                         <ol className="restate-list">
-                          {summary.pairs.map((pair, i) => (
-                            <li key={i}>
+                          {summary.pairs.map((pair) => (
+                            <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
                               <button
                                 type="button"
                                 className="restate-pair"

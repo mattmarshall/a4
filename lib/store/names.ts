@@ -11,7 +11,9 @@ import { InvalidPageNameError, type PageName, type PageStore } from "./types.ts"
 export const MAX_NAME_LENGTH = 80;
 export const DEFAULT_PAGE_NAME = "Untitled";
 
+// biome-ignore lint/suspicious/noControlCharactersInRegex: page names must not contain control characters.
 const FORBIDDEN = /[/\\:*?"<>|\u0000-\u001f\u007f]/;
+// biome-ignore lint/suspicious/noControlCharactersInRegex: page names must not contain control characters.
 const FORBIDDEN_GLOBAL = /[/\\:*?"<>|\u0000-\u001f\u007f]+/g;
 
 function tidy(input: string): string {

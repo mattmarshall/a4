@@ -213,11 +213,11 @@ export function Workbench() {
   }, [settingsReady, presetId, lens, showGrid, mode, render, showLibrary, showInspector]);
 
   // Keep slot B open exactly while comparing.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: lib's commands change identity on every render; slot tickets make these calls safe in any order.
   useEffect(() => {
     if (!ready) return;
     if (mode === "compare") void lib.ensureSlotB();
     else void lib.closeSlotB();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, mode]);
 
   // Ctrl/Cmd+S saves now instead of opening the browser's save dialog.
@@ -378,8 +378,10 @@ export function Workbench() {
   /** The plane a model lens shows: the plugin's first plane in either slot's latest result. */
   const lensPlane = (pluginId: string) =>
     [scored.a, scored.b].flatMap((r) => r?.planes ?? []).find((p) => p.pluginId === pluginId)?.name ?? "";
-  const planesA = useMemo(() => planesFor("a"), [scored.a, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const planesB = useMemo(() => planesFor("b"), [scored.b, spec.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: planesFor reads only the slot's score and the preset.
+  const planesA = useMemo(() => planesFor("a"), [scored.a, spec.id]);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: planesFor reads only the slot's score and the preset.
+  const planesB = useMemo(() => planesFor("b"), [scored.b, spec.id]);
   const sheetLens = modelLens ? (`model:${planeKey(modelLens, lensPlane(modelLens))}` as const) : lens;
   const modelLegend =
     modelLens === SEMANTIC_REPETITION_ID
@@ -627,9 +629,7 @@ export function Workbench() {
               {targetSlot.ref?.kind === "file" ? (
                 <span className="file-title" title={`${folderName} / ${targetSlot.ref.path}`}>
                   <span className="file-folder">{folderName}</span>
-                  <span className="file-path" aria-label="File path">
-                    {targetSlot.ref.path}
-                  </span>
+                  <span className="file-path">{targetSlot.ref.path}</span>
                 </span>
               ) : (
                 <PageNameField name={targetSlot.name} onRename={(input) => lib.renamePage(targetSlot.name!, input)} />
@@ -675,7 +675,7 @@ export function Workbench() {
               </button>
             </div>
 
-            <div className="tool-group zoom" aria-label="Zoom">
+            <div className="tool-group zoom" role="group" aria-label="Zoom">
               <button type="button" className="btn" onClick={() => stepZoom(-1)} aria-label="Zoom out">
                 −
               </button>
@@ -1026,7 +1026,7 @@ export function Workbench() {
           ) : null}
 
           {legendShown && !focus ? (
-            <div className="lens-chip" aria-label="Lens legend">
+            <div className="lens-chip" role="group" aria-label="Lens legend">
               <LensLegend lens={lens} model={modelLens ? modelLegend : null} />
             </div>
           ) : null}
