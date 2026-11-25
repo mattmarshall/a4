@@ -35,7 +35,7 @@ export const MAX_FILE_BYTES = 1_048_576;
 export const SCAN_ENTRY_LIMIT = 20_000;
 
 /** Folders the scan never enters. */
-export const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([
+const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([
   ".git",
   "node_modules",
   "dist",
@@ -47,9 +47,9 @@ export const SKIPPED_FOLDERS: ReadonlySet<string> = new Set([
   ".venv",
 ]);
 /** Dot-folders the scan does enter: they hold agent context. */
-export const CONTEXT_DOT_FOLDERS: ReadonlySet<string> = new Set([".claude", ".github", ".cursor", ".agents"]);
+const CONTEXT_DOT_FOLDERS: ReadonlySet<string> = new Set([".claude", ".github", ".cursor", ".agents"]);
 
-export function skipFolder(name: string): boolean {
+function skipFolder(name: string): boolean {
   return SKIPPED_FOLDERS.has(name) || (name.startsWith(".") && !CONTEXT_DOT_FOLDERS.has(name));
 }
 

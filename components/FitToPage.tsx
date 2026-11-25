@@ -14,7 +14,7 @@ import { FIT_TO_PAGE, type FitJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
 import styles from "./ModelsPanel.module.css";
 
-export function useFitJob(job: FitJob<PageRef>) {
+function useFitJob(job: FitJob<PageRef>) {
   return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
 }
 

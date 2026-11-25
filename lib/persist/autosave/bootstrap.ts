@@ -78,8 +78,8 @@ export async function recoverDrafts<Id extends string = PageName>(
   return out;
 }
 
-export const LEGACY_SLOT_KEYS = ["a4:text:a", "a4:text:b"] as const;
-export const MIGRATED_KEY = "a4:migrated";
+const LEGACY_SLOT_KEYS = ["a4:text:a", "a4:text:b"] as const;
+const MIGRATED_KEY = "a4:migrated";
 
 /**
  * Import text from the pre-library page A/B slots as pages named after their
@@ -116,7 +116,7 @@ export async function migrateLegacySlots(
   return created;
 }
 
-export const WELCOME_PAGE_NAME = parsePageName("Welcome");
+const WELCOME_PAGE_NAME = parsePageName("Welcome");
 
 /** Create and return the Welcome page if the library is empty. */
 export async function ensureFirstPage(store: PageStore, welcomeText: string): Promise<PageName | null> {

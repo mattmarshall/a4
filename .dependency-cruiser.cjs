@@ -137,9 +137,9 @@ module.exports = {
       name: "cli-copy-only",
       severity: "error",
       comment:
-        "The a4 command shares the app's English copy (verdict labels, finding titles) and nothing else from the UI.",
+        "The a4 command shares the app's English copy (verdict labels, finding titles, the desk's records) and nothing else from the UI.",
       from: { path: "^cli/", pathNot: NOT_TESTS },
-      to: { path: "^components/", pathNot: "^components/analysis-copy\\.ts$" },
+      to: { path: "^components/", pathNot: "^components/(analysis|desk)-copy\\.ts$" },
     },
     {
       name: "cli-through-index",

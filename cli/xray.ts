@@ -15,6 +15,7 @@ import { homedir, platform } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { toJsonString } from "@bufbuild/protobuf";
 import { VERDICT_LABEL } from "../components/analysis-copy.ts";
+import { UNREADABLE_WORDS } from "../components/desk-copy.ts";
 import { MAX_FILE_BYTES } from "../lib/desk/index.ts";
 import {
   type ContextXray,
@@ -246,12 +247,6 @@ const KIND: Record<XraySourceKind, string> = {
   [XraySourceKind.SUBAGENTS]: "subagents",
 };
 
-const UNREADABLE: Record<Unreadable, string> = {
-  [Unreadable.UNSPECIFIED]: "",
-  [Unreadable.TOO_LARGE]: "larger than 1 MiB",
-  [Unreadable.NOT_UTF8]: "not UTF-8 text",
-};
-
 /** Two decimals at most: 0.5, 1.5, 6.25. */
 const pages = (n: number) => String(Math.round(n * 100) / 100);
 
@@ -261,7 +256,7 @@ function xrayText(report: ContextXray): string {
     const id = verdictOf(s);
     let verdict = id ? VERDICT_LABEL[id] : "";
     if (s.missing) verdict = "missing";
-    else if (s.unreadable !== Unreadable.UNSPECIFIED) verdict = UNREADABLE[s.unreadable];
+    else if (s.unreadable !== Unreadable.UNSPECIFIED) verdict = UNREADABLE_WORDS[s.unreadable];
     let path = s.path;
     if (s.entries > 0) path = `${s.entries} ${s.kind === XraySourceKind.SKILLS ? "skill" : "subagent"} descriptions`;
     if (s.importedBy) path += `  (imported by ${s.importedBy})`;

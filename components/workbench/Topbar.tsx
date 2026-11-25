@@ -139,7 +139,7 @@ export function Topbar({
 
         <span className="spacer" />
 
-        <div className="seg" role="group" aria-label="Lens">
+        <fieldset className="seg" aria-label="Lens">
           {LENSES.map((l) => (
             <button
               key={l.id}
@@ -162,18 +162,18 @@ export function Topbar({
               Semantic
             </button>
           ) : null}
-        </div>
+        </fieldset>
 
-        <div className="seg" role="group" aria-label="View">
+        <fieldset className="seg" aria-label="View">
           <button type="button" aria-pressed={layout.mode === "single"} onClick={() => layout.setMode("single")}>
             Single
           </button>
           <button type="button" aria-pressed={layout.mode === "compare"} onClick={() => layout.setMode("compare")}>
             Compare
           </button>
-        </div>
+        </fieldset>
 
-        <div className="tool-group zoom" role="group" aria-label="Zoom">
+        <fieldset className="tool-group zoom" aria-label="Zoom">
           <button type="button" className="btn" onClick={() => layout.stepZoom(-1)} aria-label="Zoom out">
             −
           </button>
@@ -189,7 +189,7 @@ export function Topbar({
           <button type="button" className="btn" onClick={() => layout.stepZoom(1)} aria-label="Zoom in">
             +
           </button>
-        </div>
+        </fieldset>
 
         {children}
 

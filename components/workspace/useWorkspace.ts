@@ -37,7 +37,7 @@ const STARTING: WorkspaceSnapshot = {
 
 const noop = () => () => {};
 
-export function useWorkspace(): { workspace: BrowserWorkspace | null; snapshot: WorkspaceSnapshot } {
+function useWorkspace(): { workspace: BrowserWorkspace | null; snapshot: WorkspaceSnapshot } {
   const [workspace, setWorkspace] = useState<BrowserWorkspace | null>(null);
   useEffect(() => {
     const acquired = acquireWorkspace();
@@ -53,7 +53,7 @@ export function useWorkspace(): { workspace: BrowserWorkspace | null; snapshot: 
 }
 
 /** Show workspace notices as toasts. */
-export function useNotices(workspace: BrowserWorkspace | null, notify: Notify): void {
+function useNotices(workspace: BrowserWorkspace | null, notify: Notify): void {
   useEffect(() => {
     if (!workspace) return;
     return workspace.subscribeNotices((notice) => {

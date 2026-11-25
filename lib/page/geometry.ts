@@ -24,7 +24,7 @@ export const MM_PER_INCH = 25.4;
 export const PX_PER_MM_ACTUAL = 96 / MM_PER_INCH;
 
 /** IBM Plex Mono's advance width is 600/1000 em. */
-export const GLYPH_ADVANCE_EM = 0.6;
+const GLYPH_ADVANCE_EM = 0.6;
 
 /** A grid of equal cells, centered on a sheet of paper. Sizes are in mm. */
 export interface CellGrid {

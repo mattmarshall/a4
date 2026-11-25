@@ -18,10 +18,7 @@ export interface OpenedStore {
   movedFromFallback: number;
 }
 
-export function localStorageStore(
-  storage: Storage,
-  options: { clock?: Clock; locks?: Locks | null } = {},
-): KeyValuePageStore {
+function localStorageStore(storage: Storage, options: { clock?: Clock; locks?: Locks | null } = {}): KeyValuePageStore {
   return new KeyValuePageStore(new StorageKeyValue(storage), {
     kind: "local-storage",
     durable: true,

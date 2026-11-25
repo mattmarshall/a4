@@ -429,14 +429,14 @@ export class ModelHost {
       resume = candidate.resume;
       last = { rowsUsed };
     }
-    const kept = best!;
+    if (!best) throw new ModelError(ErrorCode.INVALID_RESULT, `${card.name || id} finished without a result.`);
     return {
-      text: kept.text,
-      model: kept.model,
-      rowsUsed: kept.rowsUsed,
+      text: best.text,
+      model: best.model,
+      rowsUsed: best.rowsUsed,
       rowsAllowed: spec.rows,
       fits: false,
-      overBy: kept.rowsUsed - spec.rows,
+      overBy: best.rowsUsed - spec.rows,
       attempts: max,
       maxAttempts: max,
     };

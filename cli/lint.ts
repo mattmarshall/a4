@@ -8,9 +8,10 @@
 import { stat } from "node:fs/promises";
 import { basename, dirname, matchesGlob, resolve } from "node:path";
 import { toJsonString } from "@bufbuild/protobuf";
-import { describeFinding, ENGLISH, formatByteLimit, VERDICT_LABEL } from "../components/analysis-copy.ts";
+import { describeFinding, ENGLISH, VERDICT_LABEL } from "../components/analysis-copy.ts";
+import { OUTCOME_WORD, UNREADABLE_WORDS } from "../components/desk-copy.ts";
 import type { Finding, Severity } from "../lib/analysis/index.ts";
-import { MAX_FILE_BYTES, SCAN_ENTRY_LIMIT, type StackReport } from "../lib/desk/index.ts";
+import { SCAN_ENTRY_LIMIT, type StackReport } from "../lib/desk/index.ts";
 import {
   lintFailed,
   lintFile,
@@ -19,24 +20,10 @@ import {
   lintReport,
   LintReportSchema,
   type LintResult,
-  Unreadable,
 } from "../lib/desk/lint.ts";
 import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
 import { stackRow } from "./stacks.ts";
 import { slashed, UsageError } from "./usage.ts";
-
-const OUTCOME_LABEL: Record<LintOutcome, string> = {
-  [LintOutcome.UNSPECIFIED]: "?",
-  [LintOutcome.PASS]: "pass",
-  [LintOutcome.WARN]: "warn",
-  [LintOutcome.FAIL]: "fail",
-};
-
-const UNREADABLE_LABEL: Record<Unreadable, string> = {
-  [Unreadable.UNSPECIFIED]: "",
-  [Unreadable.TOO_LARGE]: `larger than ${formatByteLimit(MAX_FILE_BYTES)}`,
-  [Unreadable.NOT_UTF8]: "not UTF-8 text",
-};
 
 const SEVERITY_RANK: Record<Severity, number> = { critical: 0, warning: 1, info: 2 };
 
@@ -96,8 +83,8 @@ async function lint(args: LintArgs): Promise<LintRun> {
 function textReport(results: readonly LintResult[], stacks: LintRun["stacks"]): string {
   if (results.length === 0 && stacks.length === 0) return "No context files found.\n";
   const rows = results.map(({ file, judgment }) => {
-    const outcome = OUTCOME_LABEL[file.outcome];
-    if (!judgment) return [outcome, "–", UNREADABLE_LABEL[file.unreadable], file.path, ""];
+    const outcome = OUTCOME_WORD[file.outcome];
+    if (!judgment) return [outcome, "–", UNREADABLE_WORDS[file.unreadable], file.path, ""];
     const finding = topFinding(judgment.analysis.assessment.findings);
     return [
       outcome,

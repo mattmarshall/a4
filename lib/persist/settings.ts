@@ -28,7 +28,7 @@ export interface Setting<T> {
   readonly default: T;
 }
 
-export function defineSetting<T>(setting: Setting<T>): Setting<T> {
+function defineSetting<T>(setting: Setting<T>): Setting<T> {
   return setting;
 }
 
@@ -67,7 +67,7 @@ const openRefCodec: IdCodec<PageRef | null> = {
 };
 
 /** A person's name as they typed it, trimmed; blank reads as unset. */
-export const nameCodec: IdCodec<string | null> = {
+const nameCodec: IdCodec<string | null> = {
   parse: (raw) => {
     const name = raw.trim();
     return name === "" ? null : name;

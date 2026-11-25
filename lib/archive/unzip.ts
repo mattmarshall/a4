@@ -78,7 +78,7 @@ function decodeName(bytes: Uint8Array, utf8Flag: boolean): string {
   }
 }
 
-export function fromDosDateTime(date: number, time: number): number {
+function fromDosDateTime(date: number, time: number): number {
   const year = (date >> 9) + 1980;
   const month = Math.max(0, ((date >> 5) & 0x0f) - 1);
   const day = Math.max(1, date & 0x1f);

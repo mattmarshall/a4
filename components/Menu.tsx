@@ -8,7 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
-export function useOutsideClose(open: boolean, close: () => void) {
+function useOutsideClose(open: boolean, close: () => void) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -69,6 +69,8 @@ export function Menu({
   );
 }
 
+const ITEM_ROLE = { item: "menuitem", radio: "menuitemradio", checkbox: "menuitemcheckbox" } as const;
+
 export function MenuItem({
   onSelect,
   close,
@@ -87,7 +89,7 @@ export function MenuItem({
   title?: string | undefined;
   children: ReactNode;
 }) {
-  const role = kind === "radio" ? "menuitemradio" : kind === "checkbox" ? "menuitemcheckbox" : "menuitem";
+  const role = ITEM_ROLE[kind];
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: aria-checked is set only when role is menuitemradio or menuitemcheckbox.
     <button

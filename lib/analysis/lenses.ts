@@ -48,11 +48,17 @@ function push(out: Segment[], text: string, style?: SegmentStyle) {
   else out.push(style === undefined ? { text } : { text, style });
 }
 
+/** Syntax is marked, other ink is dimmed, and whitespace stays plain. */
+function syntaxStyle(text: string, i: number, ch: string): Segment["style"] {
+  if (isSyntaxAt(text, i)) return "syntax";
+  return /\s/.test(ch) ? undefined : "dim";
+}
+
 function syntaxSegments(text: string): Segment[] {
   const out: Segment[] = [];
   for (let i = 0; i < text.length; i++) {
     const ch = text.charAt(i);
-    push(out, ch, isSyntaxAt(text, i) ? "syntax" : /\s/.test(ch) ? undefined : "dim");
+    push(out, ch, syntaxStyle(text, i, ch));
   }
   return out;
 }

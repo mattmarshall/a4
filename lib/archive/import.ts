@@ -22,7 +22,7 @@ export const MAX_IMPORT_FILE_BYTES = 100 * MIB;
 
 const PAGE_EXTENSIONS = [".md", ".txt"];
 
-export type SkipReason = "macos-metadata" | "hidden" | "not-a-page" | "binary" | "encrypted" | "too-large" | "corrupt";
+type SkipReason = "macos-metadata" | "hidden" | "not-a-page" | "binary" | "encrypted" | "too-large" | "corrupt";
 
 export interface ImportReport {
   /** Pages created, including renamed ones. */
@@ -36,7 +36,7 @@ const strictUtf8 = new TextDecoder("utf-8", { fatal: true });
 const legacy = new TextDecoder("windows-1252");
 
 /** Decode page bytes: UTF-8 (BOM stripped), falling back to Windows-1252. */
-export function decodePageText(bytes: Uint8Array): string {
+function decodePageText(bytes: Uint8Array): string {
   let text: string;
   try {
     text = strictUtf8.decode(bytes);

@@ -100,9 +100,3 @@ export async function nodeFixture(): Promise<FolderFixture<string>> {
     dispose: () => rm(base, { recursive: true, force: true }),
   };
 }
-
-/** Each adapter's fixture factory, for suites that run once per adapter. */
-export const ADAPTERS = [
-  { label: "browser", make: async () => browserFixture() },
-  { label: "node", make: nodeFixture },
-] as const;

@@ -41,7 +41,7 @@ export class FakeLocks implements Locks {
 }
 
 /** A clock that reads a scheduler's time, plus a starting epoch. */
-export function schedulerClock(scheduler: FakeScheduler, epoch = 1_800_000_000_000): Clock {
+function schedulerClock(scheduler: FakeScheduler, epoch = 1_800_000_000_000): Clock {
   return { now: () => epoch + scheduler.now };
 }
 
@@ -91,7 +91,7 @@ export class FakeTabs implements TabRegistry {
 }
 
 /** No OPFS and no localStorage: the workspace falls back to memory unless a test provides a store. */
-export const memoryOnlyStorage: DeviceStorage = {
+const memoryOnlyStorage: DeviceStorage = {
   opfsRoot: () => null,
   localStorage: () => null,
   persisted: async () => null,

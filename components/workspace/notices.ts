@@ -9,7 +9,7 @@ import { assertNever } from "../../lib/page/index.ts";
 import type { Recovery } from "../../lib/persist/index.ts";
 import { describeError, type WorkspaceNotice } from "../../lib/workspace/index.ts";
 
-export type Tone = "info" | "warn";
+type Tone = "info" | "warn";
 
 export interface NoticeCopy {
   readonly message: string;

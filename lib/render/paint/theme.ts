@@ -8,7 +8,7 @@ import { PALETTE } from "../palette.ts";
 import { heatFill } from "./heat.ts";
 
 /** How one character is painted under a lens. Unset fields mean ink, no background, weight 400. */
-export interface CellStyle {
+interface CellStyle {
   readonly color?: string;
   readonly background?: string;
   readonly weight?: number;

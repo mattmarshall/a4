@@ -34,15 +34,15 @@ export const MAX_IMPORT_HOPS = 4;
 export const DESCRIPTION_LIMIT = 1536;
 
 /** Auto memory's MEMORY.md loads at most this many lines… */
-export const MEMORY_LINES = 200;
+const MEMORY_LINES = 200;
 /** …and at most this many bytes (25 KB). */
-export const MEMORY_BYTES = 25 * 1024;
+const MEMORY_BYTES = 25 * 1024;
 
 /** Rows on the A4 Terminal page: a source's pages are its rows over these. */
 const PAGE_ROWS = 60;
 
 /** What the X-ray can't count, because it isn't a file it can read. */
-export const NOT_COUNTED: readonly string[] = [
+const NOT_COUNTED: readonly string[] = [
   "the agent's system prompt",
   "tool and MCP definitions",
   "plugin skills and subagents",
@@ -189,7 +189,7 @@ export function verdictOf(source: XraySource): VerdictId | null {
 }
 
 /** One source judged on the A4 Terminal page. */
-export function xraySource(input: XrayInput): XraySource {
+function xraySource(input: XrayInput): XraySource {
   const base = {
     kind: input.kind,
     path: input.path,

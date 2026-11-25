@@ -15,7 +15,7 @@
     "vinext": "^1.4.6"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.8",
+    "@biomejs/biome": "2.6.9",
     "@bufbuild/buf": "1.75.0",
     "@bufbuild/protoc-gen-es": "2.17.0",
     "@cloudflare/vite-plugin": "2.0.0-rc.3",
@@ -25,7 +25,7 @@
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
     "@vitejs/plugin-rsc": "^0.5.39",
-    "cf": "1.0.0-rc.4",
+    "cf": "1.0.0-rc.5",
     "dependency-cruiser": "18.9.0",
     "knip": "6.48.0",
     "stylelint": "18.1.0",
@@ -43,7 +43,7 @@
     "test": "node --test 'lib/**/*.test.ts' 'components/**/*.test.ts' 'cli/**/*.test.ts'",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.core.json",
     "lint": "pnpm lint:code && pnpm lint:deps && pnpm lint:unused && pnpm lint:css && pnpm lint:casts && pnpm lint:element-types",
-    "lint:code": "biome check .",
+    "lint:code": "biome check --error-on-warnings .",
     "lint:deps": "depcruise app cli components lib scripts types",
     "lint:unused": "knip --no-progress",
     "lint:css": "stylelint \"app/**/*.css\" \"components/**/*.css\"",

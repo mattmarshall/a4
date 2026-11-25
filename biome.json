@@ -54,15 +54,15 @@
     "rules": {
       "preset": "recommended",
       "a11y": {
-        "useSemanticElements": "warn"
+        "useSemanticElements": "error"
       },
       "correctness": {
         "noUnusedImports": "error"
       },
       "style": {
-        "noNonNullAssertion": "warn",
+        "noNonNullAssertion": "error",
         "useImportType": "error",
-        "noNestedTernary": "warn"
+        "noNestedTernary": "error"
       },
       "nursery": {
         "noFloatingPromises": "error"
@@ -70,6 +70,16 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["**/*.test.ts", "**/*.test.tsx", "**/testing/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    },
     {
       "includes": ["lib/**", "!lib/platform/**", "!lib/render/**", "!lib/models/**", "!**/*.test.ts", "!**/testing/**"],
       "plugins": ["./biome/platform-globals.grit"],

@@ -7,9 +7,9 @@
  */
 
 import { toJsonString } from "@bufbuild/protobuf";
+import { OUTCOME_WORD, stackProblems, stackUse } from "../components/desk-copy.ts";
 import {
   isStackName,
-  LabelProblem,
   readLetters,
   readStack,
   readStacks,
@@ -18,66 +18,18 @@ import {
   StackListSchema,
   STACKS_DIR,
 } from "../lib/desk/index.ts";
-import { LintOutcome, Unreadable } from "../lib/desk/lint.ts";
 import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
 import { folderArg, latestText } from "./letters.ts";
 import { UsageError } from "./usage.ts";
 
-const OUTCOME: Record<LintOutcome, string> = {
-  [LintOutcome.UNSPECIFIED]: "?",
-  [LintOutcome.PASS]: "pass",
-  [LintOutcome.WARN]: "warn",
-  [LintOutcome.FAIL]: "fail",
-};
-
-const LABEL_PROBLEM: Record<LabelProblem, string> = {
-  [LabelProblem.UNSPECIFIED]: "",
-  [LabelProblem.MISSING]: "no label: stack.json is missing",
-  [LabelProblem.UNREADABLE]: "no label: stack.json isn’t a stack label",
-  [LabelProblem.NO_BUDGET]: "no budget: stack.json gives no page budget",
-};
-
-const UNREADABLE: Record<Unreadable, string> = {
-  [Unreadable.UNSPECIFIED]: "can’t be read",
-  [Unreadable.TOO_LARGE]: "is larger than 1 MiB",
-  [Unreadable.NOT_UTF8]: "isn’t UTF-8 text",
-};
-
-const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 /** A page's file name within its stack. */
 const fileName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
-
-/** "1.75 of 3 pages", or "1.75 pages" without a budget. */
-export function stackUse(report: StackReport): string {
-  const budget = report.labelProblem === LabelProblem.UNSPECIFIED ? report.label?.budgetPages : undefined;
-  return budget ? `${report.pagesUsed} of ${plural(budget, "page")}` : plural(report.pagesUsed, "page");
-}
-
-/** Every problem with a stack, most severe first: budget, pages over, unreadable pages, the label, lines said twice. */
-export function stackProblems(report: StackReport): string[] {
-  const problems: string[] = [];
-  if (report.overByPages > 0) problems.push(`${plural(report.overByPages, "page")} over its budget`);
-  for (const page of report.pages) {
-    if (page.unreadable !== Unreadable.UNSPECIFIED)
-      problems.push(`${fileName(page.path)} ${UNREADABLE[page.unreadable]}`);
-    else if (page.rowsUsed > page.pageRows) {
-      problems.push(`${fileName(page.path)} is ${plural(page.rowsUsed - page.pageRows, "row")} over its page`);
-    }
-  }
-  if (report.labelProblem !== LabelProblem.UNSPECIFIED) problems.push(LABEL_PROBLEM[report.labelProblem]);
-  for (const line of report.repeatedLines) {
-    const where = line.pages.map((p, i) => `${fileName(p)}:${line.lines[i] ?? 0}`).join(" and ");
-    problems.push(`a line repeats on ${where}`);
-  }
-  return problems;
-}
 
 /** A stack's line in a report: outcome, use, path, and its most severe problem. */
 export function stackRow(report: StackReport, prefix = ""): [string, string, string, string] {
   const [first] = stackProblems(report);
   const path = `${prefix}${STACKS_DIR}/${report.name}/`;
-  return [OUTCOME[report.outcome], stackUse(report), path, first ? ` — ${first}` : ""];
+  return [OUTCOME_WORD[report.outcome], stackUse(report), path, first ? ` — ${first}` : ""];
 }
 
 export interface StacksArgs {
@@ -96,7 +48,7 @@ export async function runStacks(args: StacksArgs): Promise<number> {
     process.stdout.write(`No stacks in ${STACKS_DIR}/.\n`);
     return 0;
   }
-  const rows = stacks.map(({ report }) => [OUTCOME[report.outcome], stackUse(report), report.name]);
+  const rows = stacks.map(({ report }) => [OUTCOME_WORD[report.outcome], stackUse(report), report.name]);
   const width = (i: number) => Math.max(...rows.map((r) => (r[i] ?? "").length));
   const lines: string[] = [];
   stacks.forEach(({ report }, i) => {

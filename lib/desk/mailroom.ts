@@ -27,7 +27,7 @@ import { paperEnum } from "../tensor/record.ts";
 import { judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
 import { latestDelivery, letterDigest, letterPathAt, LetterState, type ReadLetter } from "./letters.ts";
 
-export type { FiledLetter, LetterDelivery, PageCheck } from "../gen/a4/v1/mailroom_pb.js";
+export type { FiledLetter, LetterDelivery } from "../gen/a4/v1/mailroom_pb.js";
 export { FiledLetterSchema, FilingRefusal, LetterDeliverySchema, PageCheckSchema } from "../gen/a4/v1/mailroom_pb.js";
 
 const OUTCOME: Record<Outcome, LintOutcome> = {

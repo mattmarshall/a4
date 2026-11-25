@@ -13,12 +13,10 @@ export { MAX_FILE_BYTES, SCAN_ENTRY_LIMIT } from "../persist/store/folder.ts";
 export {
   BrokenSeal,
   compareLetterNames,
-  type Delivery,
   isLetterPath,
   latestDelivery,
   type Letter,
   letterDigest,
-  type LetterList,
   letterList,
   LetterListSchema,
   letterPathAt,
@@ -34,24 +32,20 @@ export {
   readLetters,
   sealLetter,
   type SealOptions,
-  type SealRefusal,
   SealRefusedError,
 } from "./letters.ts";
-export { DESK_PAGE, deskPage, judge, judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
+export { DESK_PAGE, deskPage, judge, judgeFile, outcomeOf } from "./judge.ts";
 export {
   isStackName,
   LabelProblem,
   LintOutcome,
-  type ReadStack,
   readStack,
   readStacks,
-  type StackLabel,
-  type StackList,
   stackList,
   StackListSchema,
-  type StackPage,
   type StackReport,
   STACKS_DIR,
+  Unreadable,
 } from "./stacks.ts";
 // Lint (./lint.ts) isn't re-exported: only the a4 command uses it, and it
 // imports lint.ts directly, so the app's first load doesn't carry it.

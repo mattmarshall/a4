@@ -9,7 +9,8 @@
 
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { useEffect, useRef, useState } from "react";
-import { BrokenSeal, type Letter, LetterState, LetterVerdict } from "@/lib/desk";
+import { type Letter, LetterState, LetterVerdict } from "@/lib/desk";
+import { BROKEN_SEAL_REASON } from "./desk-copy";
 import styles from "./SealDialog.module.css";
 
 export type SealVerdict = "accepted" | "returned";
@@ -119,13 +120,6 @@ export function SealDialog({ open, letterName, overBy, signer, onSeal, onClose }
   );
 }
 
-const BROKEN: Record<BrokenSeal, string> = {
-  [BrokenSeal.UNSPECIFIED]: "the seal can’t be checked",
-  [BrokenSeal.CHANGED]: "the letter changed after it was sealed",
-  [BrokenSeal.UNREADABLE_POSTMARK]: "its postmark can’t be read",
-  [BrokenSeal.UNREADABLE_LETTER]: "the letter can’t be read",
-};
-
 function sealedWhen(letter: Letter): string {
   const at = letter.postmark?.sealedAt;
   if (!at) return "";
@@ -144,7 +138,7 @@ export function SealedChip({ letter }: { letter: Letter }) {
   if (letter.state === LetterState.BROKEN) {
     return (
       <span className={styles.chip} data-state="broken" role="status">
-        Seal broken: {BROKEN[letter.broken]}. It won’t be delivered.
+        Seal broken: the letter {BROKEN_SEAL_REASON[letter.broken]}. It won’t be delivered.
       </span>
     );
   }

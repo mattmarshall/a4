@@ -18,16 +18,9 @@
 import { type JsonObject, type JsonValue, toJson } from "@bufbuild/protobuf";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
 import { describeFinding, VERDICT_LABEL } from "../components/analysis-copy.ts";
+import { BROKEN_SEAL_REASON } from "../components/desk-copy.ts";
 import { TEMPLATES } from "../lib/content/index.ts";
-import {
-  BrokenSeal,
-  DESK_PAGE,
-  type Letter,
-  LETTERS_DIR,
-  LetterState,
-  outcomeOf,
-  readLetters,
-} from "../lib/desk/index.ts";
+import { DESK_PAGE, type Letter, LETTERS_DIR, LetterState, outcomeOf, readLetters } from "../lib/desk/index.ts";
 import {
   type Checked,
   checkPage,
@@ -204,13 +197,6 @@ function checkText({ check, judgment }: Checked): string {
 
 const nameOf = (letter: Letter) => letter.path.slice(LETTERS_DIR.length + 1);
 
-const BROKEN: Record<BrokenSeal, string> = {
-  [BrokenSeal.UNSPECIFIED]: "it can't be checked",
-  [BrokenSeal.CHANGED]: "the letter changed after it was sealed",
-  [BrokenSeal.UNREADABLE_POSTMARK]: "its postmark can't be read",
-  [BrokenSeal.UNREADABLE_LETTER]: "the letter can't be read",
-};
-
 /** Where a delivered letter came from, and what was returned since. */
 function provenance(delivery: LetterDelivery): string {
   const letter = delivery.letter;
@@ -236,7 +222,7 @@ function notDelivered(letter: Letter): string {
     case LetterState.RETURNED:
       return `${name} was returned by ${letter.postmark?.signer ?? "its signer"}: ${letter.postmark?.reason ?? ""}. It isn't delivered.`;
     case LetterState.BROKEN:
-      return `${name}'s seal is broken: ${BROKEN[letter.broken]}. It isn't delivered.`;
+      return `${name}'s seal is broken: the letter ${BROKEN_SEAL_REASON[letter.broken]}. It isn't delivered.`;
     default:
       return `${name} can't be delivered.`;
   }

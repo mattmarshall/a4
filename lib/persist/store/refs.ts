@@ -16,8 +16,8 @@ declare const filePathBrand: unique symbol;
 /** A validated relative path to a Markdown file in a folder. */
 export type FilePath = string & { readonly [filePathBrand]: true };
 
-export const MAX_PATH_LENGTH = 512;
-export const FILE_EXTENSIONS = [".md", ".mdc"] as const;
+const MAX_PATH_LENGTH = 512;
+const FILE_EXTENSIONS = [".md", ".mdc"] as const;
 
 // Control characters and backslashes are never part of a path we accept.
 // biome-ignore lint/suspicious/noControlCharactersInRegex: this regex exists to reject control characters.
@@ -50,7 +50,7 @@ export function parseFilePath(input: string): FilePath {
 }
 
 /** Like `parseFilePath`, but null instead of throwing. */
-export function tryParseFilePath(input: string): FilePath | null {
+function tryParseFilePath(input: string): FilePath | null {
   try {
     return parseFilePath(input);
   } catch (error) {

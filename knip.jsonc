@@ -8,11 +8,9 @@
     "scripts/*.ts",
     // The a4 command (pnpm a4).
     "cli/*.ts",
-    "cloudflare.config.ts",
-    // The standalone <a4-sheet> build (pnpm build:element).
-    "vite.element.config.ts"
+    "cloudflare.config.ts"
   ],
-  "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.ts", "cli/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
+  "project": ["app/**/*.{ts,tsx,css}", "components/**/*.{ts,tsx,css}", "lib/**/*.ts", "cli/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
   "ignore": [
     // The fixture pairs the semantic thresholds were calibrated on (see the
     // archived changes' calibration.md). Calibration runs by hand in the
@@ -21,12 +19,10 @@
   ],
   "ignoreDependencies": [
     // vinext provides the next/* modules.
-    "next",
-    // Imported from app/globals.css, which knip doesn't read.
-    "tailwindcss"
+    "next"
   ],
-  // Unused files and dependencies fail; unused exports are reported until the
-  // refactors that touch each area remove them.
+  // Every finding fails: an export nothing imports is either removed or kept
+  // module-private.
   "rules": {
     "files": "error",
     "dependencies": "error",
@@ -34,11 +30,11 @@
     "unlisted": "error",
     "binaries": "error",
     "unresolved": "error",
-    "exports": "warn",
-    "types": "warn",
-    "nsExports": "warn",
-    "nsTypes": "warn",
-    "enumMembers": "warn",
-    "duplicates": "warn"
+    "exports": "error",
+    "types": "error",
+    "nsExports": "error",
+    "nsTypes": "error",
+    "enumMembers": "error",
+    "duplicates": "error"
   }
 }

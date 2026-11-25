@@ -14,6 +14,5 @@ export {
   type StorageInfo,
   type WorkspaceNotice,
   type WorkspaceSnapshot,
-  type WorkspaceStatus,
 } from "./types.ts";
-export { Workspace, type WorkspaceOptions } from "./workspace.ts";
+export { Workspace } from "./workspace.ts";

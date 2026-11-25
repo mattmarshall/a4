@@ -9,7 +9,7 @@ function errorName(error: unknown): string | undefined {
 }
 
 /** The one place DOMException names become FsError codes. */
-export function toFsError(error: unknown, path: string): FsError {
+function toFsError(error: unknown, path: string): FsError {
   if (error instanceof FsError) return error;
   const name = errorName(error);
   const message = error instanceof Error ? error.message : String(error);

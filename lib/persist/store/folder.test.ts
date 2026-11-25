@@ -51,7 +51,7 @@ test("a byte-order mark round-trips as U+FEFF", async () => {
   root.put("AGENTS.md", new Uint8Array([0xef, 0xbb, 0xbf, 0x68, 0x69, 0x0d, 0x0a]));
   const page = await store.read(p("AGENTS.md"));
   assert.equal(page.text, "﻿hi\r\n");
-  await store.write(p("AGENTS.md"), page.text + "more\r\n", page.revision);
+  await store.write(p("AGENTS.md"), `${page.text}more\r\n`, page.revision);
   const bytes = new Uint8Array(await (await root.fileAt("AGENTS.md")!.getFile()).arrayBuffer());
   assert.deepEqual([...bytes.slice(0, 3)], [0xef, 0xbb, 0xbf]);
   assert.equal(root.fileAt("AGENTS.md")!.text, "﻿hi\r\nmore\r\n");

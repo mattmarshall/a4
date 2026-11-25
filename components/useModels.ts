@@ -18,7 +18,7 @@ import {
 } from "@/lib/models";
 import type { PageSpec } from "@/lib/page";
 
-export type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
+type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
 
 export interface ModelsState {
   status: Record<string, ModelStatus>;

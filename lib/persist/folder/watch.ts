@@ -15,7 +15,7 @@ import type { Page } from "../store/types.ts";
 import type { ConnectedFolder } from "./access.ts";
 import type { FileStat } from "./fs.ts";
 
-export const POLL_MS = 1000;
+const POLL_MS = 1000;
 
 interface Watched {
   path: FilePath;

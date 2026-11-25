@@ -7,8 +7,8 @@
 import { stat } from "node:fs/promises";
 import { resolve } from "node:path";
 import { toJsonString } from "@bufbuild/protobuf";
+import { BROKEN_SEAL_REASON, LETTER_STATE_LABEL } from "../components/desk-copy.ts";
 import {
-  BrokenSeal,
   deskPage,
   latestDelivery,
   LETTERS_DIR,
@@ -28,21 +28,6 @@ export interface LettersArgs {
   readonly json: boolean;
 }
 
-const LETTER_STATE: Record<LetterState, string> = {
-  [LetterState.UNSPECIFIED]: "?",
-  [LetterState.DRAFT]: "draft",
-  [LetterState.ACCEPTED]: "accepted",
-  [LetterState.RETURNED]: "returned",
-  [LetterState.BROKEN]: "broken",
-};
-
-const BROKEN_NOTE: Record<BrokenSeal, string> = {
-  [BrokenSeal.UNSPECIFIED]: "seal can’t be checked",
-  [BrokenSeal.CHANGED]: "changed after it was sealed",
-  [BrokenSeal.UNREADABLE_POSTMARK]: "postmark can’t be read",
-  [BrokenSeal.UNREADABLE_LETTER]: "letter can’t be read",
-};
-
 const nameOf = (letter: ReadLetter) => letter.letter.path.slice(LETTERS_DIR.length + 1);
 
 /** One line per letter, oldest first, each with its rows out of its own size's. */
@@ -51,9 +36,9 @@ function lettersText(letters: readonly ReadLetter[]): string {
   const rows = letters.map((l) => {
     const { state, rowsUsed, postmark, broken, path } = l.letter;
     let note = "";
-    if (state === LetterState.BROKEN) note = `(${BROKEN_NOTE[broken]})`;
+    if (state === LetterState.BROKEN) note = `(${BROKEN_SEAL_REASON[broken]})`;
     else if (postmark) note = postmark.reason ? `${postmark.signer}: ${postmark.reason}` : postmark.signer;
-    return [LETTER_STATE[state], `${rowsUsed}/${deskPage(sizeOfName(path)).rows}`, nameOf(l), note];
+    return [LETTER_STATE_LABEL[state].toLowerCase(), `${rowsUsed}/${deskPage(sizeOfName(path)).rows}`, nameOf(l), note];
   });
   const width = (i: number) => Math.max(...rows.map((r) => (r[i] ?? "").length));
   return `${rows

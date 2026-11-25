@@ -33,9 +33,8 @@ import { paperEnum } from "../tensor/record.ts";
 import { judgeFile, outcomeOf, type Outcome } from "./judge.ts";
 import { compareLetterNames } from "./letters.ts";
 
-export type { StackLabel } from "../gen/a4/v1/stack_pb.js";
-export type { StackList, StackPage, StackReport } from "../gen/a4/v1/lint_pb.js";
-export { LabelProblem, LintOutcome, StackListSchema } from "../gen/a4/v1/lint_pb.js";
+export type { StackList, StackReport } from "../gen/a4/v1/lint_pb.js";
+export { LabelProblem, LintOutcome, StackListSchema, Unreadable } from "../gen/a4/v1/lint_pb.js";
 export { isStackName, STACKS_DIR } from "../persist/folder/scan.ts";
 
 /** A stack's label file, beside its pages. */

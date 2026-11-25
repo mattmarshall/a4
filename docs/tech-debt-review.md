@@ -38,6 +38,36 @@ were then checked against the code.
 | 8 | `refactor-styles` | `402e8ca` | C1–C5, A8 |
 | 9 | `fix-review-leftovers` | `ab32c5c` | S5–S7, S12, the rest of U12 and U13, A11 |
 
+### Paydown after the platform roadmap (2026-11-25)
+
+The four roadmap changes in [platform.md](platform.md) added debt of their
+own. One round paid it down before the "Later" work starts:
+- **One wording for the desk.** Letter states, broken seals, lint outcomes,
+  unreadable files, and stack problems are written once, in
+  `components/desk-copy.ts`. The app, the `a4` command, and the mailroom all
+  use it, so they say the same thing.
+- **A smaller Library panel.** `LibraryPanel.tsx` went from 885 lines to 317.
+  The folder section moved to `components/library/FolderSection.tsx`, and
+  the helpers it shares with the panel moved to `components/library/shared.ts`.
+- **Lint fails on warnings.** The 43 warnings are fixed, and
+  `pnpm lint:code` now runs with `--error-on-warnings`.
+  - Nested ternaries became lookups or small helpers.
+  - Groups of controls are `<fieldset>`s, and the lens legend is a
+    `<figure>`.
+  - Only test files may use `!`. Biome's fix for `!` swaps it for `?.`, which
+    would quietly skip the check.
+- **Knip fails on every finding.** The 93 unused exports and 56 unused types
+  were made module-private or deleted. The three configuration hints are
+  applied, so knip now reads the CSS files.
+- **Patch bumps:** Biome 2.6.9 and `cf` 1.0.0-rc.5. `onnxruntime-web` stays
+  pinned, because `@huggingface/transformers` pins it.
+
+**What the Later work starts from:**
+- A server-backed desk can reuse the store contract suites in
+  `lib/persist/store/testing/contract.ts` as they are.
+- Third-party pens and overlays are feature work, not debt: the plugin
+  manifest only lists bundled plugins, by design.
+
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.
 

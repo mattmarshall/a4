@@ -39,13 +39,13 @@ import type { Journal } from "./journal.ts";
  * is one for `Id = PageName`; folder files are not, so a file session can't
  * follow a copy in its own store.
  */
-export type SameStorePages<Id extends string> = PageFiles<Id> & {
+type SameStorePages<Id extends string> = PageFiles<Id> & {
   /** Create a page under a free variant of `desired`, claimed under its lock (`PageStore.createUnique`). */
   createUnique(desired: string, text: string): Promise<WriteResult<Id & PageName>>;
 };
 
 /** Text that can't be saved over its page follows a copy in the same store. */
-export interface SameStorePolicy<Id extends string> {
+interface SameStorePolicy<Id extends string> {
   readonly kind: "same-store";
   readonly store: SameStorePages<Id>;
 }
@@ -87,10 +87,10 @@ export const realScheduler: Scheduler = {
   clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>),
 };
 
-export const DEBOUNCE_MS = 600;
-export const MAX_WAIT_MS = 4000;
-export const RETRY_BASE_MS = 1000;
-export const RETRY_MAX_MS = 30000;
+const DEBOUNCE_MS = 600;
+const MAX_WAIT_MS = 4000;
+const RETRY_BASE_MS = 1000;
+const RETRY_MAX_MS = 30000;
 
 /** Timing and events, shared by every kind of session. */
 export interface PageSessionOptions<Id extends string = PageName> {

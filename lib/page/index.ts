@@ -18,7 +18,6 @@ export {
   PX_PER_MM_ACTUAL,
   rowTop,
   textureDensity,
-  type FitOptions,
   type PaperId,
 } from "./geometry.ts";
 export {

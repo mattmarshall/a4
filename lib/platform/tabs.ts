@@ -14,7 +14,7 @@ export interface TabRegistry {
 const PREFIX = "a4:tab:";
 
 /** Liveness unknown: recovery then waits until drafts are stale. */
-export const unknownTabs: TabRegistry = {
+const unknownTabs: TabRegistry = {
   hold: () => {},
   live: async () => null,
 };

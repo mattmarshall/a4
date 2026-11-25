@@ -29,9 +29,9 @@ import {
   type WriteResult,
 } from "./types.ts";
 
-export const OPFS_APP_DIR = "a4";
-export const OPFS_PAGES_DIR = "pages";
-export const OPFS_TRASH_DIR = "trash";
+const OPFS_APP_DIR = "a4";
+const OPFS_PAGES_DIR = "pages";
+const OPFS_TRASH_DIR = "trash";
 
 function isNotFound(error: unknown): boolean {
   return (

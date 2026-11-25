@@ -5,7 +5,6 @@
  * for tests) is the workspace's, which imports those modules directly.
  */
 
-export type { ConnectedFolder, FolderState } from "./access.ts";
 export { browserFolderSource } from "./fs-browser.ts";
-export type { FolderFs, FolderSource } from "./fs.ts";
-export { PAGE_ROWS, type FolderFile } from "./scan.ts";
+export type { FolderFs } from "./fs.ts";
+export type { FolderFile } from "./scan.ts";

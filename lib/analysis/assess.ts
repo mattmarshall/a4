@@ -36,8 +36,6 @@ export type Finding =
   | { readonly id: "room"; readonly severity: "info"; readonly tokens: number }
   | { readonly id: "clean"; readonly severity: "info" };
 
-export type FindingId = Finding["id"];
-
 export interface Assessment {
   /** How each judged metric reads; the verdict, findings, and bars all use it. */
   readonly signals: Signals;
@@ -46,7 +44,7 @@ export interface Assessment {
 }
 
 /** The first verdict that applies, in the order density-analysis "Verdict" gives. */
-export function verdictFor(m: Metrics, s: Signals, config: AnalysisConfig): VerdictId {
+function verdictFor(m: Metrics, s: Signals, config: AnalysisConfig): VerdictId {
   if (m.ink === 0) return "empty";
   if (m.overflow > 0) return "overflowing";
   if (s.syntax === "bad" || s.repetition === "bad" || s.duplicates === "bad") return "noisy";
@@ -57,7 +55,7 @@ export function verdictFor(m: Metrics, s: Signals, config: AnalysisConfig): Verd
   return "balanced";
 }
 
-export function findingsFor(m: Metrics, verdict: VerdictId, s: Signals, config: AnalysisConfig): Finding[] {
+function findingsFor(m: Metrics, verdict: VerdictId, s: Signals, config: AnalysisConfig): Finding[] {
   const out: Finding[] = [];
 
   if (verdict === "empty") return [{ id: "empty", severity: "info" }];

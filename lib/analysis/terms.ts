@@ -1,6 +1,6 @@
 /** Terms and repetition: which words the page keeps saying. */
 
-export const STOPWORDS = new Set(
+const STOPWORDS = new Set(
   (
     "the and for are but not you all any can had her was one our out has have him his how its " +
     "may new now own see two way who did get let put say she too use that this with from they " +

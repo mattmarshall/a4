@@ -4,7 +4,7 @@ import { fileGroup, isContextFile, isLetterPath, PAGE_ROWS, scanFolder, stackOfP
 import { browserFixture, nodeFixture, type FolderFixture } from "./testing/fixtures.ts";
 
 const lines = (n: number) =>
-  Array.from({ length: n }, (_, i) => `Line ${i + 1} of the agent context.`).join("\n") + "\n";
+  `${Array.from({ length: n }, (_, i) => `Line ${i + 1} of the agent context.`).join("\n")}\n`;
 
 test("context file patterns", () => {
   for (const path of [

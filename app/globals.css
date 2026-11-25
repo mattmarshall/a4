@@ -160,6 +160,15 @@
     color: inherit;
   }
 
+  /* Groups of controls are fieldsets and the lens legend is a figure; each keeps its class's box. */
+  fieldset,
+  figure {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    min-inline-size: 0;
+  }
+
   a4-sheet {
     --a4-font: var(--font-mono);
     --a4-desk: var(--desk);

@@ -82,15 +82,15 @@ export interface NumberAttribute extends AttributeBase<number> {
   /** The slider step in the 3D controls. */
   readonly step: number;
 }
-export interface FlagAttribute extends AttributeBase<boolean> {
+interface FlagAttribute extends AttributeBase<boolean> {
   readonly kind: "flag";
 }
-export interface LensAttribute extends AttributeBase<LensAttr> {
+interface LensAttribute extends AttributeBase<LensAttr> {
   readonly kind: "lens";
   /** The built-in lenses; any other value is `model:<plane>`. */
   readonly values: readonly LensId[];
 }
-export interface ZoomAttribute extends AttributeBase<number | null> {
+interface ZoomAttribute extends AttributeBase<number | null> {
   readonly kind: "zoom";
   readonly min: number;
   readonly max: number;
@@ -236,7 +236,7 @@ export const ATTRIBUTES = {
   },
 } as const satisfies Record<string, AttributeSpec>;
 
-export type A4AttributeKey = keyof typeof ATTRIBUTES;
+type A4AttributeKey = keyof typeof ATTRIBUTES;
 export type A4AttributeName = (typeof ATTRIBUTES)[A4AttributeKey]["name"];
 /** Every attribute's parsed value, keyed like `ATTRIBUTES`. */
 export type A4Attributes = { [K in A4AttributeKey]: ReturnType<(typeof ATTRIBUTES)[K]["parse"]> };

@@ -196,7 +196,7 @@ export class StoreUnavailableError extends PageStoreError {
 }
 
 /** Text that isn't well-formed Unicode (a lone surrogate) can't be stored exactly. */
-export class InvalidTextError extends PageStoreError {
+class InvalidTextError extends PageStoreError {
   override readonly code = "invalid-text";
   readonly page: string;
   constructor(page: string) {

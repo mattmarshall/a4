@@ -28,14 +28,14 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1_000_000).toFixed(1)} MB`;
 }
 
-export function whereItRuns(card: ModelCard): string {
+function whereItRuns(card: ModelCard): string {
   const host = remoteHost(card);
   if (host !== null) return `Sends the page to ${host}, only after you confirm each request`;
   return "Runs in your browser; page text stays on this device";
 }
 
 /** A swatch showing the exact tint a value gets on the plane's sheet. */
-export function HeatSwatch({ plane, value }: { plane: PlaneInfo; value: number }) {
+function HeatSwatch({ plane, value }: { plane: PlaneInfo; value: number }) {
   const fill = heatFill(planeLevel(plane, value));
   return (
     <span
@@ -80,31 +80,30 @@ export function SemanticSummaryView({
           ? "Rescoring…"
           : `${summary.restating === 0 ? "None" : summary.restating} of ${summary.units} ${label(SEMANTIC_NAMES.scores.units)} ${label(SEMANTIC_NAMES.scores.restating)} (${restates.toFixed(2)} or more).`}
       </span>
-      {!summary.stale ? (
-        summary.pairs.length ? (
-          <>
-            <span className={styles.status}>{pairsLabel}:</span>
-            <ol className={styles.pairs}>
-              {summary.pairs.map((pair) => (
-                <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
-                  <button
-                    type="button"
-                    className={styles.pair}
-                    data-restates={pair.value >= restates ? "" : undefined}
-                    onClick={() => onSelectPair(pair)}
-                    title="Select the later sentence"
-                  >
-                    <HeatSwatch plane={plane} value={pair.value} />
-                    <span className={styles.num}>{pair.value.toFixed(2)}</span>
-                    <span>{pair.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ol>
-          </>
-        ) : (
-          <span className={styles.status}>No pairs score {plane.min.toFixed(2)} or more.</span>
-        )
+      {!summary.stale && summary.pairs.length > 0 ? (
+        <>
+          <span className={styles.status}>{pairsLabel}:</span>
+          <ol className={styles.pairs}>
+            {summary.pairs.map((pair) => (
+              <li key={pair.spans.map((s) => `${s.start}-${s.end}`).join(" ")}>
+                <button
+                  type="button"
+                  className={styles.pair}
+                  data-restates={pair.value >= restates ? "" : undefined}
+                  onClick={() => onSelectPair(pair)}
+                  title="Select the later sentence"
+                >
+                  <HeatSwatch plane={plane} value={pair.value} />
+                  <span className={styles.num}>{pair.value.toFixed(2)}</span>
+                  <span>{pair.label}</span>
+                </button>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : null}
+      {!summary.stale && summary.pairs.length === 0 ? (
+        <span className={styles.status}>No pairs score {plane.min.toFixed(2)} or more.</span>
       ) : null}
     </div>
   );

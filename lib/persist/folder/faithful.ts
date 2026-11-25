@@ -202,7 +202,7 @@ export function toFile(raw: string, sheet: string): string {
   const target = sheet.split("\n");
   if (file.lines.length === 0) {
     // An empty file: write the sheet with LF endings and a final newline.
-    return (file.bom ? BOM : "") + target.join("\n") + "\n";
+    return `${file.bom ? BOM : ""}${target.join("\n")}\n`;
   }
   const base = file.lines.map((l) => normalizeLine(l.content));
   const matchOf = new Int32Array(target.length).fill(-1);

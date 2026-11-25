@@ -36,7 +36,7 @@ export interface SlotLibrary {
   readonly journal: Journal<PageName>;
 }
 
-export const EMPTY_SLOT: SlotSnapshot = {
+const EMPTY_SLOT: SlotSnapshot = {
   ref: null,
   name: null,
   label: null,

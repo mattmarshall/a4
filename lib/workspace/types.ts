@@ -67,13 +67,7 @@ export interface WorkspaceSnapshot {
 }
 
 /** What failed, for a `failed` notice. */
-export type WorkspaceAction =
-  | "list-folder"
-  | "recover-folder"
-  | "reopen-file"
-  | "open-folder"
-  | "reconnect-folder"
-  | "start";
+type WorkspaceAction = "list-folder" | "recover-folder" | "reopen-file" | "open-folder" | "reconnect-folder" | "start";
 
 /** Something the author should hear about. The UI turns each into a sentence and a tone. */
 export type WorkspaceNotice =

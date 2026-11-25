@@ -106,14 +106,14 @@ test("grid shape: an overflowing page keeps all 67 rows", () => {
 });
 
 test("row metadata: continuation flags", () => {
-  const g = encodeGrid("c".repeat(100) + "\nx", T);
+  const g = encodeGrid(`${"c".repeat(100)}\nx`, T);
   assert.deepEqual(g.rowLengths.slice(0, 3), [80, 20, 1]);
   assert.deepEqual(g.continuation.slice(0, 3), [false, true, false]);
   assert.equal(g.rowLengths[3], 0);
 });
 
 test("row metadata: a line of exactly one row", () => {
-  const g = encodeGrid("e".repeat(80) + "\ny", T);
+  const g = encodeGrid(`${"e".repeat(80)}\ny`, T);
   assert.equal(g.rowLengths[0], 80);
   assert.equal(rowText(g, 1), "y");
   assert.deepEqual(g.continuation.slice(0, 2), [false, false]);
@@ -130,7 +130,7 @@ test("lossless round trip: edge cases", () => {
     "\uD800",
     "😀😀",
     "x".repeat(160),
-    "x".repeat(160) + "\n",
+    `${"x".repeat(160)}\n`,
   ]) {
     assert.equal(decodeGrid(encodeGrid(text, T)), text);
   }
@@ -144,14 +144,14 @@ test("lossless round trip: empty page", () => {
 });
 
 test("offsets and cells: offset to cell", () => {
-  const rows = layoutRows("q".repeat(100) + "\nnext", 80);
+  const rows = layoutRows(`${"q".repeat(100)}\nnext`, 80);
   assert.deepEqual(offsetToCell(rows, 82), { row: 1, col: 2 });
   // A cell past a row's end maps to that row's end.
   assert.equal(cellToOffset(rows, 105, 1, 40), 100);
 });
 
 test("offsets and cells: span across rows", () => {
-  const rows = layoutRows("q".repeat(100) + "\nnext", 80);
+  const rows = layoutRows(`${"q".repeat(100)}\nnext`, 80);
   assert.deepEqual(spanToCells(rows, 78, 83), [
     { row: 0, col: 78, cols: 2 },
     { row: 1, col: 0, cols: 3 },

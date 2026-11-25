@@ -23,8 +23,8 @@ import { DESK_PAGE, judgeFile, type Judgment, type Outcome, outcomeOf } from "./
 import { isLetterPath } from "./letters.ts";
 import { readStacks, type StackReport } from "./stacks.ts";
 
-export type { LintedFile, LintReport } from "../gen/a4/v1/lint_pb.js";
-export { LintedFileSchema, LintOutcome, LintReportSchema, Unreadable } from "../gen/a4/v1/lint_pb.js";
+export type { LintReport } from "../gen/a4/v1/lint_pb.js";
+export { LintOutcome, LintReportSchema, Unreadable } from "../gen/a4/v1/lint_pb.js";
 
 const OUTCOME: Record<Outcome, LintOutcome> = {
   pass: LintOutcome.PASS,

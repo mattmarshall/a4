@@ -7,7 +7,7 @@
  * semantic lens.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeImport, MAX_IMPORT_FILE_BYTES } from "@/lib/archive";
 import { type LensId, pageSpec, sizeOfName } from "@/lib/page";
 import {
@@ -324,6 +324,23 @@ export function Workbench() {
   const showInspector = layout.inspector && !focus;
   const legendShown = Boolean(semantic.active) || lens !== "ink";
 
+  // A letter in the active slot: a draft can be sealed; anything else shows its seal.
+  let letterActions: ReactNode = null;
+  if (activeLetter && (page.readOnly || activeLetter.state !== LetterState.DRAFT)) {
+    letterActions = <SealedChip letter={activeLetter} />;
+  } else if (activeLetter) {
+    letterActions = (
+      <button
+        type="button"
+        className="btn btn-outline"
+        onClick={() => setSealing(true)}
+        title="Accept or return this letter"
+      >
+        Seal…
+      </button>
+    );
+  }
+
   return (
     <div className="app" data-focus={focus ? "" : undefined} data-print="flow">
       {!focus ? (
@@ -405,27 +422,12 @@ export function Workbench() {
           onEdit={lib.edit}
           onActivate={setActive}
           onRender={onSheetRender}
-          deskActions={
-            activeLetter ? (
-              page.readOnly || activeLetter.state !== LetterState.DRAFT ? (
-                <SealedChip letter={activeLetter} />
-              ) : (
-                <button
-                  type="button"
-                  className="btn btn-outline"
-                  onClick={() => setSealing(true)}
-                  title="Accept or return this letter"
-                >
-                  Seal…
-                </button>
-              )
-            ) : null
-          }
+          deskActions={letterActions}
         >
           {legendShown && !focus ? (
-            <div className="lens-chip" role="group" aria-label="Lens legend" data-print="hide">
+            <figure className="lens-chip" aria-label="Lens legend" data-print="hide">
               <LensLegend lens={lens} model={semantic.legend} />
-            </div>
+            </figure>
           ) : null}
           {focus ? (
             <div className="focus-bar" data-print="hide">

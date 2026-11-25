@@ -11,7 +11,7 @@ export const FOLD_TIMELINE = { bottom: 0.9, top: 0.9, hold: 1.1 } as const;
 
 export const FOLD_DURATION = 2 * (FOLD_TIMELINE.bottom + FOLD_TIMELINE.top) + FOLD_TIMELINE.hold;
 
-export function easeInOut(t: number): number {
+function easeInOut(t: number): number {
   const c = Math.min(1, Math.max(0, t));
   return c < 0.5 ? 4 * c * c * c : 1 - (-2 * c + 2) ** 3 / 2;
 }

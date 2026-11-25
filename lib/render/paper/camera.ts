@@ -5,9 +5,9 @@
 
 import type { Vec3 } from "./deform.ts";
 
-export type Mat4 = Float32Array;
+type Mat4 = Float32Array;
 
-export function multiply(a: Mat4, b: Mat4): Mat4 {
+function multiply(a: Mat4, b: Mat4): Mat4 {
   const out = new Float32Array(16);
   for (let c = 0; c < 4; c++) {
     for (let r = 0; r < 4; r++) {
@@ -19,7 +19,7 @@ export function multiply(a: Mat4, b: Mat4): Mat4 {
   return out;
 }
 
-export function invert(m: Mat4): Mat4 {
+function invert(m: Mat4): Mat4 {
   const inv = new Float32Array(16);
   const [a00, a01, a02, a03, a10, a11, a12, a13, a20, a21, a22, a23, a30, a31, a32, a33] = m;
   const b00 = a00 * a11 - a01 * a10;
@@ -56,7 +56,7 @@ export function invert(m: Mat4): Mat4 {
   return inv;
 }
 
-export function transformPoint(m: Mat4, p: Vec3): [number, number, number, number] {
+function transformPoint(m: Mat4, p: Vec3): [number, number, number, number] {
   const [x, y, z] = p;
   return [
     m[0] * x + m[4] * y + m[8] * z + m[12],
@@ -112,7 +112,7 @@ export interface Camera {
   eye: Vec3;
 }
 
-export const FOV_Y = (30 * Math.PI) / 180;
+const FOV_Y = (30 * Math.PI) / 180;
 
 export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight, paper }: CameraOptions): Camera {
   const t = (tilt * Math.PI) / 180;

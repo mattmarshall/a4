@@ -256,7 +256,7 @@ export class FakeDirectoryHandle {
     checkAccess(this.volume, this.removed, this.name);
     const entries = [...this.children.values()];
     if (this.volume.listOrder === "reverse") entries.reverse();
-    if (this.volume.listOrder === "sorted") entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
+    if (this.volume.listOrder === "sorted") entries.sort((a, b) => Number(a.name > b.name) - Number(a.name < b.name));
     for (const entry of entries) yield [entry.name, entry];
   }
 

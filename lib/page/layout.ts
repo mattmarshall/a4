@@ -27,7 +27,7 @@ export interface VisualRow {
 }
 
 /** Rows a logical line of `length` characters occupies at `cols` columns. */
-export function rowsForLength(length: number, cols: number): number {
+function rowsForLength(length: number, cols: number): number {
   return Math.max(1, Math.ceil(length / cols));
 }
 

@@ -77,7 +77,7 @@ export function SheetControls({
   onReset: () => void;
 }) {
   return (
-    <div className="sheet-controls" role="group" aria-label="3D controls">
+    <fieldset className="sheet-controls" aria-label="3D controls">
       <div className="ctl-group">
         <span className="ctl-title eyebrow">{compare ? `Sheet ${active.toUpperCase()}` : "Sheet"}</span>
         <button type="button" className="btn btn-outline" onClick={onFold}>
@@ -129,6 +129,6 @@ export function SheetControls({
           Reset
         </button>
       </div>
-    </div>
+    </fieldset>
   );
 }

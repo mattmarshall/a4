@@ -12,7 +12,7 @@ import { InvalidPageNameError, type IdCodec, type PageName } from "./types.ts";
 export const PAGE_EXTENSION = ".md";
 
 export const MAX_NAME_LENGTH = 80;
-export const DEFAULT_PAGE_NAME = "Untitled";
+const DEFAULT_PAGE_NAME = "Untitled";
 
 // biome-ignore lint/suspicious/noControlCharactersInRegex: page names must not contain control characters.
 const FORBIDDEN = /[/\\:*?"<>|\u0000-\u001f\u007f]/;
@@ -61,15 +61,6 @@ export const pageNameCodec: IdCodec<PageName> = {
   parse: storedPageName,
   format: (name) => name,
 };
-
-export function isValidPageName(input: string): boolean {
-  try {
-    parsePageName(input);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** Coerce arbitrary text into a valid page name; the result always parses. */
 export function sanitizePageName(input: string, fallback: string = DEFAULT_PAGE_NAME): PageName {
