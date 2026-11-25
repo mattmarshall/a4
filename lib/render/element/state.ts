@@ -38,6 +38,7 @@ export interface SheetState {
   readonly zoom: number | null;
   readonly grid: boolean;
   readonly label: string;
+  readonly readOnly: boolean;
 }
 
 export const INITIAL_STATE: SheetState = {
@@ -50,6 +51,7 @@ export const INITIAL_STATE: SheetState = {
   zoom: ATTRIBUTES.zoom.default,
   grid: ATTRIBUTES.grid.default,
   label: ATTRIBUTES.label.default,
+  readOnly: ATTRIBUTES.readOnly.default,
 };
 
 export type SheetAction =
@@ -112,6 +114,8 @@ function applyAttribute(state: SheetState, name: A4AttributeName, value: string 
       return { ...state, grid: ATTRIBUTES.grid.parse(value) };
     case "label":
       return { ...state, label: ATTRIBUTES.label.parse(value) };
+    case "readonly":
+      return { ...state, readOnly: ATTRIBUTES.readOnly.parse(value) };
     default:
       return assertNever(name);
   }
@@ -148,6 +152,8 @@ export interface StateChanges {
   readonly render: boolean;
   /** The accessible name. */
   readonly label: boolean;
+  /** Whether the text can be edited. */
+  readonly readOnly: boolean;
 }
 
 const samePose = (a: Pose, b: Pose) => a.foldBottom === b.foldBottom && a.foldTop === b.foldTop && a.curl === b.curl;
@@ -160,5 +166,6 @@ export function changes(prev: SheetState, next: SheetState): StateChanges {
     pose: !samePose(prev.pose, next.pose),
     render: prev.request !== next.request,
     label: prev.label !== next.label,
+    readOnly: prev.readOnly !== next.readOnly,
   };
 }

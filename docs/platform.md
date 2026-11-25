@@ -211,12 +211,21 @@ Each step is its own OpenSpec change, in this order.
      folder adapter that already existed.
    - **Still to come:** the host's attempt loop stays in the model host, and a
      desk-driven loop can follow when letters need one.
-2. **`add-letters`.**
-   - `Letter` and `Postmark` messages in `a4.v1`. Digests are sha256 URNs,
-     times are RFC 3339, and a verdict is accept or reject with a rationale.
-   - The `.agents/letters/` layout, and sealing as the fold.
-   - A Letters inbox in the folder view.
-   - Compare against the previous letter.
+2. **`add-letters`, built.** Letters exist (README, "Letters").
+   - **On disk:** letters in `.agents/letters/`, with a `.postmark.json`
+     sidecar for each seal: an `a4.v1.Postmark` with a sha256 URN digest, an
+     RFC 3339 time, accept or return with a reason, the signer, and the
+     parent letter.
+   - **In the app:** a Letters group in the folder view, Compare against the
+     previous letter, New letter from the Handoff form, a seal dialog whose
+     Accept plays the fold, and a read-only sheet for sealed letters.
+   - **From the command line:** `a4 letters` lists letters, and
+     `a4 letters --latest` delivers the newest accepted one, so a plain
+     session-start hook works before the mailroom exists. `a4 lint` checks
+     letters too.
+   - **Left for the mailroom:** agents still write letter files directly. A
+     tool that writes a letter with the desk's fit loop and findings, and one
+     that reads letters for an MCP client, come next.
 3. **`add-mailroom-mcp`.** A local MCP server with three tools:
    - `write_letter`, which runs the fit loop and returns findings;
    - `read_letter`, which returns sealed letters only;

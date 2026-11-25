@@ -222,6 +222,14 @@ export const ATTRIBUTES = {
     serialize: (v) => (v ? "" : null),
   },
   label: text("label", "accessible name"),
+  readOnly: {
+    kind: "flag",
+    name: "readonly",
+    default: false,
+    doc: "boolean: present stops editing; selecting and copying still work",
+    parse: (v) => v !== null && v !== "false",
+    serialize: (v) => (v ? "" : null),
+  },
 } as const satisfies Record<string, AttributeSpec>;
 
 export type A4AttributeKey = keyof typeof ATTRIBUTES;

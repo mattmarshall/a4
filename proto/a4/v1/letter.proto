@@ -1,0 +1,75 @@
+// Letters: one-page handoff letters in a repository's `.agents/letters/`
+// folder, and the postmark a person writes beside one when they seal it.
+//
+// A postmark lives in `<letter name>.postmark.json` as proto3 JSON. It records
+// that a person read the letter and accepted or returned it; it doesn't make
+// the letter true, and it isn't a signature. Built and read by
+// lib/desk/letters.ts.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "google/protobuf/timestamp.proto";
+
+message Postmark {
+  // The letter's file name, for example "2026-11-25-0930-auth.md".
+  string letter = 1;
+  // SHA-256 of the letter file's exact bytes, as
+  // "urn:a4:letter:sha256:" + 64 lowercase hexadecimal digits.
+  string digest = 2;
+  LetterVerdict verdict = 3;
+  // Why the letter was returned (required then), or an optional note.
+  string reason = 4;
+  // The name the person sealing it gave. It identifies; it doesn't authenticate.
+  string signer = 5;
+  // When it was sealed (proto3 JSON writes RFC 3339, UTC).
+  google.protobuf.Timestamp sealed_at = 6;
+  // The digest of the newest accepted letter, with its seal intact, that sorts
+  // before this one; empty when there is none.
+  string parent = 7;
+}
+
+enum LetterVerdict {
+  LETTER_VERDICT_UNSPECIFIED = 0;
+  LETTER_VERDICT_ACCEPTED = 1;
+  LETTER_VERDICT_RETURNED = 2;
+}
+
+// A letter as listed: its state and postmark, never its text.
+message Letter {
+  // Relative to the folder, for example ".agents/letters/2026-11-25-0930-auth.md".
+  string path = 1;
+  LetterState state = 2;
+  // Unset for a draft, or when the postmark can't be read.
+  Postmark postmark = 3;
+  // Rows used on the 80 x 60 Terminal page.
+  uint32 rows_used = 4;
+  // Why the seal is broken, when the state is LETTER_STATE_BROKEN.
+  BrokenSeal broken = 5;
+}
+
+enum LetterState {
+  LETTER_STATE_UNSPECIFIED = 0;
+  // No postmark.
+  LETTER_STATE_DRAFT = 1;
+  LETTER_STATE_ACCEPTED = 2;
+  LETTER_STATE_RETURNED = 3;
+  // A postmark that doesn't match the letter, or can't be read.
+  LETTER_STATE_BROKEN = 4;
+}
+
+enum BrokenSeal {
+  BROKEN_SEAL_UNSPECIFIED = 0;
+  // The letter's bytes changed after it was sealed.
+  BROKEN_SEAL_CHANGED = 1;
+  // The postmark file isn't a readable a4.v1.Postmark for this letter.
+  BROKEN_SEAL_UNREADABLE_POSTMARK = 2;
+  // The letter file can't be read as UTF-8 text of at most 1 MiB.
+  BROKEN_SEAL_UNREADABLE_LETTER = 3;
+}
+
+// `a4 letters --json`: every letter in a folder, oldest first.
+message LetterList {
+  repeated Letter letters = 1;
+}

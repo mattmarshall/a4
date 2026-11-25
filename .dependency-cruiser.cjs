@@ -125,12 +125,12 @@ module.exports = {
     ),
     layer(
       "workspace",
-      ["persist", "archive", "page", "platform", "models/errors\\.ts$"],
-      "The workspace coordinates storage; it knows model errors only to describe them.",
+      ["persist", "archive", "page", "platform", "desk", "models/errors\\.ts$"],
+      "The workspace coordinates storage; it knows model errors only to describe them, and seals and lists letters through the desk.",
     ),
     layer(
       "desk",
-      ["page", "analysis", "persist", "gen"],
+      ["page", "analysis", "persist", "platform", "gen"],
       "The headless desk judges pages and lints context files without a browser: the page, the analysis, and the folder walk.",
     ),
     {
@@ -146,7 +146,10 @@ module.exports = {
       severity: "error",
       comment: "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk.",
       from: { path: "^cli/", pathNot: NOT_TESTS },
-      to: { path: "^lib/", pathNot: ["^lib/[^/]+/index\\.ts$", "^lib/persist/folder/fs-node\\.ts$"] },
+      to: {
+        path: "^lib/",
+        pathNot: ["^lib/[^/]+/index\\.ts$", "^lib/persist/folder/fs-node\\.ts$", "^lib/desk/lint\\.ts$"],
+      },
     },
     {
       name: "desk-no-runtime",

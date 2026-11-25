@@ -105,6 +105,8 @@ export interface FakePlatformOptions {
   hub?: ChannelHub;
   handles?: MemoryHandleStore;
   storage?: DeviceStorage;
+  /** Shared by tabs of one browser, like Web Locks; none by default. */
+  locks?: Locks | null;
 }
 
 let counter = 0;
@@ -121,7 +123,7 @@ export function fakePlatform(options: FakePlatformOptions = {}): Platform & {
   return {
     scheduler,
     clock: schedulerClock(scheduler),
-    locks: null,
+    locks: options.locks ?? null,
     keyValue: options.keyValue ?? new MemoryKeyValue(),
     randomId: () => `fake${(++counter).toString(16).padStart(12, "0")}`,
     handles: options.handles ?? new MemoryHandleStore(),

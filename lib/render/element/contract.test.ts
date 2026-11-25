@@ -17,7 +17,18 @@ test("the element observes every attribute in the table, once", () => {
     "zoom",
     "grid",
     "label",
+    "readonly",
   ]);
+});
+
+test("readonly is a boolean attribute that serializes as present or absent", () => {
+  assert.equal(ATTRIBUTES.readOnly.parse(""), true);
+  assert.equal(ATTRIBUTES.readOnly.parse("readonly"), true);
+  assert.equal(ATTRIBUTES.readOnly.parse("false"), false);
+  assert.equal(ATTRIBUTES.readOnly.parse(null), false);
+  const attrs = toAttributes({ readOnly: true });
+  assert.equal(attrs.get("readonly"), "");
+  assert.equal(toAttributes({ readOnly: false }).get("readonly"), null);
 });
 
 test("numbers clamp to their range, and bad values fall back to the default", () => {

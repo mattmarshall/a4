@@ -4,9 +4,8 @@ import { toJsonString } from "@bufbuild/protobuf";
 import { ANALYSIS_TEXTS } from "../analysis/testing/texts.ts";
 import { fileRows } from "../persist/folder/scan.ts";
 import { browserFixture, nodeFixture, type FolderFixture } from "../persist/folder/testing/fixtures.ts";
+import { judge, judgeFile, outcomeOf } from "./index.ts";
 import {
-  judge,
-  judgeFile,
   lintFailed,
   lintFile,
   lintFolder,
@@ -14,9 +13,8 @@ import {
   LintOutcome,
   lintReport,
   LintReportSchema,
-  outcomeOf,
   Unreadable,
-} from "./index.ts";
+} from "./lint.ts";
 
 const lines = (n: number) =>
   `${Array.from({ length: n }, (_, i) => `Line ${i + 1} of the agent context.`).join("\n")}\n`;
@@ -160,6 +158,20 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
     );
     assert.equal(report.strict, true);
     assert.equal(report.files[1]?.outcome, LintOutcome.FAIL);
+  });
+
+  test(`${label}: letters are linted too, and one over the page fails`, async () => {
+    const letter = Array.from({ length: 63 }, (_, i) => `Step ${i + 1}: check item ${i * 7 + 3} first.`).join("\n");
+    const { report, failed } = await lintAll({
+      ".agents/letters/2026-11-25-0930-auth.md": letter,
+      ".agents/letters/old/x.md": letter,
+    });
+    assert.deepEqual(
+      report.files.map((f) => f.path),
+      [".agents/letters/2026-11-25-0930-auth.md"],
+    );
+    assert.equal(report.files[0]?.report?.metrics?.overflow, 3);
+    assert.ok(failed);
   });
 
   test(`${label}: a folder with no context files gives an empty, passing report`, async () => {

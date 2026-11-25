@@ -85,7 +85,7 @@ test("orbiting wraps the turn and clamps the tilt", () => {
 });
 
 test("changes name what a view has to redo", () => {
-  const none = { content: false, view: false, pose: false, render: false, label: false };
+  const none = { content: false, view: false, pose: false, render: false, label: false, readOnly: false };
   assert.deepEqual(changes(INITIAL_STATE, INITIAL_STATE), none);
   assert.deepEqual(changes(INITIAL_STATE, reduce(INITIAL_STATE, attr("tilt", "40"))), { ...none, view: true });
   assert.deepEqual(changes(INITIAL_STATE, reduce(INITIAL_STATE, attr("zoom", "3"))), { ...none, view: true });
@@ -96,4 +96,14 @@ test("changes name what a view has to redo", () => {
   // The same value again is no change for the views.
   const tilted = reduce(INITIAL_STATE, attr("tilt", "40"));
   assert.deepEqual(changes(tilted, reduce(tilted, attr("tilt", "40"))), none);
+});
+
+test("readonly sets the read-only state, and only it changes", () => {
+  const on = reduce(INITIAL_STATE, { type: "attribute", name: "readonly", value: "" });
+  assert.equal(INITIAL_STATE.readOnly, false);
+  assert.equal(on.readOnly, true);
+  const changed = changes(INITIAL_STATE, on);
+  assert.equal(changed.readOnly, true);
+  assert.equal(changed.content, false);
+  assert.equal(reduce(on, { type: "attribute", name: "readonly", value: null }).readOnly, false);
 });

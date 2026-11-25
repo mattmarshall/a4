@@ -22,7 +22,13 @@ import type { FileRef, LibraryRef, Slot, SlotSnapshot } from "./types.ts";
 /** What a slot holds: a library page's session, or a folder file's. */
 export type OpenPage =
   | { readonly kind: "library"; ref: LibraryRef; readonly session: LibrarySession }
-  | { readonly kind: "file"; readonly ref: FileRef; readonly session: PageSession<FilePath> };
+  | {
+      readonly kind: "file";
+      readonly ref: FileRef;
+      readonly session: PageSession<FilePath>;
+      /** A sealed letter: shown, never edited. */
+      readonly readOnly?: boolean;
+    };
 
 /** The library a slot's sessions save into. */
 export interface SlotLibrary {
@@ -30,7 +36,14 @@ export interface SlotLibrary {
   readonly journal: Journal<PageName>;
 }
 
-export const EMPTY_SLOT: SlotSnapshot = { ref: null, name: null, label: null, text: "", status: "saved" };
+export const EMPTY_SLOT: SlotSnapshot = {
+  ref: null,
+  name: null,
+  label: null,
+  text: "",
+  status: "saved",
+  readOnly: false,
+};
 
 export class SlotController {
   readonly slot: Slot;
@@ -60,7 +73,7 @@ export class SlotController {
 
   #publish(): void {
     const open = this.#open;
-    const base = { text: this.#text, status: this.#status };
+    const base = { text: this.#text, status: this.#status, readOnly: open?.kind === "file" && open.readOnly === true };
     if (!open) this.#snapshot = { ...EMPTY_SLOT, ...base };
     else if (open.kind === "library") {
       this.#snapshot = { ref: open.ref, name: open.ref.name, label: refLabel(open.ref), ...base };
@@ -94,7 +107,8 @@ export class SlotController {
   /** Record an edit: journaled and scheduled by the session, shown at once. */
   edit(text: string): void {
     const open = this.#open;
-    if (!open) return;
+    // A sealed letter takes no edits, whatever reaches here.
+    if (!open || (open.kind === "file" && open.readOnly)) return;
     this.#text = text;
     open.session.update(text);
     this.#status = open.session.status;

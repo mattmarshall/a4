@@ -94,6 +94,8 @@ export interface SheetStageProps {
   onEdit: (slot: Slot, text: string) => void;
   onActivate: (slot: Slot) => void;
   onRender: (render: Render) => void;
+  /** Desk actions for the active page, shown in both renderings (Seal…, or a sealed letter's chip). */
+  deskActions?: ReactNode;
   /** Shown over the desk (the lens legend, the focus bar). */
   children?: ReactNode;
 }
@@ -161,6 +163,7 @@ export function SheetStage(props: SheetStageProps) {
                   light={view.light}
                   zoom={props.zoom}
                   grid={props.grid}
+                  readOnly={state.readOnly}
                   label={`${state.label ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
                 />
               </div>
@@ -169,21 +172,26 @@ export function SheetStage(props: SheetStageProps) {
         </div>
       </div>
 
-      {render === "3d" && !focus ? (
+      {(render === "3d" || props.deskActions) && !focus ? (
         <div className="desk-tools" data-print="hide">
-          <button type="button" className="btn btn-outline" onClick={fold} title="Play the letter fold">
-            ▶ Fold
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            aria-pressed={posePanel}
-            aria-expanded={posePanel}
-            onClick={() => onPosePanel(!posePanel)}
-            title="Fold, curl, tilt, turn, and light"
-          >
-            Pose…
-          </button>
+          {props.deskActions}
+          {render === "3d" ? (
+            <>
+              <button type="button" className="btn btn-outline" onClick={fold} title="Play the letter fold">
+                ▶ Fold
+              </button>
+              <button
+                type="button"
+                className="btn btn-outline"
+                aria-pressed={posePanel}
+                aria-expanded={posePanel}
+                onClick={() => onPosePanel(!posePanel)}
+                title="Fold, curl, tilt, turn, and light"
+              >
+                Pose…
+              </button>
+            </>
+          ) : null}
         </div>
       ) : null}
 

@@ -22,6 +22,7 @@ import {
   type TrashEntry,
   type TrashId,
 } from "@/lib/persist";
+import { compareLetterNames, type Letter, LETTERS_DIR, LetterState } from "@/lib/desk";
 import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace";
 import { ENGLISH, formatByteLimit } from "./analysis-copy";
 import styles from "./LibraryPanel.module.css";
@@ -47,6 +48,10 @@ export interface FolderActions {
   /** Save open files, close the folder, and forget it. */
   close(): void;
   createFile(path: string): Promise<string | null>;
+  /** Start a letter in `.agents/letters/` from the Handoff form. */
+  createLetter(): Promise<string | null>;
+  /** Open a letter, beside the one before it in Compare. */
+  openLetter(ref: PageRef): void;
   /** Write the page "Save to folder…" was chosen for to `path`. */
   saveTo(path: string): Promise<string | null>;
   cancelSave(): void;
@@ -489,6 +494,78 @@ function FileRow({
   );
 }
 
+const LETTER_STATE: Readonly<Record<LetterState, string>> = {
+  [LetterState.UNSPECIFIED]: "Letter",
+  [LetterState.DRAFT]: "Draft",
+  [LetterState.ACCEPTED]: "Accepted",
+  [LetterState.RETURNED]: "Returned",
+  [LetterState.BROKEN]: "Broken seal",
+};
+
+const STATE_KEY: Readonly<Record<LetterState, string>> = {
+  [LetterState.UNSPECIFIED]: "draft",
+  [LetterState.DRAFT]: "draft",
+  [LetterState.ACCEPTED]: "accepted",
+  [LetterState.RETURNED]: "returned",
+  [LetterState.BROKEN]: "broken",
+};
+
+/** A letter's file name, without `.agents/letters/`. */
+const letterName = (path: string) => path.slice(LETTERS_DIR.length + 1);
+
+function LetterRow({
+  file,
+  letter,
+  placement,
+  onOpenLetter,
+  onDuplicate,
+}: {
+  file: FolderFile;
+  letter: Letter | undefined;
+  placement: Placement;
+  onOpenLetter: (ref: PageRef) => void;
+  onDuplicate: (ref: PageRef) => void;
+}) {
+  const ref = fileRef(file.path);
+  const slot = slotOf(placement, ref);
+  const state = letter?.state ?? LetterState.DRAFT;
+  const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
+  const postmark = letter?.postmark;
+  const sealedBy = postmark && state !== LetterState.BROKEN ? ` by ${postmark.signer}` : "";
+  return (
+    <li className={`${styles.item} ${styles.file}`} data-open={slot ?? undefined}>
+      <button
+        type="button"
+        className={styles.open}
+        onClick={() => onOpenLetter(ref)}
+        title={postmark?.reason ? `${LETTER_STATE[state]}: ${postmark.reason}` : "Open beside the letter before it"}
+      >
+        <span className={`${styles.name} ${styles.path}`}>{letterName(file.path)}</span>
+        <span className={styles.meta}>
+          <span className={styles.letterState} data-state={STATE_KEY[state]}>
+            {LETTER_STATE[state]}
+            {sealedBy}
+          </span>
+          {file.rows !== null ? (
+            <>
+              {" · "}
+              <span className={styles.rows} data-over={over ? "" : undefined}>
+                {file.rows} of {PAGE_ROWS} rows{over ? `, ${over} over` : ""}
+              </span>
+            </>
+          ) : null}
+        </span>
+        {slot ? <span className={styles.badge}>{placement.compare ? slot.toUpperCase() : "open"}</span> : null}
+      </button>
+      <div className={styles.actions}>
+        <button type="button" onClick={() => onDuplicate(ref)} title="Copy into a new library page">
+          Duplicate to library
+        </button>
+      </div>
+    </li>
+  );
+}
+
 function FolderSection({
   folder,
   query,
@@ -508,12 +585,22 @@ function FolderSection({
 }) {
   const [creating, setCreating] = useState(false);
   const [showOther, setShowOther] = useState(false);
+  const [letterError, setLetterError] = useState<string | null>(null);
   const { state } = folder;
+  const letterOf = useMemo(() => new Map(folder.letters.map((l) => [l.path, l])), [folder.letters]);
+  const hasLetters = folder.files.some((f) => f.group === "letter");
+  async function newLetter() {
+    setLetterError(await actions.createLetter());
+  }
 
   const visible = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("en-US");
     return q ? folder.files.filter((f) => f.path.toLocaleLowerCase("en-US").includes(q)) : folder.files;
   }, [folder.files, query]);
+  // Newest first.
+  const letters = visible
+    .filter((f) => f.group === "letter")
+    .sort((x, y) => compareLetterNames(letterName(y.path), letterName(x.path)));
   const context = visible.filter((f) => f.group === "context");
   const other = visible.filter((f) => f.group === "other");
   const row = (f: FolderFile) => (
@@ -597,6 +684,16 @@ function FolderSection({
           <button type="button" className="btn" onClick={() => setCreating((c) => !c)} aria-expanded={creating}>
             + New file
           </button>
+          {hasLetters ? null : (
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void newLetter()}
+              title="Start a handoff letter in .agents/letters/"
+            >
+              + New letter
+            </button>
+          )}
           <button
             type="button"
             className="btn"
@@ -636,6 +733,41 @@ function FolderSection({
         <p className={styles.note}>
           The folder is very large: the list stops after {ENGLISH.count(SCAN_ENTRY_LIMIT)} entries.
         </p>
+      ) : null}
+
+      {letterError ? (
+        <p className={styles.note} role="alert">
+          Couldn’t start a letter: {letterError}
+        </p>
+      ) : null}
+
+      {hasLetters ? (
+        <>
+          <div className={styles.groupHead}>
+            <h3 className={`${styles.group} eyebrow`}>Letters</h3>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => void newLetter()}
+              title="Start a handoff letter in .agents/letters/"
+            >
+              + New letter
+            </button>
+          </div>
+          <ul className={styles.list}>
+            {letters.map((f) => (
+              <LetterRow
+                key={f.path}
+                file={f}
+                letter={letterOf.get(f.path)}
+                placement={placement}
+                onOpenLetter={actions.openLetter}
+                onDuplicate={onDuplicate}
+              />
+            ))}
+            {letters.length === 0 ? <li className={styles.empty}>No letters match.</li> : null}
+          </ul>
+        </>
       ) : null}
 
       <h3 className={`${styles.group} eyebrow`}>Context files</h3>

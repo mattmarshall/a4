@@ -46,7 +46,8 @@ pnpm dev          # http://localhost:5173
 | `pnpm proto` | Lint `proto/` and regenerate the protobuf code in `lib/gen/` (commit the result) |
 | `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation, or `proto/` breaks compatibility with `main` (also runs in CI) |
 | `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
-| `pnpm a4 lint [path ...] [--strict] [--exclude <glob>] [--json]` | Check context files against one page (see "Page lint") |
+| `pnpm a4 lint [path ...] [--strict] [--exclude <glob>] [--json]` | Check context files and letters against one page (see "Page lint") |
+| `pnpm a4 letters [folder] [--latest \| --json]` | List a folder's letters, or print the newest accepted one (see "Letters") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
 | `node scripts/screenshots.ts compare <a> <b>` | Compare two captures pixel by pixel, and their PDF page counts. Writes `<view>.diff.png` for each view that differs, and exits 1 |
@@ -225,6 +226,7 @@ both edit the same text.
 | `tilt`, `turn`, `light` | 0–65°, −180–180°, and light azimuth in degrees |
 | `zoom` | CSS px per millimeter, or `fit` (the default) |
 | `grid`, `label` | Show the cell grid. Accessible name for the text input. |
+| `readonly` | Stop editing: typing, pasting, dropping, cutting, and undo change nothing. Selecting, copying, lenses, the fold, and print still work. |
 
 `pnpm build:element` writes that module, `dist/element/a4-sheet.js`, which
 exports `defineA4Sheet` and `A4SheetElement`. `defineA4Sheet(name)` registers
@@ -236,7 +238,7 @@ the sheet under another tag too; each extra name gets its own subclass.
   applies, even when it equals the previous value, so setting `tilt` again
   resets the camera.
 - **Properties and methods**: `value` (setting it fires no event and keeps
-  the caret), `selectionStart`, `selectionEnd`, `render` (the rendering in
+  the caret), `readOnly` (reflects `readonly`), `selectionStart`, `selectionEnd`, `render` (the rendering in
   use), `view` (`{ tilt, turn }` shown now), `pose` (fold and curl amounts
   shown now), `setSelectionRange()`, `focus()`, and `fold()` (the letter-fold
   animation, or a toggle under reduced motion).
@@ -697,7 +699,8 @@ warn   6/60  Noisy        packages/api/CLAUDE.md — 37% of the ink is syntax
 - **What it checks:**
   - Given a folder (the current directory by default), it checks the context
     files the folder view lists, at any depth: `AGENTS.md`, `CLAUDE.md`,
-    `SKILL.md`, and the rest.
+    `SKILL.md`, and the rest. It also checks the letters in
+    `.agents/letters/` (see "Letters").
   - It skips the same folders as the folder view, and stops after 20,000
     entries, saying so on stderr.
   - A file named on the command line is checked whatever its name.
@@ -728,6 +731,92 @@ warn   6/60  Noisy        packages/api/CLAUDE.md — 37% of the ink is syntax
   and imports no DOM or Node API, so other tools can reuse it.
 - **This repository's own context files** are generated OpenSpec skills, 215
   to 527 rows each, so `pnpm a4 lint` here fails until they're excluded.
+
+## Letters
+
+A letter is a one-page handoff between agent sessions. An agent writes one at
+the end of a session, a person reads it in A4 and seals it, and the next
+session starts from the newest accepted letter.
+
+- **Where they live:**
+  - A letter is a `.md` file directly in a repository's `.agents/letters/`
+    folder.
+  - Name letters with a UTC timestamp first, such as
+    `2026-11-25-0930-auth-migration.md`, so sorting by name sorts by time.
+    Letters are ordered by name without the `.md`, so `…-letter.md` comes
+    before `…-letter-2.md`.
+  - Any agent or editor can write one. **New letter** in the folder view
+    starts one from the Handoff form, named
+    `<UTC YYYY-MM-DD-HHMM>-letter.md`.
+- **The postmark:**
+  - Sealing writes `<letter>.postmark.json` beside the letter. It's an
+    `a4.v1.Postmark` (`proto/a4/v1/letter.proto`) in proto3 JSON, recording:
+    - the letter's name;
+    - its digest, the SHA-256 of the file's exact bytes as
+      `urn:a4:letter:sha256:<hex>`;
+    - the verdict, accepted or returned, and the reason;
+    - the signer's name;
+    - the time (RFC 3339, UTC);
+    - the digest of the previous accepted letter.
+  - A4 never changes the letter's bytes, and never overwrites or deletes a
+    postmark.
+- **States:**
+  - **Draft:** no postmark.
+  - **Accepted** or **Returned:** the postmark matches the letter's bytes.
+  - **Broken seal:** the letter changed after it was sealed, or the postmark
+    can't be read. A broken letter is never delivered.
+- **In the app:**
+  - With a folder open, the Pages panel lists letters in a **Letters** group
+    above Context files, newest first, with each one's state and rows.
+  - Opening a letter puts the letter before it in A and this one in B, in
+    Compare.
+  - On a draft, **Seal…** asks you to **Accept** it, or to **Return** it with a
+    reason. A letter over 60 rows can't be accepted.
+  - The first seal asks for your name, and this browser remembers it.
+  - Accepting plays the letter fold in 3D.
+  - A sealed letter opens read-only, with a chip giving its verdict, signer,
+    and time.
+  - A seal records that you read the letter and accepted or returned it. It
+    doesn't make the letter true, and it isn't a signature: the name
+    identifies you but doesn't authenticate you.
+- **From the command line:**
+  - `pnpm a4 letters [folder]` lists the letters, oldest first, with state,
+    rows, signer, and reason.
+  - `--json` prints an `a4.v1.LetterList`, without letter text.
+  - `a4 letters --latest` prints the exact text of the newest accepted letter
+    whose seal is intact. It then prints a short note for each letter returned
+    since, with its reason.
+  - When there's nothing to deliver, it prints nothing, notes that on stderr,
+    and exits 0, so a hook never fails a session.
+  - Like `a4 lint`, it only reads and makes no network request.
+
+  A session-start hook can deliver letters. In Claude Code, for example, in
+  `.claude/settings.json`:
+
+  ```json
+  {
+    "hooks": {
+      "SessionStart": [
+        { "hooks": [{ "type": "command", "command": "node ~/src/a4/cli/a4.ts letters --latest" }] }
+      ]
+    }
+  }
+  ```
+- **Line endings:** the digest covers exact bytes, so keep git from converting
+  letters' line endings, or a checkout breaks their seals:
+
+  ```
+  .agents/letters/** -text
+  ```
+
+  in `.gitattributes`.
+- **Under the hood:**
+  - The desk (`lib/desk/letters.ts`) holds every rule: paths, digest, states,
+    the parent, delivery, and sealing. The app and the command share it.
+  - SHA-256 comes from Web Crypto through `lib/platform`.
+  - The app seals under the folder's Web Lock for the postmark's path, so two
+    tabs can't both seal a letter.
+  - The sheet's `readonly` attribute keeps sealed letters from being edited.
 
 ## Deploy to a4.marsh.build
 

@@ -4,7 +4,7 @@ import { FakeScheduler, settle } from "../persist/autosave/testing/fake-schedule
 import { browserFolderSource } from "../persist/folder/fs-browser.ts";
 import { MemoryHandleStore } from "../platform/handle-store.ts";
 import { MemoryKeyValue } from "../platform/key-value.ts";
-import { ChannelHub, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
+import { ChannelHub, FakeLocks, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
 import { readSetting, SETTINGS } from "../persist/settings.ts";
 import { MemoryPageStore } from "../persist/store/key-value.ts";
 import { parsePageName } from "../persist/store/names.ts";
@@ -13,11 +13,21 @@ import { asDirectoryHandle, FakeDirectoryHandle, FakeVolume } from "../persist/s
 import type { PageStore } from "../persist/store/types.ts";
 import type { WorkspaceNotice } from "./types.ts";
 import { Workspace } from "./workspace.ts";
+import { create } from "@bufbuild/protobuf";
+import { timestampFromMs } from "@bufbuild/protobuf/wkt";
+import {
+  letterDigest,
+  LetterState,
+  LetterVerdict,
+  PostmarkExistsError,
+  postmarkJson,
+  PostmarkSchema,
+} from "../desk/index.ts";
 
 const n = parsePageName;
 
 /** One browser: tabs that share storage, the channel hub, tab liveness, and folder handles. */
-function browser(options: { store?: PageStore } = {}) {
+function browser(options: { store?: PageStore; locks?: FakeLocks } = {}) {
   const scheduler = new FakeScheduler();
   const keyValue = new MemoryKeyValue();
   const hub = new ChannelHub();
@@ -31,7 +41,7 @@ function browser(options: { store?: PageStore } = {}) {
       movedFromFallback: 0,
     }),
   ) => {
-    const platform = fakePlatform({ scheduler, keyValue, hub, tabs });
+    const platform = fakePlatform({ scheduler, keyValue, hub, tabs, locks: options.locks ?? null });
     const notices: WorkspaceNotice[] = [];
     const workspace = new Workspace({
       platform,
@@ -299,4 +309,121 @@ test("closing the folder opens library pages in its slots", async () => {
   assert.equal(snapshot.folder.state.status, "none");
   assert.equal(snapshot.slots.a.name, "Welcome");
   assert.equal(root.fileAt("AGENTS.md")?.text, "# Agents\nsaved on close\n");
+});
+
+// ---------------------------------------------------------------------------
+// Letters
+
+const LETTER_A = ".agents/letters/2026-11-24-1700-auth.md";
+const LETTER_B = ".agents/letters/2026-11-25-0930-auth.md";
+const LETTER_TEXT = "HANDOFF · auth · 2026-11-25\n\nWhere it stands. The migration is done.\n";
+
+async function acceptedPostmark(name: string, text: string): Promise<string> {
+  return postmarkJson(
+    create(PostmarkSchema, {
+      letter: name,
+      digest: await letterDigest(new TextEncoder().encode(text)),
+      verdict: LetterVerdict.ACCEPTED,
+      signer: "Matt",
+      sealedAt: timestampFromMs(0),
+    }),
+  );
+}
+
+test("the folder snapshot carries each letter's state", async () => {
+  const b = browser();
+  const { workspace } = b.open();
+  await workspace.start();
+  const root = folder(b.volume, {
+    [LETTER_A]: LETTER_TEXT,
+    [`${LETTER_A}.postmark.json`]: await acceptedPostmark("2026-11-24-1700-auth.md", LETTER_TEXT),
+    [LETTER_B]: LETTER_TEXT,
+  });
+  await workspace.openFolder(asDirectoryHandle(root));
+  const { folder: snapshot } = workspace.getSnapshot();
+  assert.deepEqual(
+    snapshot.letters.map((l) => [l.path, l.state]),
+    [
+      [LETTER_A, LetterState.ACCEPTED],
+      [LETTER_B, LetterState.DRAFT],
+    ],
+  );
+  assert.deepEqual(
+    snapshot.files.filter((f) => f.group === "letter").map((f) => f.path),
+    [LETTER_A, LETTER_B],
+  );
+});
+
+test("sealing saves pending edits first, writes the postmark, and reopens the letter read-only", async () => {
+  const b = browser({ locks: new FakeLocks() });
+  const { workspace } = b.open();
+  await workspace.start();
+  const root = folder(b.volume, { [LETTER_B]: LETTER_TEXT });
+  await workspace.openFolder(asDirectoryHandle(root));
+  assert.ok((await workspace.open("a", fileRef(parseFilePath(LETTER_B)))).ok);
+  const edited = `${LETTER_TEXT}Next: deploy on Monday.`;
+  workspace.edit("a", edited);
+  const sealed = await workspace.sealLetter("a", { verdict: "accepted", signer: "Matt" });
+  assert.ok(sealed.ok);
+  const onDisk = root.fileAt(LETTER_B)?.text ?? "";
+  assert.equal(onDisk, `${edited}\n`, "the edit reached the file before the seal");
+  assert.equal(sealed.value.digest, await letterDigest(new TextEncoder().encode(onDisk)));
+  assert.ok(root.fileAt(`${LETTER_B}.postmark.json`), "the postmark is beside the letter");
+  const snapshot = workspace.getSnapshot();
+  assert.equal(snapshot.slots.a.readOnly, true);
+  assert.equal(snapshot.folder.letters[0]?.state, LetterState.ACCEPTED);
+  // Typing into the sealed letter changes nothing and writes nothing.
+  workspace.edit("a", "overwritten");
+  await b.scheduler.advance(5000);
+  assert.equal(workspace.getSnapshot().slots.a.text, edited);
+  assert.equal(root.fileAt(LETTER_B)?.text, onDisk);
+});
+
+test("a letter sealed in another tab is refused there, and the first postmark stays", async () => {
+  const b = browser({ locks: new FakeLocks() });
+  const first = b.open();
+  const second = b.open();
+  await first.workspace.start();
+  await second.workspace.start();
+  const root = folder(b.volume, { [LETTER_B]: LETTER_TEXT });
+  await first.workspace.openFolder(asDirectoryHandle(root));
+  await second.workspace.openFolder(asDirectoryHandle(root));
+  for (const tab of [first, second]) assert.ok((await tab.workspace.open("a", fileRef(parseFilePath(LETTER_B)))).ok);
+  assert.ok((await first.workspace.sealLetter("a", { verdict: "accepted", signer: "Matt" })).ok);
+  const postmark = root.fileAt(`${LETTER_B}.postmark.json`)?.text;
+  const again = await second.workspace.sealLetter("a", { verdict: "returned", reason: "No", signer: "Ana" });
+  assert.equal(again.ok, false);
+  assert.ok(!again.ok && again.error instanceof PostmarkExistsError);
+  assert.equal(root.fileAt(`${LETTER_B}.postmark.json`)?.text, postmark);
+  assert.equal(second.workspace.getSnapshot().slots.a.readOnly, true, "the second tab now shows it sealed");
+  assert.equal(second.workspace.getSnapshot().folder.letters[0]?.state, LetterState.ACCEPTED);
+});
+
+test("New letter creates timestamped drafts, numbered within a minute, and opens each", async () => {
+  const b = browser();
+  const { workspace } = b.open();
+  await workspace.start();
+  const root = folder(b.volume, { "AGENTS.md": "# Agents\n" });
+  await workspace.openFolder(asDirectoryHandle(root));
+  const one = await workspace.createLetter("HANDOFF · first\n", "a");
+  const two = await workspace.createLetter("HANDOFF · second\n", "a");
+  assert.ok(one.ok && two.ok);
+  assert.match(one.value, /^\.agents\/letters\/\d{4}-\d{2}-\d{2}-\d{4}-letter\.md$/);
+  assert.equal(two.value, one.value.replace(/\.md$/, "-2.md"));
+  assert.equal(root.fileAt(one.value)?.text, "HANDOFF · first\n");
+  assert.equal(workspace.getSnapshot().slots.a.label, two.value);
+  assert.deepEqual(
+    workspace.getSnapshot().folder.letters.map((l) => [l.path, l.state]),
+    [
+      [one.value, LetterState.DRAFT],
+      [two.value, LetterState.DRAFT],
+    ],
+  );
+});
+
+test("the signer setting trims, and blank reads as unset", () => {
+  assert.equal(SETTINGS.signer.codec.parse("  Matt "), "Matt");
+  assert.equal(SETTINGS.signer.codec.parse("   "), null);
+  assert.equal(SETTINGS.signer.codec.format(null), "");
+  assert.equal(readSetting(SETTINGS.signer), null);
 });

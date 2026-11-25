@@ -10,20 +10,33 @@
  */
 
 export { MAX_FILE_BYTES, SCAN_ENTRY_LIMIT } from "../persist/store/folder.ts";
-export { DESK_PAGE, judge, judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
 export {
-  type FolderLint,
-  type LintedFile,
-  LintedFileSchema,
-  lintFailed,
-  lintFile,
-  lintFolder,
-  type LintFolderOptions,
-  type LintOptions,
-  LintOutcome,
-  type LintReport,
-  lintReport,
-  LintReportSchema,
-  type LintResult,
-  Unreadable,
-} from "./lint.ts";
+  BrokenSeal,
+  compareLetterNames,
+  type Delivery,
+  isLetterPath,
+  latestDelivery,
+  type Letter,
+  letterDigest,
+  type LetterList,
+  letterList,
+  LetterListSchema,
+  letterPathAt,
+  LETTERS_DIR,
+  LetterState,
+  LetterVerdict,
+  type Postmark,
+  PostmarkExistsError,
+  postmarkJson,
+  postmarkPath,
+  PostmarkSchema,
+  type ReadLetter,
+  readLetters,
+  sealLetter,
+  type SealOptions,
+  type SealRefusal,
+  SealRefusedError,
+} from "./letters.ts";
+export { DESK_PAGE, judge, judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
+// Lint (./lint.ts) isn't re-exported: only the a4 command uses it, and it
+// imports lint.ts directly, so the app's first load doesn't carry it.

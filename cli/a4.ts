@@ -3,14 +3,17 @@
  * a4: A4's desk on the command line.
  *
  *   pnpm a4 lint [path ...] [--strict] [--exclude <glob>]... [--json]
- *   node <checkout>/cli/a4.ts lint ...
+ *   pnpm a4 letters [folder] [--latest | --json]
+ *   node <checkout>/cli/a4.ts <command> ...
  *
- * `lint` checks agent context files against the 80 × 60 Terminal page, as the
- * folder view lists and measures them (README, "Page lint"). It only reads
- * files and makes no network request.
+ * `lint` checks agent context files and letters against the 80 × 60 Terminal
+ * page, as the folder view lists and measures them (README, "Page lint").
+ * `letters` lists a folder's letters, or with `--latest` prints the newest
+ * accepted letter whose seal is intact (README, "Letters"). Both only read
+ * files and make no network request.
  *
- * Exit status: 0 when no file fails, 1 when one does, 2 for a usage error or
- * a path that can't be read.
+ * Exit status: 0 when nothing fails, 1 when lint finds a failing file, 2 for a
+ * usage error or a path that can't be read.
  */
 
 import { stat } from "node:fs/promises";
@@ -20,7 +23,19 @@ import { toJsonString } from "@bufbuild/protobuf";
 import { describeFinding, ENGLISH, formatByteLimit, VERDICT_LABEL } from "../components/analysis-copy.ts";
 import type { Finding, Severity } from "../lib/analysis/index.ts";
 import {
+  BrokenSeal,
   DESK_PAGE,
+  latestDelivery,
+  LETTERS_DIR,
+  letterList,
+  LetterListSchema,
+  LetterState,
+  readLetters,
+  type ReadLetter,
+  MAX_FILE_BYTES,
+  SCAN_ENTRY_LIMIT,
+} from "../lib/desk/index.ts";
+import {
   lintFailed,
   lintFile,
   lintFolder,
@@ -28,26 +43,33 @@ import {
   lintReport,
   LintReportSchema,
   type LintResult,
-  MAX_FILE_BYTES,
-  SCAN_ENTRY_LIMIT,
   Unreadable,
-} from "../lib/desk/index.ts";
+} from "../lib/desk/lint.ts";
 import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
 
-const USAGE = `Usage: a4 lint [path ...] [options]
+const USAGE = `Usage: a4 lint [path ...] [--strict] [--exclude <glob>]... [--json]
+       a4 letters [folder] [--latest | --json]
 
-Check agent context files against one A4 page (${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells).
-With no path, checks the context files in the current folder and below:
-AGENTS.md, CLAUDE.md, SKILL.md, and the others the folder view lists.
-A file named on the command line is checked whatever its name.
-
-Options:
+a4 lint checks agent context files and letters against one A4 page
+(${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells). With no path, it checks the current folder and below:
+AGENTS.md, CLAUDE.md, SKILL.md, the others the folder view lists, and the
+letters in ${LETTERS_DIR}/. A file named on the command line is checked
+whatever its name.
   --strict          Fail Noisy and Busy pages too, not only pages over ${DESK_PAGE.rows} rows
   --exclude <glob>  Skip files whose folder-relative path matches (repeatable)
   --json            Print an a4.v1.LintReport as JSON, and nothing else
+
+a4 letters lists the letters in a folder's ${LETTERS_DIR}/ (the current folder
+by default), oldest first, with their state, rows, signer, and reason.
+  --latest          Print the newest accepted letter whose seal is intact, then a
+                    note for each letter returned since. Prints nothing when no
+                    letter can be delivered.
+  --json            Print an a4.v1.LetterList as JSON (no letter text)
+
   -h, --help        Show this help
 
-Exit status: 0 when no file fails, 1 when one does, 2 for a usage error.
+Exit status: 0 when nothing fails, 1 when lint finds a failing file, 2 for a
+usage error or a path that doesn't exist.
 `;
 
 /** A usage error or an unreadable path: exit status 2. */
@@ -143,7 +165,18 @@ function textReport(results: readonly LintResult[]): string {
   return `${lines.join("\n")}\n`;
 }
 
-function parse(argv: readonly string[]): { help: true } | ({ help: false } & LintArgs) {
+interface LettersArgs {
+  readonly folder: string;
+  readonly latest: boolean;
+  readonly json: boolean;
+}
+
+type Command =
+  | { readonly kind: "help" }
+  | ({ readonly kind: "lint" } & LintArgs)
+  | ({ readonly kind: "letters" } & LettersArgs);
+
+function parse(argv: readonly string[]): Command {
   const { values, positionals } = parseArgs({
     args: [...argv],
     allowPositionals: true,
@@ -152,43 +185,130 @@ function parse(argv: readonly string[]): { help: true } | ({ help: false } & Lin
       json: { type: "boolean", default: false },
       strict: { type: "boolean", default: false },
       exclude: { type: "string", multiple: true, default: [] },
+      latest: { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
-  if (values.help) return { help: true };
+  if (values.help) return { kind: "help" };
   const [command, ...paths] = positionals;
-  if (command !== "lint") throw new UsageError(command ? `Unknown command “${command}”.` : "Name a command: lint.");
-  return {
-    help: false,
-    paths: paths.length > 0 ? paths : ["."],
-    strict: values.strict,
-    json: values.json,
-    exclude: values.exclude,
-  };
+  if (command === "lint") {
+    if (values.latest) throw new UsageError("--latest is an option of a4 letters.");
+    return {
+      kind: "lint",
+      paths: paths.length > 0 ? paths : ["."],
+      strict: values.strict,
+      json: values.json,
+      exclude: values.exclude,
+    };
+  }
+  if (command === "letters") {
+    if (values.strict || values.exclude.length > 0)
+      throw new UsageError("--strict and --exclude are options of a4 lint.");
+    if (paths.length > 1) throw new UsageError("a4 letters takes one folder.");
+    if (values.latest && values.json) {
+      throw new UsageError("--latest prints a letter’s text; --json lists letters. Choose one.");
+    }
+    return { kind: "letters", folder: paths[0] ?? ".", latest: values.latest, json: values.json };
+  }
+  throw new UsageError(command ? `Unknown command “${command}”.` : "Name a command: lint or letters.");
+}
+
+const LETTER_STATE: Record<LetterState, string> = {
+  [LetterState.UNSPECIFIED]: "?",
+  [LetterState.DRAFT]: "draft",
+  [LetterState.ACCEPTED]: "accepted",
+  [LetterState.RETURNED]: "returned",
+  [LetterState.BROKEN]: "broken",
+};
+
+const BROKEN_NOTE: Record<BrokenSeal, string> = {
+  [BrokenSeal.UNSPECIFIED]: "seal can’t be checked",
+  [BrokenSeal.CHANGED]: "changed after it was sealed",
+  [BrokenSeal.UNREADABLE_POSTMARK]: "postmark can’t be read",
+  [BrokenSeal.UNREADABLE_LETTER]: "letter can’t be read",
+};
+
+const nameOf = (letter: ReadLetter) => letter.letter.path.slice(LETTERS_DIR.length + 1);
+
+/** One line per letter, oldest first. */
+function lettersText(letters: readonly ReadLetter[]): string {
+  if (letters.length === 0) return `No letters in ${LETTERS_DIR}/.\n`;
+  const rows = letters.map((l) => {
+    const { state, rowsUsed, postmark, broken } = l.letter;
+    let note = "";
+    if (state === LetterState.BROKEN) note = `(${BROKEN_NOTE[broken]})`;
+    else if (postmark) note = postmark.reason ? `${postmark.signer}: ${postmark.reason}` : postmark.signer;
+    return [LETTER_STATE[state], `${rowsUsed}/${DESK_PAGE.rows}`, nameOf(l), note];
+  });
+  const width = (i: number) => Math.max(...rows.map((r) => (r[i] ?? "").length));
+  return `${rows
+    .map(([state = "", fit = "", name = "", note = ""]) =>
+      `${state.padEnd(width(0))}  ${fit.padStart(width(1))}  ${name}${note ? `  ${note}` : ""}`.trimEnd(),
+    )
+    .join("\n")}\n`;
+}
+
+/** List a folder's letters, or deliver the latest accepted one. Always exits 0 once the folder is read. */
+async function letters(args: LettersArgs): Promise<number> {
+  const absolute = resolve(args.folder);
+  const found = await stat(absolute).catch(() => null);
+  if (!found) throw new UsageError(`“${args.folder}” doesn’t exist.`);
+  if (!found.isDirectory()) throw new UsageError(`“${args.folder}” isn’t a folder.`);
+  const read = await readLetters(nodeFolderSource.open(absolute));
+  if (!args.latest) {
+    process.stdout.write(
+      args.json ? `${toJsonString(LetterListSchema, letterList(read), { prettySpaces: 2 })}\n` : lettersText(read),
+    );
+    return 0;
+  }
+  const delivery = latestDelivery(read);
+  if (!delivery) {
+    process.stderr.write(`a4: no accepted letter with an intact seal in “${args.folder}”.\n`);
+    return 0;
+  }
+  let out = delivery.text;
+  if (delivery.returnedSince.length > 0) {
+    if (!out.endsWith("\n")) out += "\n";
+    out += "\n---\n";
+    for (const l of delivery.returnedSince) out += `Returned: ${nameOf(l)}: ${l.letter.postmark?.reason ?? ""}\n`;
+  }
+  process.stdout.write(out);
+  return 0;
+}
+
+/** Report a failure: a usage error with the usage, anything else on its own. Exit status 2. */
+function failed(error: unknown): number {
+  if (error instanceof UsageError) process.stderr.write(`a4: ${error.message}\n\n${USAGE}`);
+  else process.stderr.write(`a4: ${error instanceof Error ? error.message : String(error)}\n`);
+  return 2;
 }
 
 async function main(argv: readonly string[]): Promise<number> {
-  let args: ReturnType<typeof parse>;
+  let args: Command;
   try {
     args = parse(argv);
   } catch (error) {
-    process.stderr.write(`a4: ${error instanceof Error ? error.message : String(error)}\n\n${USAGE}`);
-    return 2;
+    // parseArgs reports unknown options and missing values as plain errors: those are usage errors too.
+    return failed(
+      error instanceof UsageError ? error : new UsageError(error instanceof Error ? error.message : String(error)),
+    );
   }
-  if (args.help) {
+  if (args.kind === "help") {
     process.stdout.write(USAGE);
     return 0;
+  }
+  if (args.kind === "letters") {
+    try {
+      return await letters(args);
+    } catch (error) {
+      return failed(error);
+    }
   }
   let run: Awaited<ReturnType<typeof lint>>;
   try {
     run = await lint(args);
   } catch (error) {
-    if (error instanceof UsageError) {
-      process.stderr.write(`a4: ${error.message}\n\n${USAGE}`);
-    } else {
-      process.stderr.write(`a4: ${error instanceof Error ? error.message : String(error)}\n`);
-    }
-    return 2;
+    return failed(error);
   }
   for (const folder of run.partial) {
     process.stderr.write(

@@ -8,6 +8,7 @@ import type { Recovery } from "../persist/autosave/bootstrap.ts";
 import type { SaveStatus } from "../persist/autosave/session.ts";
 import type { FolderState } from "../persist/folder/access.ts";
 import type { FolderFile } from "../persist/folder/scan.ts";
+import type { Letter } from "../desk/index.ts";
 import type { FilePath, FileRef, LibraryRef } from "../persist/store/refs.ts";
 import type { PageName, PageSummary, StoreKind, TrashEntry } from "../persist/store/types.ts";
 import type { Slot } from "./pending.ts";
@@ -30,6 +31,8 @@ interface SlotBase {
   readonly label: string | null;
   readonly text: string;
   readonly status: SaveStatus;
+  /** A sealed letter: shown read-only, and edits are dropped. */
+  readonly readOnly: boolean;
 }
 
 /** What a slot shows: nothing, a library page, or a folder file. */
@@ -41,6 +44,8 @@ export type SlotSnapshot =
 export interface FolderSnapshot {
   readonly state: FolderState;
   readonly files: readonly FolderFile[];
+  /** Each letter's state and postmark, oldest first (paths match `files`). */
+  readonly letters: readonly Letter[];
   /** True when the scan stopped at the entry limit. */
   readonly partial: boolean;
   readonly scanning: boolean;

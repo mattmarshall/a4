@@ -16,6 +16,7 @@ import { layoutRows, PRESETS, rowsUsed } from "../page/index.ts";
 import { parseFilePath, type FilePath } from "../persist/store/refs.ts";
 import type { PageName, PageStore, UnreadableReason, WriteResult } from "../persist/store/types.ts";
 import type { FolderSnapshot, Slot, WorkspaceNotice } from "./types.ts";
+import { type Letter, readLetters } from "../desk/index.ts";
 
 const TERMINAL_COLS = PRESETS.terminal.cols;
 
@@ -38,6 +39,7 @@ export class FolderIndex<H> {
   readonly #isVisible: () => boolean;
   readonly #stop: () => void;
   #files: readonly FolderFile[] = [];
+  #letters: readonly Letter[] = [];
   #partial = false;
   #scanning = false;
   #watcher: FileWatcher | null = null;
@@ -76,7 +78,13 @@ export class FolderIndex<H> {
   }
 
   #build(): FolderSnapshot {
-    return { state: this.access.state, files: this.#files, partial: this.#partial, scanning: this.#scanning };
+    return {
+      state: this.access.state,
+      files: this.#files,
+      letters: this.#letters,
+      partial: this.#partial,
+      scanning: this.#scanning,
+    };
   }
 
   #publish(): void {
@@ -139,6 +147,7 @@ export class FolderIndex<H> {
         return { ...f, unreadable: known.reason, rows: null };
       });
       this.#partial = scan.partial;
+      this.#letters = await this.#readLetters(folder);
       return this.#files;
     } catch (error) {
       // A folder that went away or lost access: find out which, which may leave `connected`.
@@ -151,6 +160,21 @@ export class FolderIndex<H> {
     }
   }
 
+  /** Each letter's state from its postmark; a folder whose letters can't be read shows none. */
+  async #readLetters(folder: ConnectedFolder): Promise<readonly Letter[]> {
+    try {
+      return (await readLetters(folder.fs)).map((l) => l.letter);
+    } catch (error) {
+      this.#host.notify({ kind: "failed", action: "list-folder", subject: folder.name, error });
+      return [];
+    }
+  }
+
+  /** The letter at `path`, as last listed. */
+  letter(path: string): Letter | null {
+    return this.#letters.find((l) => l.path === path) ?? null;
+  }
+
   /** A file couldn't be opened: show why in the list. */
   markUnreadable(path: FilePath, reason: UnreadableReason): void {
     this.#files = this.#files.map((f) => {
@@ -161,12 +185,12 @@ export class FolderIndex<H> {
     this.#publish();
   }
 
-  /** A file was saved: update its size, date, and (for context files) rows. */
+  /** A file was saved: update its size, date, and (for context files and letters) rows. */
   saved(path: FilePath, result: WriteResult<FilePath>, text: string): void {
     const rows = rowsUsed(layoutRows(text, TERMINAL_COLS));
     this.#files = this.#files.map((f) =>
       f.path === path
-        ? { ...f, size: result.size, modifiedAt: result.modifiedAt, rows: f.group === "context" ? rows : f.rows }
+        ? { ...f, size: result.size, modifiedAt: result.modifiedAt, rows: f.group === "other" ? f.rows : rows }
         : f,
     );
     this.#publish();
@@ -196,6 +220,7 @@ export class FolderIndex<H> {
     const { store, journal } = this.#host.library();
     const copies = await this.access.forget(store, journal, await this.#host.liveTabs());
     this.#files = [];
+    this.#letters = [];
     this.#partial = false;
     this.#unreadable.clear();
     this.#publish();

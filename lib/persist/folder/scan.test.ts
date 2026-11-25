@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { isContextFile, PAGE_ROWS, scanFolder } from "./scan.ts";
+import { fileGroup, isContextFile, isLetterPath, PAGE_ROWS, scanFolder } from "./scan.ts";
 import { browserFixture, nodeFixture, type FolderFixture } from "./testing/fixtures.ts";
 
 const lines = (n: number) =>
@@ -35,6 +35,15 @@ test("context file patterns", () => {
   }
 });
 
+test("letters: .md files directly in .agents/letters/, grouped before context files", () => {
+  assert.equal(fileGroup(".agents/letters/2026-11-25-0930-auth.md"), "letter");
+  assert.equal(fileGroup(".agents/letters/AGENTS.md"), "letter", "a letter is never a context file");
+  assert.equal(fileGroup(".agents/letters/old/x.md"), "other");
+  assert.equal(fileGroup("AGENTS.md"), "context");
+  assert.equal(fileGroup("docs/letter.md"), "other");
+  assert.ok(!isLetterPath(".agents/letters/x.mdc"));
+});
+
 /** The scan tests, on one adapter. */
 function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
   const scan = async (files: Record<string, string | Uint8Array>, options?: { limit?: number }) => {
@@ -46,6 +55,23 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
       await fixture.dispose();
     }
   };
+
+  test(`${label}: letters are measured and listed first, not under Other Markdown`, async () => {
+    const result = await scan({
+      ".agents/letters/2026-11-25-0930-auth.md": lines(63),
+      "AGENTS.md": lines(5),
+      "docs/guide.md": lines(3),
+    });
+    assert.deepEqual(
+      result.files.map((f) => [f.path, f.group]),
+      [
+        [".agents/letters/2026-11-25-0930-auth.md", "letter"],
+        ["AGENTS.md", "context"],
+        ["docs/guide.md", "other"],
+      ],
+    );
+    assert.equal(result.files[0]?.rows, 63);
+  });
 
   test(`${label}: a context file over one page reports its rows`, async () => {
     const result = await scan({

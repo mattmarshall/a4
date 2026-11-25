@@ -9,6 +9,7 @@
 export type { Channel } from "./channel.ts";
 export { systemClock, type Clock } from "./clock.ts";
 export type { DeviceStorage } from "./device-storage.ts";
+export { sha256 } from "./digest.ts";
 export { IdbHandleStore, MemoryHandleStore, type HandleStore } from "./handle-store.ts";
 export { MemoryKeyValue, StorageKeyValue, type KeyValue } from "./key-value.ts";
 export { noLocks, type Locks } from "./locks.ts";

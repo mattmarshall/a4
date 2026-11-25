@@ -18,6 +18,7 @@ import type { FolderFs } from "../persist/folder/fs.ts";
 import { isContextFile } from "../persist/folder/scan.ts";
 import { decodeStrict, MAX_FILE_BYTES, SCAN_ENTRY_LIMIT, walkFolder } from "../persist/store/folder.ts";
 import { DESK_PAGE, judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
+import { isLetterPath } from "./letters.ts";
 
 export type { LintedFile, LintReport } from "../gen/a4/v1/lint_pb.js";
 export { LintedFileSchema, LintOutcome, LintReportSchema, Unreadable } from "../gen/a4/v1/lint_pb.js";
@@ -81,11 +82,11 @@ export interface FolderLint {
   readonly partial: boolean;
 }
 
-/** Lint every context file in `fs`. */
+/** Lint every context file and letter in `fs`. */
 export async function lintFolder(fs: FolderFs, options: LintFolderOptions = {}): Promise<FolderLint> {
   const walk = await walkFolder(fs, options.limit ?? SCAN_ENTRY_LIMIT);
   const paths = walk.files
-    .filter((path) => isContextFile(path) && !options.exclude?.(path))
+    .filter((path) => (isContextFile(path) || isLetterPath(path)) && !options.exclude?.(path))
     // By code unit, not locale, so the order is the same on every machine.
     .sort((a, b) => Number(a > b) - Number(a < b));
   const results: LintResult[] = [];

@@ -11,7 +11,7 @@ import { baseName, type FilePath } from "../store/refs.ts";
 import type { UnreadableReason } from "../store/types.ts";
 import { toSheet } from "./faithful.ts";
 
-export type FileGroup = "context" | "other";
+export type FileGroup = "context" | "letter" | "other";
 
 export interface FolderFile {
   readonly path: FilePath;
@@ -43,6 +43,24 @@ export function isContextFile(path: string): boolean {
   return CONTEXT_NAMES.has(baseName(path).toLowerCase()) || CONTEXT_PATHS.some((re) => re.test(path));
 }
 
+/** The folder letters live in (`add-letters`), relative to the repository folder. */
+export const LETTERS_DIR = ".agents/letters";
+
+/** True for a letter: a `.md` file directly inside `.agents/letters/`. */
+export function isLetterPath(path: string): boolean {
+  if (!path.startsWith(`${LETTERS_DIR}/`)) return false;
+  const name = path.slice(LETTERS_DIR.length + 1);
+  return !name.includes("/") && name.length > 3 && name.toLowerCase().endsWith(".md");
+}
+
+/** A path's group in the folder list. Letters come before the context-file check, so a letter is never "context". */
+export function fileGroup(path: string): FileGroup {
+  if (isLetterPath(path)) return "letter";
+  return isContextFile(path) ? "context" : "other";
+}
+
+const GROUP_ORDER: Record<FileGroup, number> = { letter: 0, context: 1, other: 2 };
+
 /** Page rows of the Terminal preset; a context file using more is "over". */
 export const PAGE_ROWS = PRESETS.terminal.rows;
 
@@ -67,11 +85,11 @@ async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T
 export async function scanFolder(fs: FolderFs, options: { limit?: number } = {}): Promise<FolderScan> {
   const walk = await walkFolder(fs, options.limit ?? SCAN_ENTRY_LIMIT);
   const files = await mapLimited(walk.files, 4, async (path): Promise<FolderFile | null> => {
-    const group: FileGroup = isContextFile(path) ? "context" : "other";
+    const group = fileGroup(path);
     let read: Awaited<ReturnType<FolderFs["readBytes"]>>;
     try {
       // Other Markdown is listed by size and date only; its text isn't read.
-      read = await fs.readBytes(path, { maxBytes: group === "context" ? MAX_FILE_BYTES : 0 });
+      read = await fs.readBytes(path, { maxBytes: group === "other" ? 0 : MAX_FILE_BYTES });
     } catch {
       return null; // Gone since the walk.
     }
@@ -84,6 +102,6 @@ export async function scanFolder(fs: FolderFs, options: { limit?: number } = {})
     return { ...base, rows: fileRows(text), unreadable: null };
   });
   const listed = files.filter((f): f is FolderFile => f !== null);
-  listed.sort((a, b) => (a.group === b.group ? a.path.localeCompare(b.path) : a.group === "context" ? -1 : 1));
+  listed.sort((a, b) => GROUP_ORDER[a.group] - GROUP_ORDER[b.group] || a.path.localeCompare(b.path));
   return { files: listed, partial: walk.partial };
 }

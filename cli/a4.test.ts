@@ -7,7 +7,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { fromJsonString } from "@bufbuild/protobuf";
 import { ANALYSIS_TEXTS } from "../lib/analysis/testing/texts.ts";
-import { LintOutcome, LintReportSchema } from "../lib/desk/index.ts";
+import { LetterListSchema, LetterState, sealLetter } from "../lib/desk/index.ts";
+import { LintOutcome, LintReportSchema } from "../lib/desk/lint.ts";
+import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
 
 const CLI = fileURLToPath(new URL("./a4.ts", import.meta.url));
 
@@ -185,5 +187,128 @@ test("lint makes no network request", async () => {
     assert.equal(run.stderr, "");
     assert.equal(run.status, 1);
     assert.equal(fromJsonString(LintReportSchema, run.stdout).files.length, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// a4 letters
+
+const L1 = ".agents/letters/2026-11-24-1700-auth.md";
+const L2 = ".agents/letters/2026-11-25-0930-auth.md";
+const L3 = ".agents/letters/2026-11-25-1400-auth.md";
+const LETTER_1 = "HANDOFF · auth · 2026-11-24\n\nWhere it stands. The session store moved to Redis.\n";
+const LETTER_2 = "HANDOFF · auth · 2026-11-25\n\nWhere it stands. SECRET-TEXT-42 stays in the letter.\n";
+const LETTER_3 = "HANDOFF · auth · 2026-11-25 (later)\n\nWhere it stands. Half done.\n";
+const NOW = Date.UTC(2026, 10, 25, 9, 30);
+
+/** Seal `path` in `dir` the way the app does. */
+async function seal(dir: string, path: string, verdict: "accepted" | "returned", reason = "") {
+  await sealLetter(nodeFolderSource.open(dir), path, { verdict, reason, signer: "Matt", now: NOW });
+}
+
+test("a4 letters lists each letter's state, rows, signer, and reason, oldest first", async () => {
+  await inFolder({ [L1]: LETTER_1, [L2]: LETTER_2, [L3]: LETTER_3 }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    await seal(dir, L2, "returned", "Missing the rollback plan");
+    const run = a4(dir, ["letters"]);
+    assert.equal(run.status, 0);
+    const lines = run.stdout.trimEnd().split("\n");
+    assert.equal(lines.length, 3);
+    assert.match(lines[0] ?? "", /^accepted\s+\d+\/60\s+2026-11-24-1700-auth\.md\s+Matt$/);
+    assert.match(lines[1] ?? "", /^returned\s+\d+\/60\s+2026-11-25-0930-auth\.md\s+Matt: Missing the rollback plan$/);
+    assert.match(lines[2] ?? "", /^draft\s+\d+\/60\s+2026-11-25-1400-auth\.md$/);
+  });
+});
+
+test("a4 letters --json prints an a4.v1.LetterList without letter text", async () => {
+  await inFolder({ [L1]: LETTER_1, [L2]: LETTER_2 }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    const run = a4(dir, ["letters", "--json"]);
+    assert.equal(run.status, 0);
+    const list = fromJsonString(LetterListSchema, run.stdout);
+    assert.deepEqual(
+      list.letters.map((l) => [l.path, l.state]),
+      [
+        [L1, LetterState.ACCEPTED],
+        [L2, LetterState.DRAFT],
+      ],
+    );
+    assert.equal(list.letters[0]?.postmark?.signer, "Matt");
+    assert.ok(!run.stdout.includes("SECRET-TEXT-42"));
+  });
+});
+
+test("a4 letters rejects lint's options, more than one folder, and --latest with --json", async () => {
+  await inFolder({}, async (dir) => {
+    for (const args of [
+      ["letters", "--strict"],
+      ["letters", "--exclude", "x"],
+      ["letters", "a", "b"],
+      ["letters", "--latest", "--json"],
+      ["lint", "--latest"],
+      ["letters", "missing"],
+    ]) {
+      const run = a4(dir, args);
+      assert.equal(run.status, 2, args.join(" "));
+      assert.match(run.stderr, /Usage: a4 lint/, args.join(" "));
+    }
+  });
+});
+
+test("a4 letters --latest prints the newest accepted letter exactly, then the letters returned since", async () => {
+  await inFolder({ [L1]: LETTER_1, [L2]: LETTER_2, [L3]: LETTER_3 }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    await seal(dir, L2, "returned", "Missing the rollback plan");
+    const run = a4(dir, ["letters", "--latest"]);
+    assert.equal(run.status, 0);
+    assert.equal(run.stdout, `${LETTER_1}\n---\nReturned: 2026-11-25-0930-auth.md: Missing the rollback plan\n`);
+  });
+});
+
+test("a4 letters --latest delivers nothing from drafts and broken seals, and exits 0", async () => {
+  await inFolder({ [L1]: LETTER_1, [L2]: LETTER_2 }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    await writeFile(join(dir, ...L1.split("/")), `${LETTER_1}Edited after sealing.\n`);
+    const run = a4(dir, ["letters", "--latest"]);
+    assert.equal(run.status, 0);
+    assert.equal(run.stdout, "");
+    assert.match(run.stderr, /no accepted letter with an intact seal/);
+    assert.match(a4(dir, ["letters"]).stdout, /^broken .*\(changed after it was sealed\)$/m);
+  });
+});
+
+test("a4 letters only reads, and makes no network request", async () => {
+  const preload = `
+    import http from "node:http";
+    import https from "node:https";
+    import net from "node:net";
+    import { syncBuiltinESMExports } from "node:module";
+    const deny = () => { throw new Error("network"); };
+    globalThis.fetch = deny; http.request = http.get = deny; https.request = https.get = deny;
+    net.connect = net.createConnection = deny;
+    syncBuiltinESMExports();
+  `;
+  await inFolder({ [L1]: LETTER_1, [L2]: LETTER_2, "no-network.mjs": preload }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    const files = [L1, L2, `${L1}.postmark.json`].map((p) => join(dir, ...p.split("/")));
+    const before = await Promise.all(files.map(async (f) => [await readFile(f), (await stat(f)).mtimeMs] as const));
+    const run = a4(dir, ["letters", "--latest"], ["--import", join(dir, "no-network.mjs")]);
+    assert.equal(run.stderr, "");
+    assert.equal(run.stdout, LETTER_1);
+    a4(dir, ["letters", "--json"], ["--import", join(dir, "no-network.mjs")]);
+    const after = await Promise.all(files.map(async (f) => [await readFile(f), (await stat(f)).mtimeMs] as const));
+    assert.deepEqual(after, before);
+  });
+});
+
+test("a4 lint checks letters: one over the page fails 3 rows over", async () => {
+  const long = Array.from({ length: 63 }, (_, i) => `Step ${i + 1}: confirm item ${i * 7 + 3} first.`).join("\n");
+  await inFolder({ [L2]: long }, async (dir) => {
+    const run = a4(dir, ["lint"]);
+    assert.equal(run.status, 1);
+    assert.match(
+      run.stdout,
+      /^fail\s+63\/60\s+\S+\s+\.agents\/letters\/2026-11-25-0930-auth\.md — 3 rows over the page$/m,
+    );
   });
 });

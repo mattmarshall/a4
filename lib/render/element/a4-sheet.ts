@@ -195,6 +195,7 @@ export class A4SheetElement extends HTMLElement {
     this.#state = reduce(prev, action);
     const changed = changes(prev, this.#state);
     if (changed.label) this.#editor.setLabel(this.#state.label);
+    if (changed.readOnly) this.#editor.setReadOnly(this.#state.readOnly);
     if (changed.render) this.#applyRender();
     this.#schedule();
   }
@@ -253,6 +254,15 @@ export class A4SheetElement extends HTMLElement {
 
   get value(): string {
     return this.#editor.value;
+  }
+
+  /** Whether editing is off (the `readonly` attribute). Selecting and copying still work. */
+  get readOnly(): boolean {
+    return this.#state.readOnly;
+  }
+
+  set readOnly(readOnly: boolean) {
+    this.toggleAttribute("readonly", Boolean(readOnly));
   }
 
   set value(text: string) {

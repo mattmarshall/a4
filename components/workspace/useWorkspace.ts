@@ -29,10 +29,10 @@ const STARTING: WorkspaceSnapshot = {
   storage: null,
   library: { pages: [], trash: [] },
   slots: {
-    a: { ref: null, name: null, label: null, text: "", status: "saved" },
-    b: { ref: null, name: null, label: null, text: "", status: "saved" },
+    a: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
+    b: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
   },
-  folder: { state: { status: "none" }, files: [], partial: false, scanning: false },
+  folder: { state: { status: "none" }, files: [], letters: [], partial: false, scanning: false },
 };
 
 const noop = () => () => {};
@@ -168,6 +168,9 @@ export function useWorkspaceApi(notify: Notify) {
       closeFolder: () => run("close the folder", (w) => w.closeFolder()),
       createFile: (input: string, text: string, slot: Slot) => inline((w) => w.createFile(input, text, slot)),
       saveToFolder: (name: PageName, input: string, slot: Slot) => inline((w) => w.saveToFolder(name, input, slot)),
+      createLetter: (text: string, slot: Slot) => inline((w) => w.createLetter(text, slot)),
+      sealLetter: (slot: Slot, seal: { verdict: "accepted" | "returned"; reason: string; signer: string }) =>
+        inline((w) => w.sealLetter(slot, seal)),
     }),
     [ws, run, inline, openFolder],
   );

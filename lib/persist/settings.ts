@@ -66,6 +66,15 @@ const openRefCodec: IdCodec<PageRef | null> = {
   format: (ref) => (ref ? pageRefCodec.format(ref) : ""),
 };
 
+/** A person's name as they typed it, trimmed; blank reads as unset. */
+export const nameCodec: IdCodec<string | null> = {
+  parse: (raw) => {
+    const name = raw.trim();
+    return name === "" ? null : name;
+  },
+  format: (name) => name ?? "",
+};
+
 // ---------------------------------------------------------------------------
 // The registry
 
@@ -81,6 +90,8 @@ export const SETTINGS = {
   inspector: defineSetting({ key: "inspector", codec: flagCodec, default: true }),
   openA: defineSetting({ key: "open:a", codec: openRefCodec, default: null }),
   openB: defineSetting({ key: "open:b", codec: openRefCodec, default: null }),
+  /** The name written into the postmarks of letters sealed in this browser. */
+  signer: defineSetting<string | null>({ key: "signer", codec: nameCodec, default: null }),
 } as const;
 
 /** Whether the inspector section `id` is open; `defaultOpen` until the user toggles it. */

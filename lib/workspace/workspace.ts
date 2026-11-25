@@ -34,8 +34,18 @@ import { pageNameCodec, parsePageName } from "../persist/store/names.ts";
 import { openPageStore, type OpenedStore } from "../persist/store/open.ts";
 import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef } from "../persist/store/refs.ts";
 import {
+  isLetterPath,
+  letterPathAt,
+  type Postmark,
+  PostmarkExistsError,
+  postmarkPath,
+  sealLetter,
+  type SealOptions,
+} from "../desk/index.ts";
+import {
   FileUnreadableError,
   isStoreError,
+  PageExistsError,
   type PageName,
   type PageSummary,
   type TrashId,
@@ -74,7 +84,13 @@ export interface WorkspaceOptions<H> {
   isVisible?: () => boolean;
 }
 
-const NO_FOLDER: FolderSnapshot = { state: { status: "none" }, files: [], partial: false, scanning: false };
+const NO_FOLDER: FolderSnapshot = {
+  state: { status: "none" },
+  files: [],
+  letters: [],
+  partial: false,
+  scanning: false,
+};
 
 class NotReady extends Error {
   constructor() {
@@ -416,7 +432,13 @@ export class Workspace<H> {
         if (error instanceof FileUnreadableError) this.#folder?.markUnreadable(ref.path, error.reason);
         throw error;
       }
-      opened = openFolderFile(library, folder, page, { ...this.#sessionOptions(), onEvent: this.#route(() => opened) });
+      const file = openFolderFile(library, folder, page, {
+        ...this.#sessionOptions(),
+        onEvent: this.#route(() => opened),
+      });
+      // A letter with a postmark is sealed: it opens read-only.
+      const sealed = isLetterPath(ref.path) && (await folder.fs.stat(postmarkPath(ref.path))) !== null;
+      opened = sealed && file.kind === "file" ? { ...file, readOnly: true } : file;
     }
 
     // A newer request for this slot began while we read: drop what we built.
@@ -724,6 +746,76 @@ export class Workspace<H> {
       const list = await library.refresh();
       if (copies.length) this.#notify({ kind: "folder-copies", copies });
       await this.#replace(fileSlots, list);
+    });
+  }
+
+  /** Close what `slot` shows and open `ref` again (to pick up a seal). */
+  async #reopen(slot: Slot, ref: PageRef): Promise<void> {
+    this.#folder?.unwatch(slot);
+    const previous = this.#slots[slot].take();
+    await previous?.session.dispose();
+    await this.#open(slot, ref);
+  }
+
+  /**
+   * Seal the letter `slot` shows: save its pending edits, write its postmark
+   * under the folder's lock for that postmark, list the folder again, and
+   * reopen the letter read-only. A letter sealed meanwhile (another tab) is
+   * refused and shown as it is now.
+   */
+  sealLetter(slot: Slot, seal: Omit<SealOptions, "now">): Promise<Result<Postmark>> {
+    return attempt(async () => {
+      const open = this.#slots[slot].open;
+      const folder = this.#connected();
+      if (!folder || open?.kind !== "file" || !isLetterPath(open.ref.path))
+        throw new Error("Open a letter to seal it.");
+      if (open.readOnly) throw new PostmarkExistsError(open.ref.path);
+      await this.#slots[slot].flush();
+      if (!this.#slots[slot].saved) throw new Error("The letter couldn’t be saved, so it wasn’t sealed.");
+      const { path } = open.ref;
+      const { locks, clock } = this.#platform;
+      const write = () => sealLetter(folder.fs, path, { ...seal, now: clock.now() });
+      /** List the folder again, and show the letter as it is now (read-only once sealed). */
+      const refresh = async () => {
+        await this.#folder?.rescan();
+        if (this.#slots[slot].open === open) await this.#reopen(slot, open.ref);
+      };
+      let postmark: Postmark;
+      try {
+        // Without Web Locks (one tab), the desk's own "already sealed" check still holds.
+        postmark = await (locks ? locks.request(`a4:file:${folder.id}:${postmarkPath(path)}`, write) : write());
+      } catch (error) {
+        if (error instanceof PostmarkExistsError) await refresh();
+        throw error;
+      }
+      await refresh();
+      return postmark;
+    });
+  }
+
+  /**
+   * Start a letter: create `.agents/letters/<UTC YYYY-MM-DD-HHMM>-letter.md`
+   * (numbered when that name is taken) holding `text`, and open it in `slot`.
+   */
+  createLetter(text: string, slot: Slot): Promise<Result<FilePath>> {
+    return attempt(async () => {
+      const index = this.#folder;
+      if (!index) throw new Error("Open a folder first.");
+      const now = this.#platform.clock.now();
+      // Creating a file adds its final newline; a form's own last newline would make two.
+      const body = text.endsWith("\n") ? text.slice(0, -1) : text;
+      for (let n = 1; n <= 9; n++) {
+        let path: FilePath;
+        try {
+          path = await index.createFile(letterPathAt(now, n), body);
+        } catch (error) {
+          if (error instanceof PageExistsError) continue;
+          throw error;
+        }
+        await this.#open(slot, fileRef(path));
+        return path;
+      }
+      throw new Error("Couldn’t find a free name for a new letter this minute.");
     });
   }
 

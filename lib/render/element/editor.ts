@@ -81,12 +81,15 @@ export class EditorSurface {
       this.#last = el.value;
     });
     el.addEventListener("keydown", (e) => {
+      // Read-only: Tab moves focus as usual instead of inserting spaces.
+      if (el.readOnly) return;
       if (e.key === "Tab" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         insertAtCaret(el, TAB_SPACES, false);
       }
     });
     el.addEventListener("paste", (e) => {
+      if (el.readOnly) return;
       const raw = e.clipboardData?.getData("text/plain");
       if (!raw || !needsNormalizing(raw)) return;
       e.preventDefault();
@@ -147,6 +150,15 @@ export class EditorSurface {
     this.element.focus({ preventScroll: true, ...options });
   }
 
+  /**
+   * Turn editing off or on. The textarea's own `readOnly` stops native typing,
+   * cutting, and undo; the editor's own insertions (Tab, cleaned paste and
+   * drop) check it too, since `setRangeText` would edit a read-only field.
+   */
+  setReadOnly(readOnly: boolean): void {
+    this.element.readOnly = readOnly;
+  }
+
   setLabel(label: string): void {
     if (label) this.element.setAttribute("aria-label", label);
     else this.element.removeAttribute("aria-label");
@@ -170,6 +182,10 @@ export class EditorSurface {
    * the whole drop, not just the cleanup). Never during composition.
    */
   #beforeInput(e: InputEvent) {
+    if (this.element.readOnly) {
+      if (e.cancelable) e.preventDefault();
+      return;
+    }
     if (e.isComposing || !e.cancelable || !CLEANABLE.has(e.inputType)) return;
     const data = e.data ?? e.dataTransfer?.getData("text/plain") ?? null;
     if (!data || !needsNormalizing(data)) return;

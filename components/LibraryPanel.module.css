@@ -256,6 +256,30 @@
     cursor: default;
   }
 
+  .groupHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .letterState {
+    font-weight: 600;
+    color: var(--info);
+  }
+
+  .letterState[data-state="accepted"] {
+    color: var(--ok);
+  }
+
+  .letterState[data-state="returned"] {
+    color: var(--warn);
+  }
+
+  .letterState[data-state="broken"] {
+    color: var(--crit);
+  }
+
   .rows[data-over] {
     color: var(--crit);
     font-weight: 600;

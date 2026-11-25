@@ -18,8 +18,9 @@ import {
   type TransformResult,
   SEMANTIC_REPETITION,
 } from "@/lib/models";
-import { SAMPLE_PAIRS } from "@/lib/content";
-import { SETTINGS, copyNameFor, sameRef, type PageName, type PageRef } from "@/lib/persist";
+import { SAMPLE_PAIRS, TEMPLATES } from "@/lib/content";
+import { isLetterPath, LetterState } from "@/lib/desk";
+import { SETTINGS, copyNameFor, fileRef, sameRef, type PageName, type PageRef } from "@/lib/persist";
 import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
@@ -28,6 +29,7 @@ import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
+import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
 import { saveFile } from "./workbench/download";
@@ -60,6 +62,9 @@ export function Workbench() {
   const [grid] = useSetting(SETTINGS.grid);
   const [render] = useSetting(SETTINGS.render);
   const [gpuMissing, setGpuMissing] = useState(false);
+  const [signer, setSigner] = useSetting(SETTINGS.signer);
+  /** The seal dialog is open for the active letter. */
+  const [sealing, setSealing] = useState(false);
   /** "Save to folder…" was chosen: the Pages panel asks for a path. */
   const [saveRequest, setSaveRequest] = useState<{ name: PageName; slot: Slot } | null>(null);
   const sheetA = useRef<A4SheetHandle>(null);
@@ -230,6 +235,40 @@ export function Workbench() {
     });
   }
 
+  /** Open a letter in B beside the letter before it in A, or on its own when it's the first. */
+  async function openLetter(ref: PageRef) {
+    if (ref.kind !== "file") return;
+    const paths = lib.folder.letters.map((l) => l.path);
+    const before = paths[paths.indexOf(ref.path) - 1];
+    // The listed file for that path, whose path is already a checked FilePath.
+    const previous = lib.folder.files.find((f) => f.path === before)?.path;
+    if (!previous) {
+      openInSlot(compare ? target : "a", ref);
+      return;
+    }
+    setMode("compare");
+    await lib.openInSlot("a", fileRef(previous), `open “${previous}”`);
+    await lib.openInSlot("b", ref, `open “${ref.path}”`);
+    setActive("b");
+    if (layout.narrow) layout.setLibrary(false);
+  }
+
+  /** The active page's letter, when it is one. */
+  const activePath = page.ref?.kind === "file" && isLetterPath(page.ref.path) ? page.ref.path : null;
+  const activeLetter = activePath ? (lib.folder.letters.find((l) => l.path === activePath) ?? null) : null;
+
+  async function seal(verdict: SealVerdict, reason: string, name: string): Promise<string | null> {
+    const error = await lib.sealLetter(target, { verdict, reason, signer: name });
+    if (error) return error;
+    setSigner(name);
+    setSealing(false);
+    if (verdict === "accepted") {
+      if (effectiveRender === "3d") handles[target].current?.fold();
+      notify(`Sealed: accepted “${page.label ?? "the letter"}”.`);
+    } else notify(`Sealed: returned “${page.label ?? "the letter"}”.`);
+    return null;
+  }
+
   async function duplicate(ref: PageRef) {
     if (ref.kind === "library") {
       await lib.duplicatePage(ref, `duplicate “${ref.name}”`);
@@ -255,6 +294,8 @@ export function Workbench() {
     reconnect: () => void lib.reconnectFolder(),
     close: () => void lib.closeFolder(),
     createFile: (path) => lib.createFile(path, "", target),
+    createLetter: () => lib.createLetter(TEMPLATES.find((t) => t.id === "handoff")?.text ?? "", target),
+    openLetter: (ref) => void openLetter(ref),
     saveTo: async (path) => {
       if (!saveRequest) return null;
       const error = await lib.saveToFolder(saveRequest.name, path, saveRequest.slot);
@@ -360,6 +401,22 @@ export function Workbench() {
           onEdit={lib.edit}
           onActivate={setActive}
           onRender={onSheetRender}
+          deskActions={
+            activeLetter ? (
+              page.readOnly || activeLetter.state !== LetterState.DRAFT ? (
+                <SealedChip letter={activeLetter} />
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setSealing(true)}
+                  title="Accept or return this letter"
+                >
+                  Seal…
+                </button>
+              )
+            ) : null
+          }
         >
           {legendShown && !focus ? (
             <div className="lens-chip" role="group" aria-label="Lens legend" data-print="hide">
@@ -420,6 +477,15 @@ export function Workbench() {
           </aside>
         ) : null}
       </div>
+
+      <SealDialog
+        open={sealing && activeLetter !== null && !page.readOnly}
+        letterName={activePath ? activePath.slice(activePath.lastIndexOf("/") + 1) : ""}
+        overBy={targetAnalysis.metrics.overflow}
+        signer={signer}
+        onSeal={seal}
+        onClose={() => setSealing(false)}
+      />
 
       {toast ? (
         <div className="toast" role="status" data-tone={toast.tone} data-print="hide">

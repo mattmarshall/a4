@@ -54,6 +54,8 @@ export interface A4SheetProps {
   zoom: number | null;
   grid: boolean;
   label: string;
+  /** Stop editing (a sealed letter); selecting and copying still work. */
+  readOnly?: boolean | undefined;
   className?: string | undefined;
   onFocus?: () => void;
   onRender?: (render: A4Render) => void;
@@ -165,6 +167,7 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
   // Attributes: each prop that changed since this wrapper last wrote it.
   const written = useRef(new Map<A4AttributeName, string | null>());
   const { preset, lens, render, pose, tilt, turn, light, zoom, grid, label } = props;
+  const readOnly = props.readOnly ?? false;
   useEffect(() => {
     const el = host.current;
     if (!el) return;
@@ -181,13 +184,14 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
       zoom,
       grid,
       label,
+      readOnly,
     });
     for (const [name, value] of attributeWrites(attrs, written.current)) {
       if (value === null) el.removeAttribute(name);
       else el.setAttribute(name, value);
       written.current.set(name, value);
     }
-  }, [preset, lens, render, pose, tilt, turn, light, zoom, grid, label]);
+  }, [preset, lens, render, pose, tilt, turn, light, zoom, grid, label, readOnly]);
 
   return <a4-sheet ref={host} class={props.className} />;
 });

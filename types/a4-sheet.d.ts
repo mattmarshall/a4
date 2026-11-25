@@ -33,6 +33,8 @@ interface A4SheetAttributes {
   grid?: boolean | undefined;
   /** accessible name */
   label?: string | undefined;
+  /** boolean: present stops editing; selecting and copying still work */
+  readonly?: boolean | undefined;
 }
 
 declare module "react" {
