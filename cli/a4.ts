@@ -4,13 +4,16 @@
  *
  *   pnpm a4 lint [path ...] [--strict] [--exclude <glob>]... [--json]
  *   pnpm a4 letters [folder] [--latest | --json]
+ *   pnpm a4 mailroom [folder]
  *   node <checkout>/cli/a4.ts <command> ...
  *
  * `lint` checks agent context files and letters against the 80 × 60 Terminal
  * page, as the folder view lists and measures them (README, "Page lint").
  * `letters` lists a folder's letters, or with `--latest` prints the newest
  * accepted letter whose seal is intact (README, "Letters"). Both only read
- * files and make no network request.
+ * files. `mailroom` serves the folder's letters to an agent over MCP on
+ * standard input and output (cli/mailroom.ts; README, "Mailroom"); it writes
+ * only new draft letters. None makes a network request.
  *
  * Exit status: 0 when nothing fails, 1 when lint finds a failing file, 2 for a
  * usage error or a path that can't be read.
@@ -18,6 +21,7 @@
 
 import { stat } from "node:fs/promises";
 import { basename, dirname, matchesGlob, resolve, sep } from "node:path";
+import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { toJsonString } from "@bufbuild/protobuf";
 import { describeFinding, ENGLISH, formatByteLimit, VERDICT_LABEL } from "../components/analysis-copy.ts";
@@ -46,9 +50,11 @@ import {
   Unreadable,
 } from "../lib/desk/lint.ts";
 import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
+import { createMailroom } from "./mailroom.ts";
 
 const USAGE = `Usage: a4 lint [path ...] [--strict] [--exclude <glob>]... [--json]
        a4 letters [folder] [--latest | --json]
+       a4 mailroom [folder]
 
 a4 lint checks agent context files and letters against one A4 page
 (${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells). With no path, it checks the current folder and below:
@@ -65,6 +71,12 @@ by default), oldest first, with their state, rows, signer, and reason.
                     note for each letter returned since. Prints nothing when no
                     letter can be delivered.
   --json            Print an a4.v1.LetterList as JSON (no letter text)
+
+a4 mailroom serves a folder (the current folder by default) to an agent over
+the Model Context Protocol, on standard input and output: lint_page checks a
+page, write_letter files a new draft letter in ${LETTERS_DIR}/, and
+read_letter returns the latest accepted letter. No tool seals a letter.
+Register it with your agent rather than running it by hand.
 
   -h, --help        Show this help
 
@@ -174,7 +186,8 @@ interface LettersArgs {
 type Command =
   | { readonly kind: "help" }
   | ({ readonly kind: "lint" } & LintArgs)
-  | ({ readonly kind: "letters" } & LettersArgs);
+  | ({ readonly kind: "letters" } & LettersArgs)
+  | { readonly kind: "mailroom"; readonly folder: string };
 
 function parse(argv: readonly string[]): Command {
   const { values, positionals } = parseArgs({
@@ -210,7 +223,14 @@ function parse(argv: readonly string[]): Command {
     }
     return { kind: "letters", folder: paths[0] ?? ".", latest: values.latest, json: values.json };
   }
-  throw new UsageError(command ? `Unknown command “${command}”.` : "Name a command: lint or letters.");
+  if (command === "mailroom") {
+    if (values.json || values.strict || values.latest || values.exclude.length > 0) {
+      throw new UsageError("a4 mailroom takes no options.");
+    }
+    if (paths.length > 1) throw new UsageError("a4 mailroom takes one folder.");
+    return { kind: "mailroom", folder: paths[0] ?? "." };
+  }
+  throw new UsageError(command ? `Unknown command “${command}”.` : "Name a command: lint, letters, or mailroom.");
 }
 
 const LETTER_STATE: Record<LetterState, string> = {
@@ -276,6 +296,24 @@ async function letters(args: LettersArgs): Promise<number> {
   return 0;
 }
 
+/**
+ * Serve a folder over MCP's stdio transport: one message per line in, one
+ * response per line out, handled in order so writes never interleave.
+ * Standard output carries protocol messages only. Exits 0 when input closes.
+ */
+async function mailroom(folder: string): Promise<number> {
+  const absolute = resolve(folder);
+  const found = await stat(absolute).catch(() => null);
+  if (!found) throw new UsageError(`“${folder}” doesn’t exist.`);
+  if (!found.isDirectory()) throw new UsageError(`“${folder}” isn’t a folder.`);
+  const server = createMailroom({ fs: nodeFolderSource.open(absolute), now: () => Date.now() });
+  const lines = createInterface({ input: process.stdin, crlfDelay: Number.POSITIVE_INFINITY });
+  for await (const line of lines) {
+    for (const response of await server.handle(line)) process.stdout.write(`${response}\n`);
+  }
+  return 0;
+}
+
 /** Report a failure: a usage error with the usage, anything else on its own. Exit status 2. */
 function failed(error: unknown): number {
   if (error instanceof UsageError) process.stderr.write(`a4: ${error.message}\n\n${USAGE}`);
@@ -300,6 +338,13 @@ async function main(argv: readonly string[]): Promise<number> {
   if (args.kind === "letters") {
     try {
       return await letters(args);
+    } catch (error) {
+      return failed(error);
+    }
+  }
+  if (args.kind === "mailroom") {
+    try {
+      return await mailroom(args.folder);
     } catch (error) {
       return failed(error);
     }

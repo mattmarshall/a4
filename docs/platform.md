@@ -223,17 +223,31 @@ Each step is its own OpenSpec change, in this order.
      `a4 letters --latest` delivers the newest accepted one, so a plain
      session-start hook works before the mailroom exists. `a4 lint` checks
      letters too.
-   - **Left for the mailroom:** agents still write letter files directly. A
-     tool that writes a letter with the desk's fit loop and findings, and one
-     that reads letters for an MCP client, come next.
-3. **`add-mailroom-mcp`.** A local MCP server with three tools:
-   - `write_letter`, which runs the fit loop and returns findings;
-   - `read_letter`, which returns sealed letters only;
-   - `lint_page`.
-
-   Also session-start and session-end hooks for coding agents. It must work
-   as a plain MCP server that any outside harness or review system can
-   register.
+   - **Left for the mailroom, now built:** a tool that files a letter after
+     the desk's fit check, and one that reads letters for an MCP client.
+3. **`add-mailroom-mcp`, built.** Agents file and read letters through a
+   local MCP server (README, "Mailroom").
+   - **The server:** `a4 mailroom [folder]` speaks MCP over stdio, for one
+     folder. It makes no network request and has no dependency beyond the
+     desk.
+   - **Three tools,** annotated so a client or an outside system can tell
+     reads from writes:
+     - `lint_page` (read-only) is the agent's fit loop;
+     - `write_letter` files a new draft, refuses a letter over the page with
+       the rows over and the findings, and never writes over a file;
+     - `read_letter` (read-only) returns only an accepted letter with its
+       seal intact, or by digest, a letter's state.
+   - **No tool seals.** Agents write, people seal.
+   - **Hooks:**
+     - at session start, `a4 letters --latest`;
+     - at the end, the server's instructions and a `letter` prompt.
+   - **Records:** results carry `a4.v1.PageCheck`, `FiledLetter`, and
+     `LetterDelivery` as structured content, so any outside harness or
+     review system can register the mailroom as a plain MCP server.
+   - **Still to come:**
+     - a tool that seals on a person's recorded verdict, if an outside
+       review system makes the case for one;
+     - showing drafts to a reviewer outside A4.
 4. **`add-stacks`.**
    - Reams with a page budget.
    - The fold ladder.

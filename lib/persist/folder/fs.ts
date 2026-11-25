@@ -34,12 +34,20 @@ export interface FolderFs {
   /**
    * Replace a file's bytes all at once. With `create`, a missing file (and
    * missing parent folders) is created, and removed again if the write
-   * fails. @throws FsError
+   * fails. With `exclusive` (which implies `create`), only a new file is
+   * written: an existing one is never replaced, and the write throws
+   * FsError("exists"). On Node that holds across processes; in the browser,
+   * within the callers' own locks. @throws FsError
    */
-  writeAtomic(path: string, bytes: Uint8Array<ArrayBuffer>, options?: { create?: boolean }): Promise<FileStat>;
+  writeAtomic(path: string, bytes: Uint8Array<ArrayBuffer>, options?: WriteOptions): Promise<FileStat>;
 }
 
-export type FsErrorCode = "not-found" | "not-allowed" | "failed";
+export interface WriteOptions {
+  readonly create?: boolean;
+  readonly exclusive?: boolean;
+}
+
+export type FsErrorCode = "not-found" | "not-allowed" | "exists" | "failed";
 
 /** A file system failure, the same from every adapter. */
 export class FsError extends Error {

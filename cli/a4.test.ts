@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,8 +45,8 @@ async function inFolder<T>(files: Record<string, string>, fn: (dir: string) => P
   }
 }
 
-function a4(dir: string, args: readonly string[], nodeArgs: readonly string[] = []): Run {
-  const run = spawnSync(process.execPath, [...nodeArgs, CLI, ...args], { cwd: dir, encoding: "utf8" });
+function a4(dir: string, args: readonly string[], nodeArgs: readonly string[] = [], input = ""): Run {
+  const run = spawnSync(process.execPath, [...nodeArgs, CLI, ...args], { cwd: dir, encoding: "utf8", input });
   return { status: run.status, stdout: run.stdout, stderr: run.stderr };
 }
 
@@ -310,5 +310,89 @@ test("a4 lint checks letters: one over the page fails 3 rows over", async () => 
       run.stdout,
       /^fail\s+63\/60\s+\S+\s+\.agents\/letters\/2026-11-25-0930-auth\.md — 3 rows over the page$/m,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// a4 mailroom
+
+/** One JSON-RPC message per line, as an MCP client writes them. */
+const messages = (...list: object[]) => `${list.map((m) => JSON.stringify(m)).join("\n")}\n`;
+
+test("a4 mailroom serves MCP over stdio, writes only the new letter, and makes no network request", async () => {
+  const preload = `
+    import http from "node:http";
+    import https from "node:https";
+    import net from "node:net";
+    import { syncBuiltinESMExports } from "node:module";
+    const deny = () => { throw new Error("network"); };
+    globalThis.fetch = deny; http.request = http.get = deny; https.request = https.get = deny;
+    net.connect = net.createConnection = deny;
+    syncBuiltinESMExports();
+  `;
+  await inFolder({ "AGENTS.md": light, [L1]: LETTER_1, [L2]: LETTER_2, "no-network.mjs": preload }, async (dir) => {
+    await seal(dir, L1, "accepted");
+    const files = ["AGENTS.md", L1, L2, `${L1}.postmark.json`].map((p) => join(dir, ...p.split("/")));
+    const before = await Promise.all(files.map(async (f) => [await readFile(f), (await stat(f)).mtimeMs] as const));
+    const input = messages(
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "test", version: "1" } },
+      },
+      { jsonrpc: "2.0", method: "notifications/initialized" },
+      { jsonrpc: "2.0", id: 2, method: "tools/list" },
+      {
+        jsonrpc: "2.0",
+        id: 3,
+        method: "tools/call",
+        params: { name: "write_letter", arguments: { text: LETTER_3, topic: "auth" } },
+      },
+      { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "read_letter", arguments: {} } },
+    );
+    const run = a4(dir, ["mailroom"], ["--import", join(dir, "no-network.mjs")], input);
+    assert.equal(run.stderr, "");
+    assert.equal(run.status, 0, "exits 0 when input closes");
+    const replies = run.stdout
+      .trimEnd()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    assert.deepEqual(
+      replies.map((r) => r.id),
+      [1, 2, 3, 4],
+      "one line per request, in order; none for the notification",
+    );
+    assert.equal(replies[0].result.serverInfo.name, "a4-mailroom");
+    assert.equal(replies[1].result.tools.length, 3);
+    const filed = replies[2].result.structuredContent;
+    assert.match(filed.path, /^\.agents\/letters\/\d{4}-\d{2}-\d{2}-\d{4}-auth\.md$/);
+    assert.equal(await readFile(join(dir, ...filed.path.split("/")), "utf8"), LETTER_3);
+    assert.equal(replies[3].result.content[0].text, LETTER_1, "only the accepted letter is delivered");
+    const after = await Promise.all(files.map(async (f) => [await readFile(f), (await stat(f)).mtimeMs] as const));
+    assert.deepEqual(after, before, "no other file changed");
+    const letters = (await readdir(join(dir, ".agents", "letters"))).sort();
+    assert.deepEqual(
+      letters,
+      [
+        "2026-11-24-1700-auth.md",
+        "2026-11-24-1700-auth.md.postmark.json",
+        "2026-11-25-0930-auth.md",
+        filed.path.slice(".agents/letters/".length),
+      ].sort(),
+      "the only new file is the filed letter, and no postmark was written",
+    );
+    assert.deepEqual((await readdir(dir)).sort(), [".agents", "AGENTS.md", "no-network.mjs"]);
+  });
+});
+
+test("a4 mailroom: a missing folder, an option, or two folders is a usage error (exit 2)", async () => {
+  await inFolder({}, async (dir) => {
+    const missing = a4(dir, ["mailroom", "missing"]);
+    assert.equal(missing.status, 2);
+    assert.match(missing.stderr, /“missing” doesn’t exist/);
+    assert.equal(missing.stdout, "", "nothing served");
+    assert.equal(a4(dir, ["mailroom", "--json"]).status, 2);
+    assert.equal(a4(dir, ["mailroom", ".", "."]).status, 2);
   });
 });

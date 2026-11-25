@@ -4,9 +4,9 @@
  * target and are renamed over it, so they are atomic.
  */
 
-import { mkdir, opendir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { link, mkdir, opendir, readFile, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
-import { FsError, type FileStat, type FolderEntry, type FolderFs, type FolderSource } from "./fs.ts";
+import { FsError, type FileStat, type FolderEntry, type FolderFs, type FolderSource, type WriteOptions } from "./fs.ts";
 
 function codeOf(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
@@ -15,10 +15,29 @@ function codeOf(error: unknown): string | undefined {
 }
 
 function toFsError(error: unknown, path: string): FsError {
+  if (error instanceof FsError) return error;
   const code = codeOf(error);
   if (code === "ENOENT" || code === "ENOTDIR") return new FsError("not-found", `“${path}” doesn’t exist.`);
   if (code === "EACCES" || code === "EPERM") return new FsError("not-allowed", `No access to “${path}”.`);
+  if (code === "EEXIST") return new FsError("exists", `“${path}” already exists.`);
   return new FsError("failed", error instanceof Error ? error.message : String(error), { cause: error });
+}
+
+/**
+ * Put the finished temporary file at `target` only if nothing is there: a hard
+ * link is atomic and fails with EEXIST instead of replacing a file. On a volume
+ * without hard links, an exclusive open still never replaces one, though a
+ * reader could briefly see it half written.
+ */
+async function linkNew(temp: string, target: string, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
+  try {
+    await link(temp, target);
+  } catch (error) {
+    const code = codeOf(error);
+    if (code !== "EPERM" && code !== "ENOTSUP" && code !== "EOPNOTSUPP") throw error;
+    await writeFile(target, bytes, { flag: "wx" });
+  }
+  await rm(temp, { force: true });
 }
 
 class NodeFolderFs implements FolderFs {
@@ -71,18 +90,17 @@ class NodeFolderFs implements FolderFs {
     }
   }
 
-  async writeAtomic(
-    path: string,
-    bytes: Uint8Array<ArrayBuffer>,
-    options: { create?: boolean } = {},
-  ): Promise<FileStat> {
+  async writeAtomic(path: string, bytes: Uint8Array<ArrayBuffer>, options: WriteOptions = {}): Promise<FileStat> {
     const target = this.#abs(path);
-    if (!options.create && !(await this.stat(path))) throw new FsError("not-found", `“${path}” doesn’t exist.`);
+    const exclusive = options.exclusive ?? false;
+    const create = (options.create ?? false) || exclusive;
+    if (!create && !(await this.stat(path))) throw new FsError("not-found", `“${path}” doesn’t exist.`);
     const temp = join(dirname(target), `.${basename(target)}.a4-${process.pid}-${++this.#temp}.tmp`);
     try {
-      if (options.create) await mkdir(dirname(target), { recursive: true });
+      if (create) await mkdir(dirname(target), { recursive: true });
       await writeFile(temp, bytes);
-      await rename(temp, target);
+      if (exclusive) await linkNew(temp, target, bytes);
+      else await rename(temp, target);
     } catch (error) {
       await rm(temp, { force: true }).catch(() => {});
       throw toFsError(error, path);

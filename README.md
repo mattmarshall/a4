@@ -48,6 +48,7 @@ pnpm dev          # http://localhost:5173
 | `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
 | `pnpm a4 lint [path ...] [--strict] [--exclude <glob>] [--json]` | Check context files and letters against one page (see "Page lint") |
 | `pnpm a4 letters [folder] [--latest \| --json]` | List a folder's letters, or print the newest accepted one (see "Letters") |
+| `pnpm a4 mailroom [folder]` | Serve a folder's letters to an agent over MCP on stdio (see "Mailroom") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
 | `node scripts/screenshots.ts compare <a> <b>` | Compare two captures pixel by pixel, and their PDF page counts. Writes `<view>.diff.png` for each view that differs, and exits 1 |
@@ -747,7 +748,8 @@ session starts from the newest accepted letter.
     before `…-letter-2.md`.
   - Any agent or editor can write one. **New letter** in the folder view
     starts one from the Handoff form, named
-    `<UTC YYYY-MM-DD-HHMM>-letter.md`.
+    `<UTC YYYY-MM-DD-HHMM>-letter.md`. Agents file them through the mailroom
+    (see "Mailroom"), which checks the fit first.
 - **The postmark:**
   - Sealing writes `<letter>.postmark.json` beside the letter. It's an
     `a4.v1.Postmark` (`proto/a4/v1/letter.proto`) in proto3 JSON, recording:
@@ -815,8 +817,67 @@ session starts from the newest accepted letter.
     the parent, delivery, and sealing. The app and the command share it.
   - SHA-256 comes from Web Crypto through `lib/platform`.
   - The app seals under the folder's Web Lock for the postmark's path, so two
-    tabs can't both seal a letter.
+    tabs can't both seal a letter. On Node, the postmark is created
+    exclusively, so two processes can't both write one.
   - The sheet's `readonly` attribute keeps sealed letters from being edited.
+
+## Mailroom
+
+`a4 mailroom` is a local MCP server for one repository's letters. An agent
+checks a letter against the page, files it as a draft, and reads the latest
+letter a person accepted. Any MCP client can register it, whether it's a
+coding agent, a harness, or a review system.
+
+| Tool | Annotations | What it does |
+| --- | --- | --- |
+| `lint_page` | `readOnlyHint: true` | Judges text on the 80 × 60 page, like `a4 lint`. It returns rows used, rows over, the verdict, and findings, and writes nothing. |
+| `write_letter` | `readOnlyHint: false`, `destructiveHint: false` | Files `text` as a new draft, `.agents/letters/<UTC YYYY-MM-DD-HHMM>-<topic>.md` (topic default `letter`). It doesn't file a letter over 60 rows; the agent gets the rows over and the findings, and rewrites. It never writes over a file: a taken name gets `-2` to `-9`. |
+| `read_letter` | `readOnlyHint: true` | Returns the letter `a4 letters --latest` delivers: the newest accepted letter with its seal intact, its signer and digest, and a note for each letter returned since. Given a `digest`, it returns that letter if it was accepted, or else says its state. It never returns a draft's text. |
+
+- **No tool seals.** Agents write, people seal, in the app's seal dialog.
+- **The `letter` prompt** asks the agent to write a handoff letter from the
+  Handoff form, check it with `lint_page`, and file it with `write_letter`.
+  Claude Code shows it as `/mcp__a4__letter`.
+- **Results:** each tool returns text for the model and, as structured
+  content, an `a4.v1.PageCheck`, `a4.v1.FiledLetter`, or
+  `a4.v1.LetterDelivery` (`proto/a4/v1/mailroom.proto`) in proto3 JSON. Each
+  record repeats the text in its `note`, because some clients (Claude Code
+  among them) show the model only the structured content.
+- **Privacy:** it speaks MCP on standard input and output only and makes no
+  network request. It reads only its folder, and creates only new letters in
+  `.agents/letters/`. Accepted letters' text goes only to the agent that
+  started it.
+
+**Register it** (the folder is where the agent starts, so start your agent at
+the repository root, or name the folder after `mailroom`):
+
+```sh
+claude mcp add a4 -- node ~/src/a4/cli/a4.ts mailroom
+claude mcp add --scope user a4 -- node ~/src/a4/cli/a4.ts mailroom   # every repository
+```
+
+Keep it at local or user scope: a project's `.mcp.json` would commit your
+checkout's path. Other clients take the usual entry:
+
+```json
+{
+  "mcpServers": {
+    "a4": { "command": "node", "args": ["/path/to/a4/cli/a4.ts", "mailroom"] }
+  }
+}
+```
+
+**Session hooks for coding agents:**
+- **Start:** the `SessionStart` hook under "Letters" (`a4 letters --latest`)
+  hands the agent the latest accepted letter before its first turn.
+- **End:** the mailroom's instructions ask the agent to file a letter before
+  it finishes or when its context runs low. `/mcp__a4__letter` asks for one
+  on demand. Nothing forces a letter: a hook that blocks the agent from
+  stopping fires after every turn, not once a session.
+
+A harness that runs agents itself can call `write_letter` at each checkpoint
+and `read_letter` when the next task starts. It can use the digest that
+`write_letter` returns to ask about the letter after a person seals it.
 
 ## Deploy to a4.marsh.build
 

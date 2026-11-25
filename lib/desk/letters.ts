@@ -22,7 +22,7 @@ import {
   type Postmark,
   PostmarkSchema,
 } from "../gen/a4/v1/letter_pb.js";
-import { FsError, type FolderFs } from "../persist/folder/fs.ts";
+import { FsError, type FolderFs, isFsError } from "../persist/folder/fs.ts";
 import { isLetterPath, LETTERS_DIR } from "../persist/folder/scan.ts";
 import { decodeStrict, MAX_FILE_BYTES } from "../persist/store/folder.ts";
 import { sha256 } from "../platform/digest.ts";
@@ -35,16 +35,17 @@ export { BrokenSeal, LetterListSchema, LetterState, LetterVerdict, PostmarkSchem
 export { isLetterPath, LETTERS_DIR } from "../persist/folder/scan.ts";
 
 /**
- * A new letter's path: `.agents/letters/<UTC YYYY-MM-DD-HHMM>-letter.md`, with
- * `-2` to `-9` for the `n`th letter started in the same minute (one digit, so
- * they sort in order). UTC, so names sort oldest to newest wherever they were
- * written.
+ * A new letter's path: `.agents/letters/<UTC YYYY-MM-DD-HHMM>-<topic>.md`, with
+ * `-2` to `-9` for the `n`th letter on that topic in the same minute (one
+ * digit, so they sort in order). UTC, so names sort oldest to newest wherever
+ * they were written. The topic is the caller's to check (the mailroom allows
+ * only a-z, 0-9, and inner hyphens).
  */
-export function letterPathAt(now: number, n = 1): string {
+export function letterPathAt(now: number, n = 1, topic = "letter"): string {
   const t = new Date(now);
   const two = (v: number) => String(v).padStart(2, "0");
   const stamp = `${t.getUTCFullYear()}-${two(t.getUTCMonth() + 1)}-${two(t.getUTCDate())}-${two(t.getUTCHours())}${two(t.getUTCMinutes())}`;
-  return `${LETTERS_DIR}/${stamp}-letter${n > 1 ? `-${n}` : ""}.md`;
+  return `${LETTERS_DIR}/${stamp}-${topic}${n > 1 ? `-${n}` : ""}.md`;
 }
 
 /**
@@ -77,6 +78,12 @@ export interface ReadLetter {
   readonly letter: Letter;
   /** The file's text, or null when it's over 1 MiB or not UTF-8. */
   readonly text: string | null;
+  /**
+   * The digest of the file's current bytes (a draft's too), or null when the
+   * file can't be read. Taken from the bytes, not the decoded text, which
+   * drops a byte-order mark.
+   */
+  readonly digest: string | null;
 }
 
 /** A postmark file's size limit; a real one is a few hundred bytes. */
@@ -101,24 +108,31 @@ async function readOne(fs: FolderFs, name: string): Promise<ReadLetter> {
   const { bytes } = await fs.readBytes(path, { maxBytes: MAX_FILE_BYTES });
   const text = bytes ? decodeStrict(bytes) : null;
   const rowsUsed = text === null ? 0 : judgeFile(text).fit.rowsUsed;
+  // Only a readable letter has a digest: one over 1 MiB or not UTF-8 can't be delivered or matched.
+  const digest = bytes === null || text === null ? null : await letterDigest(bytes);
   const row = (init: MessageInitShape<typeof LetterSchema>) => create(LetterSchema, { path, rowsUsed, ...init });
-  if (!(await fs.stat(postmarkPath(path)))) return { letter: row({ state: LetterState.DRAFT }), text };
+  if (!(await fs.stat(postmarkPath(path)))) return { letter: row({ state: LetterState.DRAFT }), text, digest };
   const sidecar = await fs.readBytes(postmarkPath(path), { maxBytes: MAX_POSTMARK_BYTES });
   const postmark = parsePostmark(sidecar.bytes, name);
   if (!postmark) {
     return {
       letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.UNREADABLE_POSTMARK }),
       text,
+      digest,
     };
   }
-  if (bytes === null || text === null) {
-    return { letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.UNREADABLE_LETTER, postmark }), text };
+  if (digest === null) {
+    return {
+      letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.UNREADABLE_LETTER, postmark }),
+      text,
+      digest,
+    };
   }
-  if ((await letterDigest(bytes)) !== postmark.digest) {
-    return { letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.CHANGED, postmark }), text };
+  if (digest !== postmark.digest) {
+    return { letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.CHANGED, postmark }), text, digest };
   }
   const state = postmark.verdict === LetterVerdict.ACCEPTED ? LetterState.ACCEPTED : LetterState.RETURNED;
-  return { letter: row({ state, postmark }), text };
+  return { letter: row({ state, postmark }), text, digest };
 }
 
 /** Every letter in `fs`, oldest first (by file name). A folder without `.agents/letters/` has none. */
@@ -254,7 +268,12 @@ export async function sealLetter(fs: FolderFs, path: string, options: SealOption
     sealedAt: timestampFromMs(options.now),
     parent: before.at(-1)?.letter.postmark?.digest ?? "",
   });
-  if (await fs.stat(sidecar)) throw new PostmarkExistsError(path);
-  await fs.writeAtomic(sidecar, new TextEncoder().encode(postmarkJson(postmark)), { create: true });
+  try {
+    // Exclusive: a postmark written since the check above, by any process, is never replaced.
+    await fs.writeAtomic(sidecar, new TextEncoder().encode(postmarkJson(postmark)), { exclusive: true });
+  } catch (error) {
+    if (isFsError(error, "exists")) throw new PostmarkExistsError(path);
+    throw error;
+  }
   return postmark;
 }

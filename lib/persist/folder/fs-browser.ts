@@ -1,6 +1,6 @@
 /** FolderFs and FolderSource over the File System Access API. */
 
-import { FsError, type FileStat, type FolderEntry, type FolderFs, type FolderSource } from "./fs.ts";
+import { FsError, type FileStat, type FolderEntry, type FolderFs, type FolderSource, type WriteOptions } from "./fs.ts";
 
 function errorName(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "name" in error && typeof error.name === "string"
@@ -89,16 +89,15 @@ class HandleFolderFs implements FolderFs {
     }
   }
 
-  async writeAtomic(
-    path: string,
-    bytes: Uint8Array<ArrayBuffer>,
-    options: { create?: boolean } = {},
-  ): Promise<FileStat> {
-    const create = options.create ?? false;
+  async writeAtomic(path: string, bytes: Uint8Array<ArrayBuffer>, options: WriteOptions = {}): Promise<FileStat> {
+    const exclusive = options.exclusive ?? false;
+    const create = (options.create ?? false) || exclusive;
     let handle: FileSystemFileHandle;
     let existed = true;
     try {
       if (create) existed = (await this.stat(path)) !== null;
+      // No exclusive create in this API: the check above, under the callers' locks, is the guard.
+      if (exclusive && existed) throw new FsError("exists", `“${path}” already exists.`);
       handle = await this.#file(path, create);
     } catch (error) {
       throw toFsError(error, path);

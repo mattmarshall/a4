@@ -1,0 +1,85 @@
+// The mailroom's results: what `a4 mailroom`'s MCP tools return to programs as
+// structured content, in proto3 JSON. `lint_page` returns a PageCheck,
+// `write_letter` a FiledLetter, and `read_letter` a LetterDelivery. Built by
+// lib/desk/mailroom.ts.
+//
+// A PageCheck and a FiledLetter never carry the text that was checked (repeated
+// terms excepted, inside the AnalysisReport). A LetterDelivery carries a
+// letter's text only when the letter is accepted with its seal intact.
+//
+// Each record's `note` holds the result's readable words, in English, for the
+// model: some clients show a model only the structured content. A note never
+// holds a letter's text.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/analysis.proto";
+import "a4/v1/letter.proto";
+import "a4/v1/lint.proto";
+
+// A page judged on the 80 x 60 Terminal page, as `a4 lint` judges a file.
+message PageCheck {
+  // FAIL when over 60 rows, WARN when Noisy or Busy, PASS otherwise.
+  LintOutcome outcome = 1;
+  // Rows used through the last inked row.
+  uint32 rows_used = 2;
+  // The page's rows: 60.
+  uint32 page_rows = 3;
+  // Rows over the page; 0 when it fits.
+  uint32 over_by = 4;
+  AnalysisReport report = 5;
+  // The check in words: "74 of 60 rows, 14 over: fails, Overflowing." and a
+  // line per finding. Empty inside a FiledLetter, whose own note says it.
+  string note = 6;
+}
+
+// The result of filing a letter.
+message FiledLetter {
+  // True when a new draft letter was written.
+  bool filed = 1;
+  // Relative to the folder, for example
+  // ".agents/letters/2026-11-25-0930-auth-migration.md"; set when filed.
+  string path = 2;
+  // "urn:a4:letter:sha256:" + 64 lowercase hexadecimal digits of the bytes
+  // written; set when filed.
+  string digest = 3;
+  // The letter's check; unset when the text couldn't be judged.
+  PageCheck check = 4;
+  // Why nothing was filed; FILING_REFUSAL_UNSPECIFIED when it was.
+  FilingRefusal refusal = 5;
+  // The filing in words: where it was filed and that it's a draft until a
+  // person seals it, or why it wasn't filed, with the check.
+  string note = 6;
+}
+
+enum FilingRefusal {
+  FILING_REFUSAL_UNSPECIFIED = 0;
+  // More than 60 rows.
+  FILING_REFUSAL_OVER_PAGE = 1;
+  // Empty, or only whitespace.
+  FILING_REFUSAL_EMPTY = 2;
+  // Longer than 1 MiB (1,048,576 bytes) as UTF-8.
+  FILING_REFUSAL_TOO_LARGE = 3;
+  // Not 1 to 40 characters of a-z, 0-9, and single inner hyphens.
+  FILING_REFUSAL_BAD_TOPIC = 4;
+  // The name and its -2 to -9 variants are all taken this minute.
+  FILING_REFUSAL_NO_FREE_NAME = 5;
+}
+
+// The result of reading a letter.
+message LetterDelivery {
+  // True when `text` holds an accepted letter whose seal is intact.
+  bool delivered = 1;
+  // The delivered letter, or the one a digest named; unset when none.
+  Letter letter = 2;
+  // The letter's exact text; only when delivered.
+  string text = 3;
+  // Letters returned after the delivered one, oldest first; only for the
+  // latest delivery.
+  repeated Letter returned_since = 4;
+  // Where the letter came from and what a seal means, or why nothing was
+  // delivered. Never the letter's text, which is in `text`.
+  string note = 5;
+}

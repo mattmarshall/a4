@@ -146,6 +146,39 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
     });
   });
 
+  test(`${label}: a postmark written by another process mid-seal is never replaced`, async () => {
+    await inFolder({ [A]: fits }, async (fs, folder) => {
+      const theirs = '{"letter":"2026-11-24-1700-auth.md"}\n';
+      // Another process writes the postmark after every check, just before this seal's write.
+      const racing: FolderFs = {
+        name: fs.name,
+        entries: (dir) => fs.entries(dir),
+        stat: (path) => fs.stat(path),
+        readBytes: (path, options) => fs.readBytes(path, options),
+        async writeAtomic(path, bytes, options) {
+          if (path === postmarkPath(A)) await folder.put(path, theirs);
+          return fs.writeAtomic(path, bytes, options);
+        },
+      };
+      await assert.rejects(accept(racing, A), PostmarkExistsError);
+      assert.equal(await folder.text(postmarkPath(A)), theirs);
+    });
+  });
+
+  test(`${label}: every readable letter has the digest of its current bytes, a draft's too`, async () => {
+    const bom = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode(fits)]);
+    const notUtf8 = new Uint8Array([0x66, 0xff, 0x0a]);
+    await inFolder({ [A]: fits, [B]: bom, [C]: notUtf8 }, async (fs) => {
+      const [a, b, c] = await readLetters(fs);
+      assert.equal(a?.letter.state, LetterState.DRAFT);
+      assert.equal(a?.digest, await letterDigest(new TextEncoder().encode(fits)));
+      assert.equal(b?.digest, await letterDigest(bom), "the byte-order mark counts");
+      assert.notEqual(b?.digest, a?.digest);
+      assert.equal(c?.text, null);
+      assert.equal(c?.digest, null, "a letter that isn't UTF-8 has no digest");
+    });
+  });
+
   test(`${label}: editing a sealed letter breaks its seal`, async () => {
     await inFolder({ [A]: fits }, async (fs, folder) => {
       await accept(fs, A);
@@ -215,4 +248,6 @@ test("letters order by name without .md, so a minute's second letter is newer", 
   const at = Date.UTC(2026, 10, 25, 9, 30, 59);
   assert.equal(letterPathAt(at), ".agents/letters/2026-11-25-0930-letter.md");
   assert.equal(letterPathAt(at, 2), ".agents/letters/2026-11-25-0930-letter-2.md");
+  assert.equal(letterPathAt(at, 1, "auth-migration"), ".agents/letters/2026-11-25-0930-auth-migration.md");
+  assert.equal(letterPathAt(at, 2, "auth"), ".agents/letters/2026-11-25-0930-auth-2.md");
 });
