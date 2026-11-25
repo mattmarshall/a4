@@ -191,6 +191,10 @@ so the folded letter is the page the agent gets.
 
 ## Possible next steps
 
+[platform.md](platform.md) proposes how several of these fit into one
+platform: page lint comes first, reams become stacks, and a page can travel
+between sessions as a sealed letter.
+
 - **Reams:** multi-page stacks with a page budget and a table of contents.
   The library already stores pages under `a4/pages/`, so a ream could become a
   sibling folder (`a4/reams/<name>/`) without migrating existing pages.

@@ -10,6 +10,8 @@ reads as narrative or as fragments.
 - Production: https://a4.marsh.build
 - Concept (problem, approach, and narrative practice): [docs/concept.md](docs/concept.md),
   also served in the app at `/why`
+- Platform proposal (A4 as paper for agents, and Letters):
+  [docs/platform.md](docs/platform.md)
 - Requirements: [openspec/](openspec/) (spec-driven, see below)
 
 ## Quick start
