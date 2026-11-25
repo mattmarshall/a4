@@ -1,0 +1,32 @@
+// Share links: one page, or a pair, carried in a link's fragment, which
+// browsers never send to the server. A link is the workbench URL with the
+// fragment "s1." followed by base64url (no padding) of this message
+// compressed with raw DEFLATE. Read and built by lib/share/link.ts, for the
+// app and for `a4 share` and `a4 open`.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/letter.proto";
+import "a4/v1/sheet.proto";
+
+// What a link carries: one page, or two for a pair (A, then B).
+message SharedPages {
+  repeated SharedPage pages = 1;
+}
+
+message SharedPage {
+  // The library page's name or the file's name, never its folder path.
+  string name = 1;
+  // The preset and paper the sender saw it on; the rest of the spec, and the
+  // grid, follow from these and the text.
+  Preset preset = 2;
+  PaperSize paper = 3;
+  // The page's text as exact UTF-8 bytes, as stored, so a letter's seal can
+  // be checked against its digest.
+  bytes text = 4;
+  // A sealed letter's postmark, or unset. It records a seal; it doesn't
+  // prove who sealed it, and opening a link never writes it anywhere.
+  Postmark postmark = 5;
+}

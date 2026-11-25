@@ -36,9 +36,11 @@ import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef 
 import {
   isLetterPath,
   letterPathAt,
+  MAX_FILE_BYTES,
   type Postmark,
   PostmarkExistsError,
   postmarkPath,
+  readPostmark,
   sealLetter,
   type SealOptions,
 } from "../desk/index.ts";
@@ -791,6 +793,27 @@ export class Workspace<H> {
       }
       await refresh();
       return postmark;
+    });
+  }
+
+  /**
+   * The sealed letter `slot` shows, for a share link: the file's exact bytes
+   * (so the link's seal can be checked against its digest) and its postmark.
+   * Null for anything else: a draft, a library page, or a letter whose
+   * postmark can't be read. Reads at most 1 MiB.
+   */
+  letterForShare(slot: Slot): Promise<Result<{ bytes: Uint8Array; postmark: Postmark } | null>> {
+    return attempt(async () => {
+      const open = this.#slots[slot].open;
+      const folder = this.#connected();
+      if (!folder || open?.kind !== "file" || !open.readOnly || !isLetterPath(open.ref.path)) return null;
+      const { path } = open.ref;
+      const name = path.slice(path.lastIndexOf("/") + 1);
+      const letter = await folder.fs.readBytes(path, { maxBytes: MAX_FILE_BYTES });
+      const sidecar = await folder.fs.readBytes(postmarkPath(path), { maxBytes: 64 * 1024 });
+      const postmark = readPostmark(sidecar.bytes, name);
+      if (!letter.bytes || !postmark) return null;
+      return { bytes: letter.bytes, postmark };
     });
   }
 

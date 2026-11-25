@@ -99,6 +99,8 @@ export interface SheetStageProps {
   deskActions?: ReactNode;
   /** Shown over the desk (the lens legend, the focus bar). */
   children?: ReactNode;
+  /** Shown above the sheets, in the desk's flow (a share link's banner). */
+  notice?: ReactNode;
 }
 
 export function SheetStage(props: SheetStageProps) {
@@ -117,6 +119,7 @@ export function SheetStage(props: SheetStageProps) {
             Couldn’t open page storage: {props.failure}
           </div>
         ) : null}
+        {props.notice}
         <div className={`sheets render-${render}`} style={sheetsStyle} data-print="flow">
           {shown.map((slot) => {
             const state = slots[slot];
@@ -133,13 +136,18 @@ export function SheetStage(props: SheetStageProps) {
                 {compare ? (
                   <div className="sheet-caption" data-print="hide">
                     <b>{slot.toUpperCase()}</b>
-                    <SlotPicker
-                      slot={slot}
-                      current={state.ref}
-                      pages={props.pages}
-                      folder={props.folder}
-                      onOpen={props.onOpen}
-                    />
+                    {state.ref === null && state.label !== null ? (
+                      // A shared page: it isn't one of the reader's, so there's nothing to pick.
+                      <span className="slot-shared-name">{state.label}</span>
+                    ) : (
+                      <SlotPicker
+                        slot={slot}
+                        current={state.ref}
+                        pages={props.pages}
+                        folder={props.folder}
+                        onOpen={props.onOpen}
+                      />
+                    )}
                     <SaveStatusPill status={state.status} />
                     <span>
                       {spec.paper === "a4" ? null : `${size} · ${spec.cols}×${spec.rows} · `}
@@ -150,7 +158,8 @@ export function SheetStage(props: SheetStageProps) {
                 ) : null}
                 <A4Sheet
                   ref={handles[slot]}
-                  className={!props.ready || !state.ref ? "sheet-hidden" : undefined}
+                  // An empty slot hides its sheet; a shared page has no ref but a label, and shows.
+                  className={!props.ready || (!state.ref && state.label === null) ? "sheet-hidden" : undefined}
                   value={state.text}
                   onValue={(text) => props.onEdit(slot, text)}
                   onFocus={() => props.onActivate(slot)}

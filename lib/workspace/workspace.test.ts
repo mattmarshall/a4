@@ -354,6 +354,30 @@ test("the folder snapshot carries each letter's state", async () => {
   );
 });
 
+test("a sealed letter shares its exact bytes and postmark; a draft or a library page shares neither", async () => {
+  const b = browser({ locks: new FakeLocks() });
+  const { workspace } = b.open();
+  await workspace.start();
+  const root = folder(b.volume, { [LETTER_B]: LETTER_TEXT });
+  await workspace.openFolder(asDirectoryHandle(root));
+  assert.ok((await workspace.open("a", fileRef(parseFilePath(LETTER_B)))).ok);
+  const draft = await workspace.letterForShare("a");
+  assert.ok(draft.ok);
+  assert.equal(draft.value, null, "a draft has no seal to share");
+  assert.ok((await workspace.sealLetter("a", { verdict: "accepted", signer: "Matt" })).ok);
+  const sealed = await workspace.letterForShare("a");
+  assert.ok(sealed.ok && sealed.value);
+  assert.equal(sealed.value.postmark.signer, "Matt");
+  assert.equal(await letterDigest(sealed.value.bytes), sealed.value.postmark.digest, "the bytes match the seal");
+  assert.deepEqual(sealed.value.bytes, new TextEncoder().encode(root.fileAt(LETTER_B)?.text ?? ""));
+  const first = workspace.getSnapshot().library.pages[0]?.name;
+  assert.ok(first, "the library has its first page");
+  assert.ok((await workspace.open("a", first)).ok);
+  const library = await workspace.letterForShare("a");
+  assert.ok(library.ok);
+  assert.equal(library.value, null, "a library page has no seal to share");
+});
+
 test("sealing saves pending edits first, writes the postmark, and reopens the letter read-only", async () => {
   const b = browser({ locks: new FakeLocks() });
   const { workspace } = b.open();

@@ -89,6 +89,19 @@ export function DocTitle({
   folderName: string;
   onRename: (from: PageName, input: string) => Promise<string | null>;
 }) {
+  if (page.ref === null && page.label !== null) {
+    // A shared page: not one of the reader's, so it has no name to edit and no save status.
+    return (
+      <div className="doc-title">
+        <span className="file-title" title={page.label}>
+          <span className="file-path">{page.label}</span>
+        </span>
+        <span className="save-pill" data-status="shared">
+          Shared · not saved
+        </span>
+      </div>
+    );
+  }
   return (
     <div className="doc-title">
       {page.ref?.kind === "file" ? (

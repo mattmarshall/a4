@@ -171,6 +171,12 @@ export function useWorkspaceApi(notify: Notify) {
       createLetter: (text: string, slot: Slot) => inline((w) => w.createLetter(text, slot)),
       sealLetter: (slot: Slot, seal: { verdict: "accepted" | "returned"; reason: string; signer: string }) =>
         inline((w) => w.sealLetter(slot, seal)),
+      /** A sealed letter's exact bytes and postmark, for a share link; null for any other page. */
+      letterForShare: async (slot: Slot) => {
+        if (!ws) return null;
+        const result = await ws.letterForShare(slot);
+        return result.ok ? result.value : null;
+      },
     }),
     [ws, run, inline, openFolder],
   );

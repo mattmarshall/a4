@@ -93,8 +93,12 @@ export interface ReadLetter {
 /** A postmark file's size limit; a real one is a few hundred bytes. */
 const MAX_POSTMARK_BYTES = 64 * 1024;
 
-/** Parse a postmark for `name`, or null when it isn't a readable one. */
-function parsePostmark(bytes: Uint8Array | null, name: string): Postmark | null {
+/**
+ * Parse a postmark for the letter file `name`, or null when it isn't a
+ * readable one: proto3 JSON naming that letter, with a letter digest and an
+ * accept or return verdict.
+ */
+export function readPostmark(bytes: Uint8Array | null, name: string): Postmark | null {
   const json = bytes ? decodeStrict(bytes) : null;
   if (json === null) return null;
   try {
@@ -119,7 +123,7 @@ async function readOne(fs: FolderFs, name: string): Promise<ReadLetter> {
     create(LetterSchema, { path, rowsUsed, paper: paperEnum(size), ...init });
   if (!(await fs.stat(postmarkPath(path)))) return { letter: row({ state: LetterState.DRAFT }), text, digest };
   const sidecar = await fs.readBytes(postmarkPath(path), { maxBytes: MAX_POSTMARK_BYTES });
-  const postmark = parsePostmark(sidecar.bytes, name);
+  const postmark = readPostmark(sidecar.bytes, name);
   if (!postmark) {
     return {
       letter: row({ state: LetterState.BROKEN, broken: BrokenSeal.UNREADABLE_POSTMARK }),

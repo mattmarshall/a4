@@ -52,6 +52,9 @@ pnpm dev          # http://localhost:5173
 | `pnpm a4 stack <name> [folder] [--letter]` | Print a stack's pages, with the latest letter on top, for a session-start hook |
 | `pnpm a4 xray [folder] [--budget <pages>] [--json]` | Count what Claude Code loads before its first turn, in pages (see "Context X-ray") |
 | `pnpm a4 mailroom [folder]` | Serve a folder's letters to an agent over MCP on stdio (see "Mailroom") |
+| `pnpm a4 share <file> [<file>]` | Print a share link to a page or a pair (see "Share links") |
+| `pnpm a4 open <link> [--out <folder>]` | Write a share link's pages to new files (see "Share links") |
+| `pnpm a4 plugin keygen \| pack \| verify` | Make signing keys, and pack and check plugin packages (see "Third-party plugins") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
 | `node scripts/screenshots.ts compare <a> <b>` | Compare two captures pixel by pixel, and their PDF page counts. Writes `<view>.diff.png` for each view that differs, and exits 1 |
@@ -1034,6 +1037,71 @@ checkout's path. Other clients take the usual entry:
 A harness that runs agents itself can call `write_letter` at each checkpoint
 and `read_letter` when the next task starts. It can use the digest that
 `write_letter` returns to ask about the letter after a person seals it.
+
+## Share links
+
+A share link carries the page itself, so a person or an agent can hand
+someone a page to read in A4. A server never holds it: the page is in the
+link's fragment, the part after `#`, which browsers don't send to a server.
+
+- **The format.** The link is `https://a4.marsh.build/#s1.` followed by an
+  `a4.v1.SharedPages` message (`proto/a4/v1/share.proto`), compressed with
+  raw DEFLATE and encoded as base64url. `s1.` is the format version. Each
+  page carries:
+  - its name, which is the library name or the file's name, never its folder
+    path;
+  - its preset and paper size;
+  - its text, as exact UTF-8 bytes;
+  - for a sealed letter, its postmark.
+
+  The grid isn't sent, since it follows from the text.
+- **Limits.**
+  - A link holds one page, or two as a pair.
+  - A link is at most 16,384 characters. A full page of prose makes a link of
+    about 3,000. A page too large for a link is refused, with a pointer to
+    Download.
+  - A link is read up to 1 MiB decompressed.
+- **Sharing.** Choose **Page → Copy share link**, or in Compare, **Copy share
+  link for A and B**. The link goes to the clipboard, like Copy text. Anyone
+  holding it can read the page, and URLs end up in browser history and chat
+  logs.
+- **Opening.** A link opens the page read-only, on the preset and size its
+  sender saw, with its verdict, metrics, and lenses. A pair opens in Compare.
+  - Nothing is stored: your library, folder, open pages, and settings stay as
+    they were.
+  - **Save a copy** adds each page to your library under its own name. A
+    taken name gets a number, so "Brief" becomes "Brief 2".
+  - **Close** brings back the pages you had open.
+  - Both remove the link from the address bar.
+  - Copies show on your own preset from then on.
+- **Sealed letters.** A sealed letter's link carries its postmark. The shared
+  view shows who accepted or returned it and when. It also checks the
+  shared bytes against the postmark's digest: the seal is intact, or broken
+  because the letter changed after it was sealed.
+  - **A seal isn't proof.** It records that the named person accepted the
+    letter; it doesn't prove who sealed it, and anyone can make a link.
+  - **Nothing a link carries becomes a postmark.** A saved copy is a library
+    page, and `a4 open` writes only text. So a link can't put an "accepted"
+    letter in a repository for `a4 letters --latest` to deliver.
+- **From the command line:**
+
+  ```sh
+  node ~/src/a4/cli/a4.ts share .agents/letters/2026-11-25-0930-auth.md
+  node ~/src/a4/cli/a4.ts open 'https://a4.marsh.build/#s1.…' --out notes
+  ```
+
+  - **`a4 share <file> [<file>]`** prints a link to one page or a pair.
+    - Each page's size comes from its name, and its preset is Terminal.
+    - A letter with a postmark beside it carries its seal.
+    - It exits 1 when the link would be too long, and 2 for a missing file.
+  - **`a4 open <link> [--out <folder>]`** writes each page to a new file
+    named after it.
+    - It never overwrites one: it exits 2, and writes neither page of a
+      pair.
+    - It prints a letter's seal, and never writes a postmark.
+    - It exits 1 for a link it can't read.
+
+  Neither makes a network request.
 
 ## Third-party plugins
 

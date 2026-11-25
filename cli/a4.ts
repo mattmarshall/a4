@@ -9,6 +9,8 @@
  *   pnpm a4 xray [folder] [--budget <pages>] [--json]
  *   pnpm a4 mailroom [folder]
  *   pnpm a4 plugin keygen <file> | pack --card … | verify <file>
+ *   pnpm a4 share <file> [<file>]
+ *   pnpm a4 open <link> [--out <folder>]
  *   node <checkout>/cli/a4.ts <command> ...
  *
  * This file parses the command line and dispatches; each command lives in its
@@ -31,6 +33,7 @@ import { folderArg, type LettersArgs, runLetters } from "./letters.ts";
 import { type LintArgs, runLint } from "./lint.ts";
 import { createMailroom } from "./mailroom.ts";
 import { PACK_OPTIONS, type PluginArgs, pluginArgs, runPlugin } from "./plugin.ts";
+import { type OpenArgs, runOpen, runShare, type ShareArgs } from "./share.ts";
 import { runStack, runStacks, type StackArgs, type StacksArgs } from "./stacks.ts";
 import { UsageError } from "./usage.ts";
 import { runXray, type XrayArgs } from "./xray.ts";
@@ -45,6 +48,8 @@ const USAGE = `Usage: a4 lint [path ...] [--strict] [--exclude <glob>]... [--jso
        a4 plugin pack --card <json> --code <js> --key <file> --publisher <name>
                       [--file <path>=<https url>]... [--out <file>]
        a4 plugin verify <file>
+       a4 share <file> [<file>]
+       a4 open <link> [--out <folder>]
 
 a4 lint checks agent context files, letters, and stack pages against one A4
 page (${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells), or a card or postcard on its own size (a
@@ -97,11 +102,21 @@ never runs a plugin's code.
   verify <file>     Check a package as A4 does before installing it, and print
                     what it does, where it sends text, and who signed it.
 
+a4 share prints a share link to a file, or to two as a pair for Compare. The
+link carries the page itself, in the part of the URL a browser never sends to
+a server, so anyone with the link can read it. A letter with a postmark beside
+it carries its seal.
+
+a4 open writes a share link's pages to new files in the current folder, or
+--out <folder>, and prints a letter's seal. It never overwrites a file, and it
+never writes a postmark: seal a letter yourself to accept it.
+
   -h, --help        Show this help
 
 Exit status: 0 when nothing fails, 1 when lint finds a failing file or stack,
-the X-ray is over its budget, or a plugin package is refused, 2 for a usage
-error or a path that doesn't exist.
+the X-ray is over its budget, a plugin package is refused, a link would be too
+long, or a link can't be read, 2 for a usage error, a path that doesn't exist,
+or a file a4 open won't overwrite.
 `;
 
 type Command =
@@ -112,7 +127,9 @@ type Command =
   | ({ readonly kind: "stack" } & StackArgs)
   | ({ readonly kind: "xray" } & XrayArgs)
   | { readonly kind: "mailroom"; readonly folder: string }
-  | { readonly kind: "plugin"; readonly plugin: PluginArgs };
+  | { readonly kind: "plugin"; readonly plugin: PluginArgs }
+  | ({ readonly kind: "share" } & ShareArgs)
+  | ({ readonly kind: "open" } & OpenArgs);
 
 /** The options each command takes; any other is a usage error. */
 const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonly string[]>> = {
@@ -123,6 +140,8 @@ const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonl
   xray: ["budget", "json"],
   mailroom: [],
   plugin: PACK_OPTIONS,
+  share: [],
+  open: ["out"],
 };
 
 function parse(argv: readonly string[]): Command {
@@ -155,12 +174,14 @@ function parse(argv: readonly string[]): Command {
     command !== "stack" &&
     command !== "xray" &&
     command !== "mailroom" &&
-    command !== "plugin"
+    command !== "plugin" &&
+    command !== "share" &&
+    command !== "open"
   ) {
     throw new UsageError(
       command
         ? `Unknown command “${command}”.`
-        : "Name a command: lint, letters, stacks, stack, xray, mailroom, or plugin.",
+        : "Name a command: lint, letters, stacks, stack, xray, mailroom, plugin, share, or open.",
     );
   }
   const given = Object.entries(values)
@@ -213,6 +234,14 @@ function parse(argv: readonly string[]): Command {
       return { kind: "mailroom", folder: paths[0] ?? "." };
     case "plugin":
       return { kind: "plugin", plugin: pluginArgs(paths, values, given) };
+    case "share":
+      if (paths.length < 1 || paths.length > 2) throw new UsageError("a4 share takes one file, or two for a pair.");
+      return { kind: "share", files: paths };
+    case "open": {
+      const [link, ...rest] = paths;
+      if (!link || rest.length > 0) throw new UsageError("a4 open takes one link.");
+      return { kind: "open", link, out: values.out ?? "." };
+    }
   }
 }
 
@@ -253,6 +282,10 @@ async function run(args: Exclude<Command, { kind: "help" }>): Promise<number> {
       return mailroom(args.folder);
     case "plugin":
       return runPlugin(args.plugin);
+    case "share":
+      return runShare(args);
+    case "open":
+      return runOpen(args);
   }
 }
 

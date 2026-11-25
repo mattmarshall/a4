@@ -129,6 +129,11 @@ module.exports = {
       "The workspace coordinates storage; it knows model errors only to describe them, and seals and lists letters through the desk.",
     ),
     layer(
+      "share",
+      ["page", "gen", "tensor", "platform", "desk/letters\\.ts$"],
+      "Share links carry a page in a URL fragment: the page, its record, and a letter's seal, with no DOM or Node API.",
+    ),
+    layer(
       "desk",
       ["page", "analysis", "persist", "platform", "gen", "tensor"],
       "The headless desk judges pages and lints context files without a browser: the page, the analysis, and the folder walk.",
@@ -139,7 +144,7 @@ module.exports = {
       comment:
         "The a4 command shares the app's English copy (verdict labels, finding titles, the desk's records) and nothing else from the UI.",
       from: { path: "^cli/", pathNot: NOT_TESTS },
-      to: { path: "^components/", pathNot: "^components/(analysis|desk|plugin)-copy\\.ts$" },
+      to: { path: "^components/", pathNot: "^components/(analysis|desk|plugin|share)-copy\\.ts$" },
     },
     {
       name: "cli-through-index",

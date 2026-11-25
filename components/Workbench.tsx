@@ -22,7 +22,8 @@ import {
 } from "@/lib/models";
 import { SAMPLE_PAIRS, TEMPLATES } from "@/lib/content";
 import { isLetterPath, LetterState } from "@/lib/desk";
-import { SETTINGS, copyNameFor, fileRef, sameRef, type PageName, type PageRef } from "@/lib/persist";
+import { SETTINGS, baseName, copyNameFor, fileRef, sameRef, type PageName, type PageRef } from "@/lib/persist";
+import { type SharePageInput, ShareError, shareLink } from "@/lib/share";
 import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
@@ -34,6 +35,7 @@ import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { type CredentialStoreView, PenControls } from "./PenControls";
 import { penSuffix, publisherNote } from "./plugin-copy";
+import { CLIPBOARD_BLOCKED, copiedNotice } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
@@ -45,6 +47,8 @@ import { useAnalysis } from "./workbench/useAnalysis";
 import { useLayout } from "./workbench/useLayout";
 import { lensSources } from "./workbench/model-lens";
 import { useModelLens } from "./workbench/useModelLens";
+import { SharedBanner } from "./workbench/SharedBanner";
+import { useSharedView } from "./workbench/useSharedView";
 import { useShortcuts } from "./workbench/useShortcuts";
 import { useWorkspaceApi } from "./workspace/useWorkspace";
 
@@ -77,12 +81,20 @@ export function Workbench() {
   const sheetB = useRef<A4SheetHandle>(null);
   const handles = { a: sheetA, b: sheetB };
 
-  const { compare, target, setMode, setActive } = layout;
-  const { slots, ready } = lib;
+  const { setMode, setActive } = layout;
+  // A share link's pages show read-only in place of the reader's own, which
+  // stay open underneath, untouched, until the shared view closes.
+  const sharedView = useSharedView(notify);
+  const shared = sharedView.view;
+  const compare = shared ? shared.pages.length === 2 : layout.compare;
+  const target = shared && shared.pages.length === 1 ? "a" : layout.target;
+  const { ready } = lib;
+  const slots = shared ? shared.slots : lib.slots;
   // Each slot's page on its own size: the preset is the typeface, and the
   // page's name says its paper (a `.a5` or `.a6` name is a card or a postcard).
-  const specA = pageSpec(presetId, sizeOfName(slots.a.label ?? ""));
-  const specB = pageSpec(presetId, sizeOfName(slots.b.label ?? ""));
+  // A shared page shows on its sender's preset and paper.
+  const specA = shared ? shared.specs.a : pageSpec(presetId, sizeOfName(slots.a.label ?? ""));
+  const specB = shared ? shared.specs.b : pageSpec(presetId, sizeOfName(slots.b.label ?? ""));
   const spec = target === "a" ? specA : specB;
   const page = slots[target];
   const a = useAnalysis(slots.a.text, specA);
@@ -90,13 +102,14 @@ export function Workbench() {
   const targetAnalysis = target === "a" ? a.analysis : b.analysis;
   const effectiveRender = gpuMissing ? "flat" : render;
 
-  // Keep slot B open exactly while comparing.
+  // Keep slot B open exactly while comparing (the reader's setting: a shared pair doesn't open one).
   const { ensureSlotB, closeSlotB, flushAll } = lib;
+  const comparing = layout.compare;
   useEffect(() => {
     if (!ready) return;
-    if (compare) void ensureSlotB();
+    if (comparing) void ensureSlotB();
     else void closeSlotB();
-  }, [ready, compare, ensureSlotB, closeSlotB]);
+  }, [ready, comparing, ensureSlotB, closeSlotB]);
 
   useShortcuts({
     save: () =>
@@ -192,6 +205,39 @@ export function Workbench() {
       }),
   );
 
+  // --- Share links ---------------------------------------------------------
+
+  /** Copy a link to the pages in `which` (one slot, or A then B): a sealed letter carries its seal. */
+  async function copyShareLink(which: readonly Slot[]) {
+    const specs = { a: specA, b: specB };
+    try {
+      const pages: SharePageInput[] = [];
+      for (const slot of which) {
+        const snapshot = slots[slot];
+        const sealed = await lib.letterForShare(slot);
+        const name = snapshot.ref?.kind === "file" ? baseName(snapshot.ref.path) : (snapshot.name ?? "Untitled");
+        pages.push({
+          name,
+          preset: specs[slot].id,
+          paper: specs[slot].paper,
+          bytes: sealed?.bytes ?? new TextEncoder().encode(snapshot.text),
+          ...(sealed ? { postmark: sealed.postmark } : {}),
+        });
+      }
+      const link = await shareLink(pages, window.location.origin);
+      await navigator.clipboard.writeText(link);
+      notify(
+        copiedNotice(
+          pages.map((p) => p.name),
+          link.length,
+        ),
+      );
+    } catch (error) {
+      if (error instanceof ShareError) notify(error.message, "warn");
+      else notify(CLIPBOARD_BLOCKED, "warn");
+    }
+  }
+
   // Installed pens: one request each, owned here like Fit to page's, made on first use.
   const [instructions, setInstructions] = useState<Record<string, string>>({});
   const instructionsRef = useRef(instructions);
@@ -230,12 +276,29 @@ export function Workbench() {
 
   // --- Page commands ---------------------------------------------------------
 
+  /** Save a copy: each shared page becomes a library page under its own name (made unique), opened. */
+  async function saveSharedCopy() {
+    if (!shared) return;
+    const pages = shared.pages;
+    sharedView.close();
+    if (pages.length === 2) setMode("compare");
+    const saved: string[] = [];
+    for (const [i, page] of pages.entries()) {
+      const name = await lib.createPage(page.name.replace(/\.(md|mdc)$/i, ""), page.text, i === 0 ? "a" : "b");
+      if (name) saved.push(`“${name}”`);
+    }
+    setActive("a");
+    if (saved.length > 0) notify(`Saved ${saved.join(" and ")} to your library.`);
+  }
+
   async function newPage(desired: string, text: string) {
+    if (shared) sharedView.close();
     const name = await lib.createPage(desired, text, target);
     if (name) notify(`Created “${name}”.`);
   }
 
   async function loadPair(id: string) {
+    if (shared) sharedView.close();
     const pair = SAMPLE_PAIRS.find((x) => x.id === id);
     if (!pair) return;
     setMode("compare");
@@ -288,6 +351,7 @@ export function Workbench() {
   }
 
   function openInSlot(slot: Slot, ref: PageRef) {
+    if (shared) sharedView.close();
     setActive(slot);
     void lib.openInSlot(slot, ref, `open “${ref.kind === "file" ? ref.path : ref.name}”`).then(() => {
       if (layout.narrow) layout.setLibrary(false);
@@ -297,6 +361,7 @@ export function Workbench() {
   /** Open a letter in B beside the letter before it in A, or on its own when it's the first. */
   async function openLetter(ref: PageRef) {
     if (ref.kind !== "file") return;
+    if (shared) sharedView.close();
     const paths = lib.folder.letters.map((l) => l.path);
     const before = paths[paths.indexOf(ref.path) - 1];
     // The listed file for that path, whose path is already a checked FilePath.
@@ -400,7 +465,7 @@ export function Workbench() {
     <div className="app" data-focus={focus ? "" : undefined} data-print="flow">
       {!focus ? (
         <Topbar
-          layout={layout}
+          layout={shared ? { ...layout, mode: compare ? "compare" : "single", compare, target } : layout}
           title={<DocTitle page={page} folderName={folderName} onRename={lib.renamePage} />}
           fitJob={fitJob}
           lens={lens}
@@ -423,6 +488,14 @@ export function Workbench() {
                       setSaveRequest({ name: page.ref.name, slot: target });
                       layout.setLibrary(true);
                     },
+                  }
+                : null
+            }
+            onShare={
+              page.ref
+                ? {
+                    page: () => void copyShareLink([target]),
+                    pair: compare && slots.a.ref && slots.b.ref ? () => void copyShareLink(["a", "b"]) : null,
                   }
                 : null
             }
@@ -474,10 +547,15 @@ export function Workbench() {
           posePanel={layout.posePanel}
           onPosePanel={layout.setPosePanel}
           onOpen={(slot, ref) => openInSlot(slot, ref)}
-          onEdit={lib.edit}
+          onEdit={shared ? () => {} : lib.edit}
           onActivate={setActive}
           onRender={onSheetRender}
           deskActions={letterActions}
+          notice={
+            shared ? (
+              <SharedBanner view={shared} onSave={() => void saveSharedCopy()} onClose={sharedView.close} />
+            ) : null
+          }
         >
           {legendShown && !focus ? (
             <figure className="lens-chip" aria-label="Lens legend" data-print="hide">

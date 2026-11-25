@@ -9,6 +9,7 @@ import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/content";
 import { SETTINGS, baseName } from "@/lib/persist";
 import type { Notify, SlotSnapshot } from "@/lib/workspace";
 import { Menu, MenuItem } from "../Menu";
+import { CLIPBOARD_BLOCKED } from "../share-copy";
 import { useSetting } from "../useSetting";
 import { saveFile } from "./download";
 import type { Layout } from "./useLayout";
@@ -20,6 +21,7 @@ export function PageMenu({
   onLoadPair,
   onClear,
   saveToFolder,
+  onShare,
 }: {
   /** The page the menu acts on (the active slot's). */
   page: SlotSnapshot;
@@ -30,13 +32,15 @@ export function PageMenu({
   onClear: () => void;
   /** Offered while a folder is open and the page is in the library. */
   saveToFolder: { readonly folder: string; readonly onSelect: () => void } | null;
+  /** Copy a share link to this page, or (in Compare) to A and B as a pair; null while there's nothing to share. */
+  onShare: { readonly page: () => void; readonly pair: (() => void) | null } | null;
 }) {
   async function copyText() {
     try {
       await navigator.clipboard.writeText(page.text);
       notify(`Copied “${page.label}” (${page.text.length.toLocaleString("en-US")} characters)`);
     } catch {
-      notify("Copy failed: clipboard access was blocked", "warn");
+      notify(CLIPBOARD_BLOCKED, "warn");
     }
   }
 
@@ -77,6 +81,18 @@ export function PageMenu({
           <MenuItem close={close} onSelect={downloadText}>
             <strong>Download .md</strong>
           </MenuItem>
+          {onShare ? (
+            <MenuItem close={close} onSelect={onShare.page}>
+              <strong>Copy share link</strong>
+              <span>A link that carries this page: anyone with it can read it</span>
+            </MenuItem>
+          ) : null}
+          {onShare?.pair ? (
+            <MenuItem close={close} onSelect={onShare.pair}>
+              <strong>Copy share link for A and B</strong>
+              <span>One link that opens both pages in Compare</span>
+            </MenuItem>
+          ) : null}
           <MenuItem close={close} onSelect={() => window.print()}>
             <strong>Print</strong>
           </MenuItem>

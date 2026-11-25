@@ -205,8 +205,10 @@ between sessions as a sealed letter.
 - **A server backend:** it would implement the `PageStore` contract and pass
   the shared contract tests. (A user-chosen folder shipped: see the README's
   Folders section.)
-- **Share links:** needs a page-format decision first; the project default is
-  protobuf.
+- **Share links:** shipped. The page format is protobuf, as the project
+  default says: a link carries an `a4.v1.SharedPages` message in its
+  fragment, so the page never reaches a server (see the README's Share links
+  section).
 - **Assisted rewrites:** opt-in suggestions that turn a dump into a narrative
   draft.
 - **Wide characters:** correct cell widths for CJK and emoji.

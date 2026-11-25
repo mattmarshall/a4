@@ -295,8 +295,25 @@ Each step is its own OpenSpec change, in this order.
      - Generate and Encode for installed plugins;
      - key rotation;
      - the first known publisher.
-6. **Later.**
-   - Share links (the page format decision in concept.md).
+6. **`add-share-links`, built.** A page travels as a link (README, "Share
+   links").
+   - **The format:** an `a4.v1.SharedPages` message (one page or a pair:
+     name, preset, paper, exact bytes, and a sealed letter's postmark),
+     compressed and base64url-encoded in the link's fragment. The fragment
+     never reaches the server, so the hosting rule holds. A link is at most
+     16,384 characters.
+   - **In the app:** Copy share link, for a page or a Compare pair. Opening a
+     link shows it read-only on its sender's preset and size, stores nothing
+     until Save a copy, and Close brings back your own pages.
+   - **Letters:** a sealed letter's link carries its postmark, and the reader
+     sees whether the seal still matches. Nothing a link carries becomes a
+     postmark.
+   - **The command line:** `a4 share` prints a link, and `a4 open` writes a
+     link's pages to new files.
+   - **Still to come:**
+     - share links in the mailroom (MCP);
+     - links to a whole stack.
+7. **Later.**
    - A server-backed desk that passes the store contract tests.
 
 ## What A4 still is not

@@ -420,6 +420,42 @@
     font-size: var(--text-12);
   }
 
+  /* A share link's banner: what's shown, that it isn't saved, and Save a copy or Close. */
+  .shared-banner {
+    display: grid;
+    gap: 4px;
+    width: fit-content;
+    max-width: min(560px, calc(100% - 24px));
+    margin: 10px auto 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-10);
+    background: var(--panel);
+    font-size: var(--text-12-5);
+  }
+
+  .slot-shared-name {
+    font-weight: 600;
+  }
+
+  .shared-banner p {
+    margin: 0;
+  }
+
+  .shared-banner-title {
+    font-weight: 600;
+  }
+
+  .shared-banner-note {
+    color: var(--muted);
+  }
+
+  .shared-banner-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
   .focus-bar {
     position: absolute;
     top: 10px;
