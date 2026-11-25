@@ -13,3 +13,9 @@ packageExtensions:
   dependency-cruiser:
     dependencies:
       typescript: 6.0.3
+overrides:
+  # fflate before 0.7.5 can loop forever unzipping a malformed ZIP64 archive,
+  # a security advisory fixed in 0.7.5. It arrives only through vinext →
+  # @vercel/og → satori, which pins 0.7.3 exactly, so Dependabot can't bump it.
+  # Nothing in A4 imports @vercel/og, and no build output contains fflate.
+  'fflate@<0.7.5': 0.7.5
