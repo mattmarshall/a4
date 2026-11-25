@@ -23,8 +23,10 @@ export {
 export {
   layoutRows,
   normalizeText,
+  pageFit,
   rowsUsed,
   TAB_SPACES,
+  type PageFit,
   type VisualRow,
 } from "./layout.ts";
 export {

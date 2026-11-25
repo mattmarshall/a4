@@ -198,7 +198,8 @@ between sessions as a sealed letter.
 - **Reams:** multi-page stacks with a page budget and a table of contents.
   The library already stores pages under `a4/pages/`, so a ream could become a
   sibling folder (`a4/reams/<name>/`) without migrating existing pages.
-- **Page lint:** a CLI that runs the same analysis over context files in CI.
+- **Page lint:** shipped. `a4 lint` runs the same analysis over a repository's
+  context files, for review or CI (README, "Page lint").
 - **Exact token counts:** optional, model-specific tokenizers loaded on
   demand.
 - **A server backend:** it would implement the `PageStore` contract and pass

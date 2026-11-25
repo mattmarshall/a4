@@ -40,11 +40,11 @@
     "build": "vite build",
     "build:element": "vite build -c vite.element.config.ts",
     "start": "vite preview",
-    "test": "node --test 'lib/**/*.test.ts' 'components/**/*.test.ts'",
+    "test": "node --test 'lib/**/*.test.ts' 'components/**/*.test.ts' 'cli/**/*.test.ts'",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.core.json",
     "lint": "pnpm lint:code && pnpm lint:deps && pnpm lint:unused && pnpm lint:css && pnpm lint:casts && pnpm lint:element-types",
     "lint:code": "biome check .",
-    "lint:deps": "depcruise app components lib scripts types",
+    "lint:deps": "depcruise app cli components lib scripts types",
     "lint:unused": "knip --no-progress",
     "lint:css": "stylelint \"app/**/*.css\" \"components/**/*.css\"",
     "lint:element-types": "node scripts/gen-element-types.ts --check",
@@ -55,7 +55,8 @@
     "proto:check": "buf lint && node scripts/check-proto.ts && node scripts/check-proto-breaking.ts",
     "check": "pnpm lint && pnpm test && pnpm typecheck && pnpm proto:check && pnpm build && pnpm check:bundle && pnpm build:element",
     "check:bundle": "node scripts/check-bundle.ts",
-    "deploy": "vinext-cloudflare deploy"
+    "deploy": "vinext-cloudflare deploy",
+    "a4": "node cli/a4.ts"
   },
   "engines": {
     "node": ">=24"

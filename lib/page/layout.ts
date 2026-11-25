@@ -61,3 +61,20 @@ export function rowsUsed(rows: readonly VisualRow[]): number {
   }
   return 0;
 }
+
+/** Whether a text fits a page: the one fit rule the sheet, the analysis, the model host, and lint share. */
+export interface PageFit {
+  /** Rows through the last row with ink; trailing blank rows don't count. */
+  readonly rowsUsed: number;
+  /** The page's rows. */
+  readonly pageRows: number;
+  readonly fits: boolean;
+  /** Rows used past the page's last row, or 0. */
+  readonly overBy: number;
+}
+
+/** Lay `text` out at the page's columns and compare its rows used with the page's rows. */
+export function pageFit(text: string, page: { readonly cols: number; readonly rows: number }): PageFit {
+  const used = rowsUsed(layoutRows(text, page.cols));
+  return { rowsUsed: used, pageRows: page.rows, fits: used <= page.rows, overBy: Math.max(0, used - page.rows) };
+}

@@ -5,8 +5,10 @@ context: |
   A4 helps engineers author agent context one A4 page at a time. The canonical
   page is A4 (210 x 297 mm) quantized into an 80 x 60 grid of monospace cells.
   Treat that geometry as a product invariant; other presets are secondary.
-  Page text is private by default: all analysis runs in the browser, and text
-  leaves the device only through an explicit user export (copy, download, print).
+  Page text is private by default: all analysis runs on the device (in the
+  browser, or in the local `a4` command line), and text leaves the device only
+  through an explicit user export (copy, download, print) or a consented model
+  call.
   Write all artifacts and UI copy in American English.
   Structured records that cross a process, file, or storage boundary default to
   protobuf messages (owner preference); plain-text page exports are exempt.

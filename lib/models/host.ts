@@ -19,7 +19,7 @@ import {
   type ModelCard,
 } from "../gen/a4/v1/model_pb.js";
 import { SheetSchema, type Sheet, type TextSpan } from "../gen/a4/v1/sheet_pb.js";
-import { type PageSpec, layoutRows, normalizeText } from "../page/index.ts";
+import { type PageSpec, normalizeText, pageFit } from "../page/index.ts";
 import { encodeGrid } from "../tensor/codec.ts";
 import { pageSpecMessage, presetEnum, verifySheet } from "../tensor/record.ts";
 import { remoteHost } from "./capabilities.ts";
@@ -410,8 +410,8 @@ export class ModelHost {
       }
       if (!candidate) throw new ModelError(ErrorCode.INVALID_RESULT, `${card.name || id} finished without a result.`);
       const result = normalizeText(candidate.text);
-      const rowsUsed = layoutRows(result, spec.cols).length;
-      const fits = rowsUsed <= spec.rows;
+      // The page's one fit rule: rows through the last row with ink.
+      const { rowsUsed, fits } = pageFit(result, spec);
       options.onAttempt?.({ attempt, maxAttempts: max, rowsUsed, fits });
       if (!best || rowsUsed < best.rowsUsed) best = { text: result, rowsUsed, model: candidate.model };
       if (fits) {

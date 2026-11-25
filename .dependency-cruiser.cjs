@@ -128,6 +128,34 @@ module.exports = {
       ["persist", "archive", "page", "platform", "models/errors\\.ts$"],
       "The workspace coordinates storage; it knows model errors only to describe them.",
     ),
+    layer(
+      "desk",
+      ["page", "analysis", "persist", "gen"],
+      "The headless desk judges pages and lints context files without a browser: the page, the analysis, and the folder walk.",
+    ),
+    {
+      name: "cli-copy-only",
+      severity: "error",
+      comment:
+        "The a4 command shares the app's English copy (verdict labels, finding titles) and nothing else from the UI.",
+      from: { path: "^cli/", pathNot: NOT_TESTS },
+      to: { path: "^components/", pathNot: "^components/analysis-copy\\.ts$" },
+    },
+    {
+      name: "cli-through-index",
+      severity: "error",
+      comment: "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk.",
+      from: { path: "^cli/", pathNot: NOT_TESTS },
+      to: { path: "^lib/", pathNot: ["^lib/[^/]+/index\\.ts$", "^lib/persist/folder/fs-node\\.ts$"] },
+    },
+    {
+      name: "desk-no-runtime",
+      severity: "error",
+      comment:
+        "The desk runs anywhere the core runs (a CLI, a server, an MCP tool): callers hand it a FolderFs, so it imports no Node built-ins.",
+      from: { path: "^lib/desk/", pathNot: NOT_TESTS },
+      to: { dependencyTypes: ["core"] },
+    },
   ],
   options: {
     doNotFollow: { path: "node_modules" },

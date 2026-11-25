@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { layoutRows, normalizeText, rowsUsed } from "./layout.ts";
+import { layoutRows, normalizeText, pageFit, rowsUsed } from "./layout.ts";
 
 test("normalizes tabs to two spaces and CRLF/CR to LF", () => {
   assert.equal(normalizeText("a\tb\r\nc"), "a  b\nc");
@@ -39,4 +39,21 @@ test("row ink counts non-whitespace characters", () => {
     rows.map((r) => r.ink),
     [80, 0, 2],
   );
+});
+
+const TERMINAL_PAGE = { cols: 80, rows: 60 };
+const lines = (n: number) => Array.from({ length: n }, (_, i) => `line ${i + 1}`).join("\n");
+
+test("pageFit: exactly 60 rows fits", () => {
+  assert.deepEqual(pageFit(lines(60), TERMINAL_PAGE), { rowsUsed: 60, pageRows: 60, fits: true, overBy: 0 });
+});
+
+test("pageFit: 63 rows is over by 3", () => {
+  assert.deepEqual(pageFit(lines(63), TERMINAL_PAGE), { rowsUsed: 63, pageRows: 60, fits: false, overBy: 3 });
+});
+
+test("pageFit: trailing blank lines don't count", () => {
+  const fit = pageFit(`${lines(58)}\n\n\n\n\n`, TERMINAL_PAGE);
+  assert.equal(fit.rowsUsed, 58);
+  assert.equal(fit.fits, true);
 });

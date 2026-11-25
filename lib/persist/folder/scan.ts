@@ -4,7 +4,7 @@
  * Terminal grid.
  */
 
-import { PRESETS, layoutRows, rowsUsed } from "../../page/index.ts";
+import { PRESETS, pageFit } from "../../page/index.ts";
 import { decodeStrict, MAX_FILE_BYTES, SCAN_ENTRY_LIMIT, walkFolder } from "../store/folder.ts";
 import type { FolderFs } from "./fs.ts";
 import { baseName, type FilePath } from "../store/refs.ts";
@@ -45,11 +45,10 @@ export function isContextFile(path: string): boolean {
 
 /** Page rows of the Terminal preset; a context file using more is "over". */
 export const PAGE_ROWS = PRESETS.terminal.rows;
-const PAGE_COLS = PRESETS.terminal.cols;
 
 /** Rows the sheet would use for a file's raw text on the Terminal grid. */
 export function fileRows(raw: string): number {
-  return rowsUsed(layoutRows(toSheet(raw), PAGE_COLS));
+  return pageFit(toSheet(raw), PRESETS.terminal).rowsUsed;
 }
 
 async function mapLimited<T, R>(items: readonly T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {

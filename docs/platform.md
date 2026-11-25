@@ -200,15 +200,17 @@ A4 can do, and Letters is the daily habit.
 
 Each step is its own OpenSpec change, in this order.
 
-1. **`add-headless-desk`.** Run the desk outside the browser.
-   - A Node adapter for folders.
-   - A `Desk` facade over the page, analysis, and tensor code and the
-     host's fit loop.
-   - An `a4 lint` command for a repository's context files: the "Page lint"
-     next step in concept.md.
-
-   The core is already free of DOM and Node (`tsconfig.core.json`), so it
-   runs as it is.
+1. **`add-headless-desk`, built.** The desk runs outside the browser.
+   - **The desk:** `lib/desk/` judges a page (fit, verdict, findings, and the
+     `AnalysisReport`) and lints a folder's context files. It imports no DOM
+     or Node API, so letters and the mailroom can reuse it.
+   - **One fit rule:** `pageFit` in `lib/page/` now decides fit for the sheet,
+     the analysis, the folder view, the model host, and lint.
+   - **The command:** `a4 lint` checks a repository's context files and exits
+     non-zero when one doesn't fit (README, "Page lint"). It uses the Node
+     folder adapter that already existed.
+   - **Still to come:** the host's attempt loop stays in the model host, and a
+     desk-driven loop can follow when letters need one.
 2. **`add-letters`.**
    - `Letter` and `Postmark` messages in `a4.v1`. Digests are sha256 URNs,
      times are RFC 3339, and a verdict is accept or reject with a rationale.

@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { analyze, type Analysis } from "./index.ts";
 import { classifyLines } from "./classify.ts";
 import { DEFAULT_CONFIG } from "./config.ts";
-import { PRESET_IDS, PRESETS } from "../page/index.ts";
+import { pageFit, PRESET_IDS, PRESETS } from "../page/index.ts";
 import { ANALYSIS_TEXTS } from "./testing/texts.ts";
 
 const GOLDEN = new URL("./testing/golden.json", import.meta.url);
@@ -107,4 +107,16 @@ test("an all-caps heading must fit the page's width, so headings differ by prese
   assert.equal(kind(seventy, "pica"), "structured");
   assert.equal(kind(seventy, "elite"), "heading");
   assert.equal(kind(ninety, "dense"), "heading");
+});
+
+test("pageFit and the analysis count the same rows used for every text on every preset", () => {
+  for (const [name, text] of Object.entries(ANALYSIS_TEXTS)) {
+    for (const preset of PRESET_IDS) {
+      const spec = PRESETS[preset];
+      const fit = pageFit(text, spec);
+      const { metrics } = analyze(text, spec);
+      assert.equal(fit.rowsUsed, metrics.rowsUsed, `${name}@${preset}: rows used`);
+      assert.equal(fit.overBy, metrics.overflow, `${name}@${preset}: overflow`);
+    }
+  }
 });

@@ -1,0 +1,53 @@
+// The result of `a4 lint`: each context file checked against the page, with
+// its outcome and its analysis report. Printed by `a4 lint --json` as proto3
+// JSON, and built by `lintFolder()` and `lintFile()` in lib/desk/.
+//
+// Like the analysis report, it carries paths, outcomes, and numbers, never a
+// file's text (repeated terms excepted, inside each AnalysisReport).
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/analysis.proto";
+
+message LintReport {
+  // The preset every file was judged on: "terminal".
+  string preset = 1;
+  // In argument order; within a folder, sorted by path.
+  repeated LintedFile files = 2;
+  // True when a folder scan stopped at its entry limit, so files may be missing.
+  bool partial = 3;
+  // True when Noisy and Busy pages fail as well as overflowing ones.
+  bool strict = 4;
+}
+
+message LintedFile {
+  // Written with "/". A file named on the command line, as given; a folder's
+  // file, relative to that folder, which the a4 command prefixes with the
+  // folder as given, so every path opens from the current directory.
+  string path = 1;
+  LintOutcome outcome = 2;
+  // The page's analysis; unset when the file couldn't be read.
+  AnalysisReport report = 3;
+  // Why the file couldn't be read; UNREADABLE_UNSPECIFIED when it was.
+  Unreadable unreadable = 4;
+}
+
+enum LintOutcome {
+  LINT_OUTCOME_UNSPECIFIED = 0;
+  // Fits, and isn't Noisy or Busy in strict mode.
+  LINT_OUTCOME_PASS = 1;
+  // Fits, but is Noisy or Busy (outside strict mode).
+  LINT_OUTCOME_WARN = 2;
+  // Doesn't fit, couldn't be read, or is Noisy or Busy in strict mode.
+  LINT_OUTCOME_FAIL = 3;
+}
+
+enum Unreadable {
+  UNREADABLE_UNSPECIFIED = 0;
+  // Larger than 1 MiB (1,048,576 bytes).
+  UNREADABLE_TOO_LARGE = 1;
+  // Not valid UTF-8 text.
+  UNREADABLE_NOT_UTF8 = 2;
+}

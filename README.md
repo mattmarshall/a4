@@ -28,7 +28,7 @@ pnpm dev          # http://localhost:5173
 | Command | What it does |
 | --- | --- |
 | `pnpm dev` | vinext dev server (Vite, running in workerd) |
-| `pnpm test` | Unit tests for `lib/` and the UI's pure modules in `components/` (Node's built-in test runner) |
+| `pnpm test` | Unit tests for `lib/`, the UI's pure modules in `components/`, and the `a4` command in `cli/` (Node's built-in test runner) |
 | `pnpm typecheck` | `tsc --noEmit`, then the strict core config (`tsconfig.core.json`) |
 | `pnpm lint` | All the lint guardrails below, in order (also runs in CI) |
 | `pnpm lint:code` | Biome: lint TypeScript and JSON, and check their formatting |
@@ -46,6 +46,7 @@ pnpm dev          # http://localhost:5173
 | `pnpm proto` | Lint `proto/` and regenerate the protobuf code in `lib/gen/` (commit the result) |
 | `pnpm proto:check` | Fail if `lib/gen/` differs from a fresh generation, or `proto/` breaks compatibility with `main` (also runs in CI) |
 | `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
+| `pnpm a4 lint [path ...] [--strict] [--exclude <glob>] [--json]` | Check context files against one page (see "Page lint") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
 | `node scripts/screenshots.ts compare <a> <b>` | Compare two captures pixel by pixel, and their PDF page counts. Writes `<view>.diff.png` for each view that differs, and exits 1 |
@@ -674,6 +675,59 @@ Safari and Firefox, the Pages panel says so, and the library works as before.
   `folders`), and its drafts in `localStorage` under `a4:folder:<id>:`.
   While Chrome saves a file, a temporary `<file>.crswap` appears next to it
   for a moment.
+
+## Page lint
+
+`a4 lint` checks a repository's agent context files against one page from the
+command line, so a file that stops fitting is caught in review or CI.
+
+```sh
+pnpm a4 lint                              # this repository
+node ~/src/a4/cli/a4.ts lint              # any folder, from a checkout of A4
+node ~/src/a4/cli/a4.ts lint AGENTS.md docs/brief.md --strict
+```
+
+```
+pass   1/60  Light        .claude/skills/review/SKILL.md — Reads clean
+fail  74/60  Overflowing  AGENTS.md — 14 rows over the page
+warn   6/60  Noisy        packages/api/CLAUDE.md — 37% of the ink is syntax
+3 files: 1 failed, 1 warned, 1 passed.
+```
+
+- **What it checks:**
+  - Given a folder (the current directory by default), it checks the context
+    files the folder view lists, at any depth: `AGENTS.md`, `CLAUDE.md`,
+    `SKILL.md`, and the rest.
+  - It skips the same folders as the folder view, and stops after 20,000
+    entries, saying so on stderr.
+  - A file named on the command line is checked whatever its name.
+  - Each file is measured as the sheet shows it, on the 80 × 60 Terminal page.
+    Tabs count as two spaces, and CRLF as a newline.
+- **Pass and fail:**
+  - A file **fails** when it uses more than 60 rows. Trailing blank lines
+    don't count.
+  - A Noisy or Busy file **warns**. With `--strict`, it fails too.
+  - A file over 1 MiB, or one that isn't UTF-8, fails with its reason.
+- **Each line shows** the outcome, the rows used, the verdict, the path, and
+  the file's most severe finding, in the app's words.
+- **Options:**
+  - `--strict` also fails Noisy and Busy files.
+  - `--exclude <glob>` skips files whose folder-relative path matches. Repeat
+    it for more globs, for example to leave out generated skills:
+    `--exclude '.claude/skills/**'`.
+  - `--json` prints only an `a4.v1.LintReport` (`proto/a4/v1/lint.proto`) as
+    proto3 JSON. That's each file's path, outcome, and `AnalysisReport`, and
+    never a file's text.
+- **Exit status:** 0 when no file fails, 1 when one does, and 2 for a usage
+  error or a path that doesn't exist.
+- **Privacy:** it only reads files, never writes them, and makes no network
+  request.
+- **Under the hood:** the command (`cli/a4.ts`) hands the Node folder adapter
+  to the headless desk (`lib/desk/`). The desk judges a page with the same
+  fit rule (`pageFit` in `lib/page/`), analysis, and folder walk the app uses,
+  and imports no DOM or Node API, so other tools can reuse it.
+- **This repository's own context files** are generated OpenSpec skills, 215
+  to 527 rows each, so `pnpm a4 lint` here fails until they're excluded.
 
 ## Deploy to a4.marsh.build
 

@@ -208,6 +208,27 @@ test("fit with repairs: keeps the fewest rows even when a later attempt is worse
   assert.equal(r.overBy, 6);
 });
 
+test("host-enforced fit: trailing blank lines don't count, so 58 rows plus 4 blank fits first time", async () => {
+  let calls = 0;
+  const { host } = fake({
+    operations: [Operation.TRANSFORM],
+    handlers: {
+      async *transform() {
+        calls++;
+        yield {
+          event: { case: "candidate", value: { text: `${lines(58)}\n\n\n\n`, resume: new Uint8Array(), model: "m" } },
+        };
+      },
+    },
+  });
+  const r = await host.transform(pid("fake"), "src", T, { instruction: "fit" });
+  assert.equal(r.rowsUsed, 58);
+  assert.equal(r.fits, true);
+  assert.equal(r.overBy, 0);
+  assert.equal(r.attempts, 1);
+  assert.equal(calls, 1);
+});
+
 test("a plugin that describes itself under another id is refused", async () => {
   const card = create(ModelCardSchema, {
     id: "real",

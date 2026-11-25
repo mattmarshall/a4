@@ -6,11 +6,13 @@
     "components/**/*.test.ts",
     "lib/models/plugins/semantic/worker.ts",
     "scripts/*.ts",
+    // The a4 command (pnpm a4).
+    "cli/*.ts",
     "cloudflare.config.ts",
     // The standalone <a4-sheet> build (pnpm build:element).
     "vite.element.config.ts"
   ],
-  "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
+  "project": ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.ts", "cli/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
   "ignore": [
     // The fixture pairs the semantic thresholds were calibrated on (see the
     // archived changes' calibration.md). Calibration runs by hand in the
