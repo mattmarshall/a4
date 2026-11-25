@@ -114,8 +114,9 @@ From the bottom up:
 
 - **Paper**, the format: `a4.v1`, the tensor codec, and the presets. Tools
   read and write it.
-- **Pens and tracing paper**, the models: `SheetModelService`. Plugins stay
-  bundled for now, which keeps today's privacy rules intact.
+- **Pens and tracing paper**, the models: `SheetModelService`. Plugins are
+  bundled, or signed by a third party and run in a sandbox that keeps
+  today's privacy rules intact.
 - **Desk**, the host and its surfaces: the workbench, `<a4-sheet>`, and a
   headless desk for scripts, CLIs, and agents.
 - **Post**, delivery: a local mailroom that agents and outside systems talk
@@ -267,8 +268,34 @@ Each step is its own OpenSpec change, in this order.
      fails CI over a `--budget`.
    - **Still to come:** a mailroom tool that reads stacks, and a model pen
      that folds a page down the ladder.
-5. **Later.**
-   - Signed third-party pens and overlays.
+5. **`add-signed-plugins`, built.** Anyone can publish a pen or an overlay
+   (README, "Third-party plugins").
+   - **The package:** one `.a4plugin` file, an `a4.v1.PluginPackage`. It holds
+     a manifest signed with Ed25519 (the card, the publisher's key, the code's
+     digest, and the model files), and one script that imports nothing.
+     `a4 plugin keygen | pack | verify` make and check packages, and never
+     run their code.
+   - **Trust:**
+     - installing pins the plugin's id to its publisher's key;
+     - an update must come from the same key with a newer version;
+     - A4 ships a list of known publishers, which starts empty.
+   - **The sandbox:** plugin code runs in a worker inside a sandboxed frame,
+     whose content security policy comes from the signed card. An on-device
+     overlay gets no network at all. A remote plugin reaches only its one
+     host, with consent for each call. A self-test fails closed in a browser
+     that doesn't enforce the sandbox.
+   - **In the app:**
+     - install from a file or an HTTPS URL;
+     - installed overlays become model lenses, and installed pens run from
+       the Models section;
+     - updates come only when you ask, and Remove deletes everything.
+   - **Still to come:**
+     - installed plugins in the `a4` command, the headless desk, and the
+       mailroom, which needs a sandbox for Node;
+     - Generate and Encode for installed plugins;
+     - key rotation;
+     - the first known publisher.
+6. **Later.**
    - Share links (the page format decision in concept.md).
    - A server-backed desk that passes the store contract tests.
 

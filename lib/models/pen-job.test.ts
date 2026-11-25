@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ErrorCode, ModelError } from "./errors.ts";
 import type { TransformResult } from "./host.ts";
-import { FitJob, type FitRunOptions } from "./fit-job.ts";
+import { PenJob, type PenRunOptions } from "./pen-job.ts";
 
 const result: TransformResult = {
   text: "short",
@@ -15,11 +15,11 @@ const result: TransformResult = {
   maxAttempts: 3,
 };
 
-function setup(run: (text: string, options: FitRunOptions) => Promise<TransformResult>) {
+function setup(run: (text: string, options: PenRunOptions) => Promise<TransformResult>) {
   const granted: string[] = [];
   const opened: string[] = [];
   let authFailed = 0;
-  const job = new FitJob<string>({
+  const job = new PenJob<string>({
     grant: (text) => {
       granted.push(text);
       return { pluginId: "fit", text } as never;
@@ -36,7 +36,7 @@ function setup(run: (text: string, options: FitRunOptions) => Promise<TransformR
 }
 
 test("ask, send, progress, and result: consent is for the exact text shown", async () => {
-  let progress: FitRunOptions["onProgress"] = () => {};
+  let progress: PenRunOptions["onProgress"] = () => {};
   let finish: () => void = () => {};
   const { job, granted, opened, states } = setup((_text, options) => {
     progress = options.onProgress;
@@ -114,4 +114,73 @@ test("asking again while a rewrite runs is ignored", async () => {
   assert.equal(job.state.kind, "running");
   finish();
   await sending;
+});
+
+test("an installed pen that crashes mid-run ends the run within 1 second, and no page is made", async () => {
+  const { MemoryPluginStore } = await import("../platform/plugin-store.ts");
+  const { PluginRegistry } = await import("./registry.ts");
+  const { packPackage, cardFromJson } = await import("./package.ts");
+  const { pluginIdOf } = await import("./plugin-id.ts");
+  const { PRESETS } = await import("../page/index.ts");
+  const { fakeSandbox } = await import("./testing/sandbox.ts");
+  const { SAMPLE_CODE, testKey } = await import("./testing/packages.ts");
+  const card = cardFromJson(
+    JSON.stringify({
+      id: "example.stuck-pen",
+      name: "Stuck pen",
+      version: "1.0.0",
+      operations: ["OPERATION_TRANSFORM"],
+      views: ["VIEW_TEXT"],
+      browser: {},
+      transform: { instructions: ["Rewrite"], maxAttempts: 1 },
+    }),
+  );
+  let reached: () => void = () => {};
+  const inside = new Promise<void>((resolve) => {
+    reached = resolve;
+  });
+  const sandbox = fakeSandbox(card, () => ({
+    async *transform() {
+      reached();
+      await new Promise(() => {}); // never answers
+    },
+  }));
+  const registry = new PluginRegistry({
+    store: new MemoryPluginStore(),
+    fetch: globalThis.fetch,
+    open: sandbox.open,
+    sandboxWorks: async () => true,
+  });
+  const key = testKey();
+  const bytes = await packPackage({
+    card,
+    publisherName: "Example",
+    publicKey: key.publicKey,
+    code: SAMPLE_CODE,
+    files: [],
+    signedAt: new Date(),
+    sign: key.sign,
+  });
+  await registry.install(await registry.inspect(bytes));
+  const pages: string[] = [];
+  const job = new PenJob<string>({
+    grant: () => {
+      throw new Error("an on-device pen never asks for consent");
+    },
+    run: (text, options) =>
+      registry.host.transform(pluginIdOf(card), text, PRESETS.terminal, { instruction: "Rewrite", ...options }),
+    onResult: async (name) => {
+      pages.push(name);
+    },
+  });
+  const running = job.run({ name: "Notes", ref: "notes", text: "Some text." });
+  await inside;
+  const crashedAt = Date.now();
+  sandbox.opened[0]?.crash("The plugin failed: boom");
+  await running;
+  assert.ok(Date.now() - crashedAt < 1000, `ended ${Date.now() - crashedAt} ms after the crash`);
+  assert.equal(job.state.kind, "failed");
+  assert.match(job.state.kind === "failed" ? job.state.message : "", /No page was created/);
+  assert.deepEqual(pages, []);
+  registry.host.unregister(pluginIdOf(card));
 });

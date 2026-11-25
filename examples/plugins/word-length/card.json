@@ -1,0 +1,21 @@
+{
+  "id": "example.word-length",
+  "name": "Word length",
+  "version": "1.0.0",
+  "description": "Tints each word by its length, so long words stand out.",
+  "operations": ["OPERATION_SCORE"],
+  "views": ["VIEW_TEXT"],
+  "browser": {},
+  "score": {
+    "planes": [
+      {
+        "name": "Word length",
+        "label": "Word length",
+        "quantity": "letters per word",
+        "min": 0,
+        "max": 1,
+        "description": "Darker means a longer word: 12 letters or more is darkest."
+      }
+    ]
+  }
+}

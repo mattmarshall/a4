@@ -7,4 +7,5 @@
  */
 
 export { browserPlatform } from "./browser.ts";
+export { IdbPluginStore } from "./plugin-store.ts";
 export type { Platform } from "./platform.ts";

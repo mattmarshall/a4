@@ -1,0 +1,81 @@
+// Third-party plugins: the signed package a pen or overlay ships in, the
+// message the host sends it when it starts, and the record A4 keeps for an
+// installed plugin. Read and checked by lib/models/package.ts; packed by
+// `a4 plugin pack` (cli/plugin.ts).
+//
+// A package's signature covers the ASCII string "a4.v1.PluginManifest\n"
+// followed by the manifest's bytes exactly as stored. The manifest is never
+// re-encoded, so protobuf's lack of a canonical encoding doesn't matter.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/model.proto";
+import "google/protobuf/timestamp.proto";
+
+// One `.a4plugin` file.
+message PluginPackage {
+  // A serialized PluginManifest, exactly as signed.
+  bytes manifest = 1;
+  // Ed25519 over the context string and `manifest`: 64 bytes.
+  bytes signature = 2;
+  // The plugin's code: one script that imports nothing, run as a classic
+  // worker in the sandbox.
+  bytes code = 3;
+}
+
+// What the publisher signs.
+message PluginManifest {
+  // The plugin's model card. Its version is MAJOR.MINOR.PATCH.
+  ModelCard card = 1;
+  Publisher publisher = 2;
+  // SHA-256 of `code`, as "urn:sha256:" + 64 lowercase hexadecimal digits.
+  string code_digest = 3;
+  // Files the host downloads for the plugin, after the author asks. Their
+  // sizes add up to the card's `download_bytes`.
+  repeated ModelFile files = 4;
+  google.protobuf.Timestamp signed_at = 5;
+}
+
+// Who signed a package. The key is the identity; the name is what they call
+// themselves, and A4 shows it as theirs only when the key is on its list of
+// known publishers.
+message Publisher {
+  string name = 1;
+  // A raw Ed25519 public key: 32 bytes.
+  bytes public_key = 2;
+}
+
+// A file the host downloads for a plugin and hands it when it starts.
+message ModelFile {
+  // An HTTPS URL.
+  string url = 1;
+  // The file's size in bytes.
+  uint64 size = 2;
+  // SHA-256 of the file, as "urn:sha256:" + 64 lowercase hexadecimal digits.
+  string digest = 3;
+}
+
+// The host's first message to a plugin's worker, sent with the port it
+// serves SheetModelService on.
+message PluginStart {
+  repeated StartFile files = 1;
+  // The credentials the card declares that the author has entered, by kind.
+  map<string, string> credentials = 2;
+}
+
+// A downloaded model file, by the URL the manifest gives it.
+message StartFile {
+  string url = 1;
+  bytes data = 2;
+}
+
+// What A4 keeps in this browser for an installed plugin.
+message InstalledPlugin {
+  // The package exactly as installed; checked again every time it starts.
+  bytes package = 1;
+  // The HTTPS URL it was installed from, or empty for a file.
+  string source_url = 2;
+  google.protobuf.Timestamp installed_at = 3;
+}

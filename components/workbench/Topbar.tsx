@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { LENSES, type VerdictId } from "@/lib/analysis";
-import { type FitJob, SEMANTIC_REPETITION } from "@/lib/models";
+import { type PenJob, remoteHost, SEMANTIC_REPETITION } from "@/lib/models";
 import type { LensId } from "@/lib/page";
 import type { PageName, PageRef } from "@/lib/persist";
 import type { SlotSnapshot } from "@/lib/workspace";
@@ -17,7 +17,8 @@ import { FitJobChip } from "../FitToPage";
 import { VerdictChip } from "../MetricsPanel";
 import { SaveStatusPill } from "./SaveStatusPill";
 import type { Layout } from "./useLayout";
-import type { SemanticLens } from "./useSemanticLens";
+import { planeKey, type LensSource } from "./model-lens";
+import type { ModelLens } from "./useModelLens";
 
 function PageNameField({
   name,
@@ -68,6 +69,16 @@ function PageNameField({
   );
 }
 
+/** A model lens button's title: what the plane shows, who made it, and where it runs. */
+function lensTitle(source: LensSource): string {
+  if (source.pluginId === SEMANTIC_REPETITION.id) {
+    return "Model lens: sentences and fields that restate one another (runs in your browser)";
+  }
+  const host = remoteHost(source.card);
+  const where = host === null ? "runs in your browser" : `sends the page to ${host} after you confirm`;
+  return `Model lens: ${source.label}, from ${source.card.name}${source.publisher ? ` · ${source.publisher}` : ""} (${where})`;
+}
+
 /** The open page's name (editable for library pages) or file path, and its save status. */
 export function DocTitle({
   page,
@@ -98,16 +109,16 @@ export function Topbar({
   title,
   fitJob,
   lens,
-  semantic,
+  modelLens,
   onLens,
   verdict,
   children,
 }: {
   layout: Layout;
   title: ReactNode;
-  fitJob: FitJob<PageRef>;
+  fitJob: PenJob<PageRef>;
   lens: LensId;
-  semantic: SemanticLens;
+  modelLens: ModelLens;
   onLens: (id: LensId) => void;
   /** The target page's verdict, shown while the inspector is hidden. */
   verdict: VerdictId;
@@ -144,24 +155,29 @@ export function Topbar({
             <button
               key={l.id}
               type="button"
-              aria-pressed={!semantic.active && lens === l.id}
+              aria-pressed={!modelLens.active && lens === l.id}
               title={l.hint}
               onClick={() => onLens(l.id)}
             >
               {l.name}
             </button>
           ))}
-          {semantic.available ? (
-            <button
-              type="button"
-              className="lens-model"
-              aria-pressed={semantic.active === SEMANTIC_REPETITION.id}
-              title="Model lens: sentences and fields that restate one another (runs in your browser)"
-              onClick={semantic.show}
-            >
-              Semantic
-            </button>
-          ) : null}
+          {modelLens.sources.map((source) => {
+            const key = planeKey(source.pluginId, source.plane);
+            const on = modelLens.active !== null && planeKey(modelLens.active.pluginId, modelLens.active.plane) === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                className="lens-model"
+                aria-pressed={on}
+                title={lensTitle(source)}
+                onClick={() => modelLens.show(source)}
+              >
+                {source.pluginId === SEMANTIC_REPETITION.id ? "Semantic" : source.label}
+              </button>
+            );
+          })}
         </fieldset>
 
         <fieldset className="seg" aria-label="View">

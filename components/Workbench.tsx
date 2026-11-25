@@ -4,7 +4,7 @@
  * The app: the top bar, the page library, the desk, and the inspector, around
  * the tab's workspace. Each piece owns its own state (see components/workbench):
  * layout and shortcuts here, pose and camera in the stage, scoring in the
- * semantic lens.
+ * model lens.
  */
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -13,8 +13,10 @@ import { type LensId, pageSpec, sizeOfName } from "@/lib/page";
 import {
   Operation,
   FIT_TO_PAGE,
-  FitJob,
+  type ModelCard,
+  PenJob,
   type FindingResult,
+  pluginIdOf,
   type TransformResult,
   SEMANTIC_REPETITION,
 } from "@/lib/models";
@@ -25,10 +27,13 @@ import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
+import { ConsentDialog } from "./ConsentDialog";
 import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
+import { type CredentialStoreView, PenControls } from "./PenControls";
+import { penSuffix, publisherNote } from "./plugin-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
@@ -38,7 +43,8 @@ import { SheetStage } from "./workbench/SheetStage";
 import { DocTitle, Topbar } from "./workbench/Topbar";
 import { useAnalysis } from "./workbench/useAnalysis";
 import { useLayout } from "./workbench/useLayout";
-import { useSemanticLens } from "./workbench/useSemanticLens";
+import { lensSources } from "./workbench/model-lens";
+import { useModelLens } from "./workbench/useModelLens";
 import { useShortcuts } from "./workbench/useShortcuts";
 import { useWorkspaceApi } from "./workspace/useWorkspace";
 
@@ -103,9 +109,21 @@ export function Workbench() {
 
   // --- Models --------------------------------------------------------------
   const models = useModels();
-  const semantic = useSemanticLens({
+  const lensCards = useMemo(() => {
+    const ready = (card: ModelCard) => models.status[card.id] === "ready";
+    const runnable = models.sandbox !== "unavailable";
+    return [
+      ...(ready(SEMANTIC_REPETITION.card) ? [{ card: SEMANTIC_REPETITION.card, publisher: null }] : []),
+      ...models.installed
+        .filter((v) => runnable && ready(v.card))
+        .map((v) => ({ card: v.card, publisher: publisherNote(v.knownName, v.publisherName) })),
+    ];
+  }, [models.status, models.installed, models.sandbox]);
+  const sources = useMemo(() => lensSources(lensCards), [lensCards]);
+  const modelLens = useModelLens({
     models,
     notify,
+    sources,
     texts: { a: slots.a.text, b: slots.b.text },
     specs: { a: specA, b: specB },
     compare,
@@ -114,14 +132,20 @@ export function Workbench() {
   });
 
   function chooseLens(id: LensId) {
-    semantic.off();
+    modelLens.off();
     setLens(id);
+  }
+
+  /** A card's "Show on the page": its first plane's lens. */
+  function showPlugin(id: string) {
+    const source = sources.find((s) => s.pluginId === id);
+    if (source) modelLens.show(source);
   }
 
   // Fit to page: one request at a time, owned here so it outlives the Models
   // panel (collapsing it, hiding the inspector, or focus mode don't stop it).
   // The result opens as B, beside its source as A.
-  async function openFitResult(result: TransformResult, ref: PageRef | null) {
+  async function openPenResult(card: ModelCard, result: TransformResult, ref: PageRef | null) {
     // The dialog only opens for an open page, so a reference is always present.
     if (!ref) return;
     setMode("compare");
@@ -130,7 +154,7 @@ export function Workbench() {
       else await lib.openInSlot("a", ref);
     }
     // Copies of folder files go to the library, named after the path.
-    const name = await lib.createPage(copyNameFor(ref, " (fit)"), result.text, "b");
+    const name = await lib.createPage(copyNameFor(ref, penSuffix(card)), result.text, "b");
     setActive("b");
     if (!name) return;
     notify(
@@ -149,13 +173,13 @@ export function Workbench() {
       forget: async () => (await models.host()).credentials.forget(FIT_TO_PAGE.id, kind),
     };
   }, [models.host]);
-  const fitDeps = useRef({ spec, openFitResult });
+  const fitDeps = useRef({ spec, openPenResult });
   useEffect(() => {
-    fitDeps.current = { spec, openFitResult };
+    fitDeps.current = { spec, openPenResult };
   });
   const [fitJob] = useState(
     () =>
-      new FitJob<PageRef>({
+      new PenJob<PageRef>({
         grant: async (text) =>
           (await models.host()).consent.request(FIT_TO_PAGE.id, Operation.TRANSFORM, text).approve(),
         run: async (text, options) =>
@@ -163,10 +187,41 @@ export function Workbench() {
             instruction: FIT_TO_PAGE.names.instructions.fit,
             ...options,
           }),
-        onResult: (_name, result, ref) => fitDeps.current.openFitResult(result, ref),
+        onResult: (_name, result, ref) => fitDeps.current.openPenResult(FIT_TO_PAGE.card, result, ref),
         onAuthFailed: () => void fitKey.forget(),
       }),
   );
+
+  // Installed pens: one request each, owned here like Fit to page's, made on first use.
+  const [instructions, setInstructions] = useState<Record<string, string>>({});
+  const instructionsRef = useRef(instructions);
+  useEffect(() => {
+    instructionsRef.current = instructions;
+  });
+  const penJobs = useRef(new Map<string, PenJob<PageRef>>());
+  const penJob = (card: ModelCard): PenJob<PageRef> => {
+    let job = penJobs.current.get(card.id);
+    if (!job) {
+      const id = pluginIdOf(card);
+      const instruction = () => instructionsRef.current[card.id] ?? card.transform?.instructions[0] ?? "";
+      job = new PenJob<PageRef>({
+        grant: async (text) => (await models.host()).consent.request(id, Operation.TRANSFORM, text).approve(),
+        run: async (text, options) =>
+          (await models.host()).transform(id, text, fitDeps.current.spec, { instruction: instruction(), ...options }),
+        onResult: (_name, result, ref) => fitDeps.current.openPenResult(card, result, ref),
+      });
+      penJobs.current.set(card.id, job);
+    }
+    return job;
+  };
+  const penCredentials = (card: ModelCard): CredentialStoreView => {
+    const id = pluginIdOf(card);
+    return {
+      has: async (kind) => (await models.host()).credentials.has(id, kind),
+      set: async (kind, value) => (await models.host()).credentials.set(id, kind, value),
+      forget: async (kind) => (await models.host()).credentials.forget(id, kind),
+    };
+  };
 
   function selectLaterUnit(pair: FindingResult) {
     const later = pair.spans[pair.spans.length - 1];
@@ -322,7 +377,7 @@ export function Workbench() {
   const { focus } = layout;
   const showLibrary = layout.library && !focus;
   const showInspector = layout.inspector && !focus;
-  const legendShown = Boolean(semantic.active) || lens !== "ink";
+  const legendShown = Boolean(modelLens.active) || lens !== "ink";
 
   // A letter in the active slot: a draft can be sealed; anything else shows its seal.
   let letterActions: ReactNode = null;
@@ -349,7 +404,7 @@ export function Workbench() {
           title={<DocTitle page={page} folderName={folderName} onRename={lib.renamePage} />}
           fitJob={fitJob}
           lens={lens}
-          semantic={semantic}
+          modelLens={modelLens}
           onLens={chooseLens}
           verdict={targetAnalysis.assessment.verdict}
         >
@@ -406,8 +461,8 @@ export function Workbench() {
           ready={ready}
           failure={lib.failure}
           specs={{ a: specA, b: specB }}
-          lens={semantic.sheetLens}
-          planes={semantic.planes}
+          lens={modelLens.sheetLens}
+          planes={modelLens.planes}
           render={effectiveRender}
           zoom={layout.sheetMm(effectiveRender === "flat")}
           grid={grid}
@@ -426,7 +481,12 @@ export function Workbench() {
         >
           {legendShown && !focus ? (
             <figure className="lens-chip" aria-label="Lens legend" data-print="hide">
-              <LensLegend lens={lens} model={semantic.legend} />
+              <LensLegend lens={lens} model={modelLens.legend} />
+              {modelLens.remoteStale ? (
+                <button type="button" className="btn btn-outline" onClick={modelLens.rescore}>
+                  Score again…
+                </button>
+              ) : null}
             </figure>
           ) : null}
           {focus ? (
@@ -469,20 +529,54 @@ export function Workbench() {
             )}
             <ModelsPanel
               models={models}
-              scoreActive={semantic.active === SEMANTIC_REPETITION.id}
-              onScore={semantic.show}
+              activeLens={modelLens.active?.pluginId ?? null}
+              onScore={showPlugin}
+              notify={notify}
               slots={{
+                ...Object.fromEntries(
+                  models.installed
+                    .filter((v) => v.card.operations.includes(Operation.TRANSFORM))
+                    .map((v) => [
+                      v.card.id,
+                      <PenControls
+                        key={v.card.id}
+                        card={v.card}
+                        publisher={publisherNote(v.knownName, v.publisherName)}
+                        page={{ name: page.label, ref: page.ref, text: page.text }}
+                        job={penJob(v.card)}
+                        credentials={penCredentials(v.card)}
+                        instruction={instructions[v.card.id] ?? v.card.transform?.instructions[0] ?? ""}
+                        onInstruction={(value) => setInstructions((i) => ({ ...i, [v.card.id]: value }))}
+                      />,
+                    ]),
+                ),
                 [FIT_TO_PAGE.id]: (
                   <FitToPage page={{ name: page.label, ref: page.ref, text: page.text }} job={fitJob} apiKey={fitKey} />
                 ),
-                [SEMANTIC_REPETITION.id]: semantic.summary ? (
-                  <SemanticSummaryView summary={semantic.summary} onSelectPair={selectLaterUnit} />
+                [SEMANTIC_REPETITION.id]: modelLens.summary ? (
+                  <SemanticSummaryView summary={modelLens.summary} onSelectPair={selectLaterUnit} />
                 ) : null,
               }}
             />
           </aside>
         ) : null}
       </div>
+
+      <ConsentDialog
+        request={
+          modelLens.consent
+            ? {
+                card: modelLens.consent.source.card,
+                publisher: modelLens.consent.source.publisher,
+                pageName: slots[modelLens.consent.slot].label ?? "page",
+                characters: modelLens.consent.text.length,
+                action: "score",
+              }
+            : null
+        }
+        onSend={() => void modelLens.send()}
+        onCancel={modelLens.cancel}
+      />
 
       <SealDialog
         open={sealing && activeLetter !== null && !page.readOnly}

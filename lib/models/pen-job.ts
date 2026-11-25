@@ -1,16 +1,21 @@
 /**
- * One Fit to page request, outside React, so it keeps running while the
- * Models section is collapsed, the inspector is hidden, or focus mode is on.
+ * One pen's request (Fit to page, or an installed pen), outside React, so it
+ * keeps running while the Models section is collapsed, the inspector is
+ * hidden, or focus mode is on.
  *
- * idle → confirm (the consent dialog) → running → idle, or → failed.
- * Consent is approved only by `send()`, for exactly the text the dialog showed.
+ * A pen that sends text off the device: idle → confirm (the consent dialog)
+ * → running → idle, or → failed. Consent is approved only by `send()`, for
+ * exactly the text the dialog showed.
+ *
+ * A pen that keeps text on the device needs no consent: `run()` goes straight
+ * from idle to running.
  */
 
 import type { ConsentToken } from "./consent.ts";
 import type { TransformResult } from "./host.ts";
 import { ErrorCode, isModelError } from "./errors.ts";
 
-export type FitJobState<R> =
+export type PenJobState<R> =
   | { readonly kind: "idle" }
   | { readonly kind: "confirm"; readonly name: string; readonly ref: R; readonly text: string }
   | {
@@ -24,35 +29,36 @@ export type FitJobState<R> =
     }
   | { readonly kind: "failed"; readonly message: string };
 
-export interface FitRunOptions {
-  consent: ConsentToken;
+export interface PenRunOptions {
+  /** The author's consent, for a pen that sends text off the device. */
+  consent?: ConsentToken;
   signal: AbortSignal;
   onProgress: (progress: { attempt: number; maxAttempts: number; characters: number }) => void;
   onAttempt: (attempt: { attempt: number; maxAttempts: number; rowsUsed: number; fits: boolean }) => void;
 }
 
-export interface FitJobDeps<R> {
+export interface PenJobDeps<R> {
   /** Approve consent for exactly this text: the dialog's Send (the host owns the token). */
   grant: (text: string) => Promise<ConsentToken> | ConsentToken;
   /** Run the transform. */
-  run: (text: string, options: FitRunOptions) => Promise<TransformResult>;
+  run: (text: string, options: PenRunOptions) => Promise<TransformResult>;
   /** Save the result beside the source; resolves once it's open. */
   onResult: (name: string, result: TransformResult, ref: R) => Promise<void>;
   /** The key was rejected. */
   onAuthFailed?: () => void;
 }
 
-export class FitJob<R> {
-  readonly #deps: FitJobDeps<R>;
+export class PenJob<R> {
+  readonly #deps: PenJobDeps<R>;
   readonly #listeners = new Set<() => void>();
-  #state: FitJobState<R> = { kind: "idle" };
+  #state: PenJobState<R> = { kind: "idle" };
   #abort: AbortController | null = null;
 
-  constructor(deps: FitJobDeps<R>) {
+  constructor(deps: PenJobDeps<R>) {
     this.#deps = deps;
   }
 
-  get state(): FitJobState<R> {
+  get state(): PenJobState<R> {
     return this.#state;
   }
 
@@ -61,9 +67,9 @@ export class FitJob<R> {
     return () => this.#listeners.delete(listener);
   };
 
-  getSnapshot = (): FitJobState<R> => this.#state;
+  getSnapshot = (): PenJobState<R> => this.#state;
 
-  #set(state: FitJobState<R>) {
+  #set(state: PenJobState<R>) {
     this.#state = state;
     for (const listener of this.#listeners) listener();
   }
@@ -87,19 +93,28 @@ export class FitJob<R> {
   async send(): Promise<void> {
     const state = this.#state;
     if (state.kind !== "confirm") return;
-    const { name, ref, text } = state;
+    await this.#run(state, true);
+  }
+
+  /** Run a pen that keeps text on the device: no consent, no dialog. Ignored while a request runs. */
+  async run(page: { name: string; ref: R; text: string }): Promise<void> {
+    if (this.#state.kind === "running" || !page.text.trim()) return;
+    await this.#run(page, false);
+  }
+
+  async #run({ name, ref, text }: { name: string; ref: R; text: string }, withConsent: boolean): Promise<void> {
     const controller = new AbortController();
     this.#abort = controller;
     this.#set({ kind: "running", name, attempt: 1, maxAttempts: null, characters: 0, note: null });
-    const update = (patch: Partial<Extract<FitJobState<R>, { kind: "running" }>>) => {
+    const update = (patch: Partial<Extract<PenJobState<R>, { kind: "running" }>>) => {
       if (this.#state.kind === "running") this.#set({ ...this.#state, ...patch });
     };
     try {
       // The host may still be loading: wait for the approval only when it's pending.
-      const approval = this.#deps.grant(text);
+      const approval = withConsent ? this.#deps.grant(text) : undefined;
       const consent = approval instanceof Promise ? await approval : approval;
       const result = await this.#deps.run(text, {
-        consent,
+        ...(consent ? { consent } : {}),
         signal: controller.signal,
         onProgress: ({ attempt, maxAttempts, characters }) => update({ attempt, maxAttempts, characters }),
         onAttempt: ({ attempt, rowsUsed, fits }) => {

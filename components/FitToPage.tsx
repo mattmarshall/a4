@@ -6,20 +6,20 @@
  * the field is uncontrolled and is cleared as soon as the key is handed to
  * the host's credential store. Consent is minted only by the dialog's Send button (the
  * job's `send`), for the exact text the dialog describes. The request itself
- * lives in a FitJob owned by the Workbench, so it outlives this panel.
+ * lives in a PenJob owned by the Workbench, so it outlives this panel.
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FIT_TO_PAGE, type FitJob, remoteHost } from "@/lib/models";
+import { FIT_TO_PAGE, type PenJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
 import styles from "./ModelsPanel.module.css";
 
-function useFitJob(job: FitJob<PageRef>) {
+function useFitJob(job: PenJob<PageRef>) {
   return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
 }
 
 /** The top-bar chip for a running rewrite: progress and Cancel, wherever the panel is. */
-export function FitJobChip({ job }: { job: FitJob<PageRef> }) {
+export function FitJobChip({ job }: { job: PenJob<PageRef> }) {
   const phase = useFitJob(job);
   if (phase.kind !== "running") return null;
   return (
@@ -50,7 +50,7 @@ export function FitToPage({
   /** The page Fit to page would rewrite (the active sheet). */
   page: { name: string | null; ref: PageRef | null; text: string };
   /** The request, owned above the inspector so it outlives this panel. */
-  job: FitJob<PageRef>;
+  job: PenJob<PageRef>;
   apiKey: KeyStore;
 }) {
   const [keySet, setKeySet] = useState(false);

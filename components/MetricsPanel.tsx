@@ -89,6 +89,8 @@ export interface ModelLegend {
   scale?: string;
   /** A note on the scale, e.g. where a threshold sits. */
   note?: string;
+  /** Who published an installed plugin, e.g. "Unknown publisher (calls itself “Example Labs”)". */
+  publisher?: string;
 }
 
 export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend | null }) {
@@ -112,6 +114,11 @@ export function LensLegend({ lens, model }: { lens: LensId; model?: ModelLegend 
             <strong>{model.plane}</strong> · {model.plugin} plugin{model.model ? `, ${model.model}` : ""}
           </span>
         </div>
+        {model.publisher ? (
+          <div className={styles.legendRow} style={{ color: "var(--muted)" }}>
+            {model.publisher}
+          </div>
+        ) : null}
       </div>
     );
   }

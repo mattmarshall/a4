@@ -33,9 +33,21 @@ const refused = (message: string) => new ModelError(ErrorCode.CONSENT_REQUIRED, 
 export class ConsentBroker {
   // Tokens approved and not yet used. An object shaped like a token is never here.
   readonly #live = new WeakSet<ConsentToken>();
+  // When each token was approved, and when each plugin was last removed: a
+  // token approved before its plugin was removed is refused.
+  readonly #issued = new WeakMap<ConsentToken, number>();
+  readonly #revoked = new Map<PluginId, number>();
+  #sequence = 0;
+
+  /** Refuse every token approved so far for `pluginId`: its plugin was removed. */
+  revoke(pluginId: PluginId): void {
+    this.#revoked.set(pluginId, this.#sequence);
+  }
 
   request(pluginId: PluginId, operation: Operation, text: string): ConsentRequest {
     const live = this.#live;
+    const issued = this.#issued;
+    const next = () => ++this.#sequence;
     let approved = false;
     return Object.freeze({
       pluginId,
@@ -46,6 +58,7 @@ export class ConsentBroker {
         approved = true;
         const token: ConsentToken = Object.freeze({ pluginId, operation, text });
         live.add(token);
+        issued.set(token, next());
         return token;
       },
     });
@@ -61,6 +74,9 @@ export class ConsentBroker {
       throw refused("This model sends the page off the device; confirm the request first.");
     }
     this.#live.delete(token);
+    if ((this.#issued.get(token) ?? 0) <= (this.#revoked.get(token.pluginId) ?? 0)) {
+      throw refused("This model was removed after you confirmed; confirm again.");
+    }
     if (token.pluginId !== pluginId || token.operation !== operation) {
       throw refused("The confirmation was for a different model or request.");
     }

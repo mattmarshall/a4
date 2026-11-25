@@ -23,7 +23,7 @@ import { type PageSpec, normalizeText, pageFit } from "../page/index.ts";
 import { encodeGrid } from "../tensor/codec.ts";
 import { pageSpecMessage, presetEnum, verifySheet } from "../tensor/record.ts";
 import { remoteHost } from "./capabilities.ts";
-import type { SheetModelClient } from "./client.ts";
+import { closeClient, type SheetModelClient } from "./client.ts";
 import { ConsentBroker, type ConsentRequest, type ConsentToken } from "./consent.ts";
 import { CredentialStore } from "./credentials.ts";
 import { ErrorCode, ModelError, toModelError } from "./errors.ts";
@@ -115,7 +115,8 @@ interface Registered {
   readonly connect: (context: PluginContext) => Promise<SheetModelClient>;
 }
 
-function checkCard(card: ModelCard): void {
+/** The checks every card passes before the host registers it, bundled or installed. */
+export function checkCard(card: ModelCard): void {
   if (!card.id) throw new ModelError(ErrorCode.INVALID_CARD, "A model card needs an id.");
   if (card.operations.includes(Operation.TRANSFORM)) {
     if (!card.transform?.instructions.length)
@@ -179,6 +180,22 @@ export class ModelHost {
     const id = pluginIdOf(card);
     this.#plugins.set(id, { card, policy, connect: entry.connect });
     return id;
+  }
+
+  /**
+   * Remove a plugin: its client is closed (ending its worker or sandbox), and
+   * its credentials and any consent already given for it are forgotten.
+   * Calls to it then fail as not found. Removing an unknown id does nothing.
+   */
+  unregister(id: PluginId): void {
+    const entry = this.#plugins.get(id);
+    if (!entry) return;
+    this.#plugins.delete(id);
+    const pending = this.#clients.get(id);
+    this.#clients.delete(id);
+    pending?.then(closeClient, () => {});
+    for (const credential of entry.card.credentials) this.#credentials.forget(id, credential.kind);
+    this.#consent.revoke(id);
   }
 
   #policy(id: PluginId): Policy {
@@ -288,9 +305,16 @@ export class ModelHost {
     }
   }
 
-  async score(id: PluginId, text: string, spec: PageSpec, signal?: AbortSignal): Promise<ScoreResult> {
+  /** Score `text`. A plugin that sends text off the device needs `consent` for exactly this text. */
+  async score(
+    id: PluginId,
+    text: string,
+    spec: PageSpec,
+    signal?: AbortSignal,
+    consent?: ConsentToken,
+  ): Promise<ScoreResult> {
     const card = this.#require(id, Operation.SCORE, spec);
-    this.#guardEgress(id, Operation.SCORE, text);
+    this.#guardEgress(id, Operation.SCORE, text, consent);
     const client = await this.#client(id);
     let response: Awaited<ReturnType<SheetModelClient["score"]>>;
     try {

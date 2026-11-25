@@ -441,13 +441,18 @@ has a folder under `lib/models/plugins/`.
 - **On-device plugins stay on the device.** An in-browser plugin makes no
   network request carrying page text. It downloads model files only after you
   ask, shows the size first, and keeps them for later sessions.
-- **Bundled plugins only.** The manifest (`lib/models/manifest.ts`) is the
-  only place a plugin is registered: one `definePlugin` entry with its
-  descriptor and lazy `connect` and `isDownloaded`. The registry, the card
-  list, and the download checks derive from it, and a plugin needs a
-  download when its card's `download_bytes` is above 0. No plugin code is
-  loaded from pages, imports, or URLs, and UI code imports descriptors,
-  never a plugin's implementation.
+- **Where plugin code comes from.** Plugin code comes from one of two places:
+  - **Bundled plugins.** The manifest (`lib/models/manifest.ts`) is the only
+    place a bundled plugin is registered: one `definePlugin` entry with its
+    descriptor and lazy `connect` and `isDownloaded`. A plugin needs a
+    download when its card's `download_bytes` is above 0.
+  - **Installed plugins.** These are signed packages that you installed
+    yourself (see "Third-party plugins"). The registry
+    (`lib/models/registry.ts`) registers them after the bundled plugins.
+
+  No plugin code is loaded from page content or imports. Code comes from a
+  URL only when you install from it or check it for an update. UI code
+  imports descriptors, never a plugin's implementation.
 - **Worker isolation.** In-browser plugins run in a module Web Worker, so
   editing stays responsive. Every message over the worker port is an
   `RpcFrame` protobuf. A frame that can't be decoded but has a call id gets
@@ -1029,6 +1034,170 @@ checkout's path. Other clients take the usual entry:
 A harness that runs agents itself can call `write_letter` at each checkpoint
 and `read_letter` when the next task starts. It can use the digest that
 `write_letter` returns to ask about the letter after a person seals it.
+
+## Third-party plugins
+
+Anyone can publish a pen (a plugin that writes a new page from yours) or an
+overlay (one that scores your page and tints it). A third-party plugin speaks
+the same `SheetModelService` as the bundled ones, and A4's host holds it to
+the same rules:
+- consent before any page text leaves the device;
+- fit decided by the desk;
+- results that never overwrite your page.
+
+A signature says who made a plugin. A sandbox makes the privacy rules hold
+whoever made it.
+
+### The package
+
+A plugin ships as one `.a4plugin` file: an `a4.v1.PluginPackage`
+(`proto/a4/v1/plugin.proto`) of at most 16 MiB, with three parts.
+- **The manifest,** which is what the publisher signs:
+  - the model card;
+  - the publisher's name and 32-byte Ed25519 public key;
+  - the code's SHA-256 digest, as a `urn:sha256:` URN;
+  - any model files (each an HTTPS URL, a size, and a digest);
+  - the time it was signed.
+- **The signature,** Ed25519 over `a4.v1.PluginManifest\n` followed by the
+  manifest's bytes exactly as stored.
+- **The code,** one script that imports nothing. It runs as a classic
+  worker.
+
+**What A4 checks.** A4 accepts a package only when all of these hold:
+- the signature verifies with the manifest's own key;
+- the code matches its digest;
+- the model files' sizes add up to the card's download size.
+
+**What a card may say:**
+- **Id:** lowercase letters, digits, dots, and hyphens, in at most 64
+  characters, like `example.word-length`.
+- **Version:** `MAJOR.MINOR.PATCH`.
+- **Operations:** Score, Transform, or both.
+- **Placement:** in the browser, or on a remote service. A remote card names
+  one plain hostname: no scheme, port, path, wildcard, or IP address.
+
+**The publisher's fingerprint** is the first 16 bytes of SHA-256 of their
+key, in 8 groups of 4 hex digits. The key is the publisher's identity; the
+name is what they call themselves.
+
+### Writing a plugin
+
+A plugin is a card in proto3 JSON and a script that calls `servePlugin` from
+the kit (`lib/models/kit/serve.ts`) once. The host's first message to the
+worker is an `a4.v1.PluginStart`, which carries:
+- the model files the host downloaded;
+- the credentials the card declares;
+- the port to serve `SheetModelService` on, in `a4.v1.RpcFrame`s.
+
+The kit answers Describe with the card, and `spanPlane` lays text spans out
+as a plane of the page's shape.
+
+Two examples live in `examples/plugins/`:
+- **Word length**, an overlay, tints each word by its length.
+- **Hard wrap**, a pen, rewraps long lines at 72 columns.
+
+`pnpm build:examples` bundles each one into `dist/example-plugins/<name>.js`,
+and signs a package beside it with a throwaway key it keeps in that folder.
+
+### Publisher commands
+
+`a4 plugin` makes keys and packages and checks them. It never runs a
+plugin's code and makes no network request.
+
+```sh
+mkdir -p ~/.config/a4
+pnpm a4 plugin keygen ~/.config/a4/publisher.key
+pnpm build:examples
+pnpm a4 plugin pack --card examples/plugins/word-length/card.json \
+  --code dist/example-plugins/word-length.js \
+  --key ~/.config/a4/publisher.key --publisher "Your name" \
+  --out dist/word-length.a4plugin
+pnpm a4 plugin verify dist/word-length.a4plugin
+```
+
+- **`keygen <file>`** writes a new Ed25519 private key, readable only by you,
+  and prints its public key and fingerprint. It never prints the private key,
+  and it never overwrites a file (exit 2).
+- **`pack`** takes the card (`--card`), the script (`--code`), your key
+  (`--key`), and the name you publish as (`--publisher`). It also takes
+  `--file <path>=<https url>` for each model file. It then:
+  - computes every digest and size, and sets the card's download size;
+  - checks the card as A4 does when it installs;
+  - signs the manifest.
+
+  It writes `<id>-<version>.a4plugin`, or `--out`. A card A4 would refuse
+  writes nothing (exit 1).
+- **`verify <file>`** checks a package as A4 does before installing it. It
+  prints what the plugin does, where it sends text, what it downloads and
+  asks for, and who signed it (exit 1 if refused).
+
+### Trust
+
+- **Known publishers.** A4 ships a list of known publishers in
+  `lib/models/publishers.ts`. A package signed by a listed key shows the
+  list's name with a Known publisher badge. Any other package shows "Unknown
+  publisher" and the name it gives itself. The list starts empty, and a key
+  is added only by a reviewed change to A4.
+- **Pinned keys.** Installing a plugin pins its id to the key that signed it.
+  A package with that id from any other key is refused, and so is a third-party
+  plugin that takes a bundled plugin's id.
+- **Updates.** An update installs only if the same key signed it and its
+  version is newer.
+- **No key rotation.** A publisher who loses a key ships under a new id.
+
+### In the app
+
+- **Installing.** Under Models, choose **Install plugin…**, then pick a
+  `.a4plugin` file or paste an HTTPS URL.
+  - **A URL** is fetched only when you choose Check, with no cookies, no
+    referrer, and no page text. A URL that isn't HTTPS is refused without a
+    request.
+  - **If the host doesn't allow the download,** A4 suggests downloading the
+    file and installing it from the file.
+  - **The dialog** shows what the plugin does, where page text goes, what it
+    downloads, the credentials it asks for, and its publisher and fingerprint.
+    Nothing is stored until you choose Install.
+- **The sandbox.** Installed plugin code runs only in a worker inside a
+  hidden, sandboxed frame (`lib/models/sandbox.ts`). The frame's origin is
+  opaque, so the plugin has no storage, no cookies, and no access to your
+  pages or A4. The frame's content security policy comes from the signed
+  card:
+  - an overlay that keeps text on this device can make no network request
+    at all;
+  - a plugin that sends text off the device can reach only the one host its
+    card names, and each call still asks for your consent.
+
+  The plugin gets model files and credentials only from A4, which downloads
+  the files after you ask and checks each one's digest.
+  `experiments/plugin-sandbox/` records the sandbox holding against a plugin
+  that tries every way out.
+- **The self-test.** Before the first installed plugin runs in a tab, A4
+  checks that this browser enforces the sandbox. If it doesn't, installed
+  plugins don't run, and their cards say "This browser can’t sandbox installed
+  plugins, so they don’t run here." Bundled plugins are unaffected.
+- **Overlays.** Each plane an installed overlay declares becomes a model lens,
+  and its legend names the plugin and its publisher.
+  - An on-device overlay rescores 1,500 ms after you stop typing, like
+    Semantic repetition.
+  - A remote overlay scores only when you turn its lens on or choose Score
+    again, with consent each time.
+- **Pens.** An installed pen runs from its card in the Models section. You
+  choose an instruction, enter any credential it asks for (kept in this tab's
+  memory only), and run it. A pen that sends text away asks first. The host
+  lays out each attempt, and the result opens as "<page> (<pen name>)" beside
+  the source in Compare. The source never changes.
+- **Every start is checked.** A4 checks each installed plugin's signature and
+  code every time it starts the plugin. A stored plugin that fails the check
+  is shown as damaged and doesn't run.
+- **Updates and removal.**
+  - **Check for update** fetches a plugin's URL only when you ask, and shows
+    both versions and what changes: where text goes, the download size, and
+    the credentials.
+  - **Remove** deletes the plugin's code, its files, its pinned key, and its
+    URL. Pages a pen made stay.
+- **Not yet:** installed plugins run only in the app, not in the `a4`
+  command, the headless desk, or the mailroom. Generate and Encode aren't
+  offered to them.
 
 ## Deploy to a4.marsh.build
 

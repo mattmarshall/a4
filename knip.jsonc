@@ -4,13 +4,16 @@
     "app/**/{page,layout,not-found}.tsx",
     "lib/**/*.test.ts",
     "components/**/*.test.ts",
+    // The example plugins: each one's entry and its tests (pnpm build:examples).
+    "examples/plugins/*/main.ts",
+    "examples/**/*.test.ts",
     "lib/models/plugins/semantic/worker.ts",
     "scripts/*.ts",
     // The a4 command (pnpm a4).
     "cli/*.ts",
     "cloudflare.config.ts"
   ],
-  "project": ["app/**/*.{ts,tsx,css}", "components/**/*.{ts,tsx,css}", "lib/**/*.ts", "cli/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
+  "project": ["app/**/*.{ts,tsx,css}", "components/**/*.{ts,tsx,css}", "lib/**/*.ts", "cli/**/*.ts", "examples/**/*.ts", "scripts/**/*.ts", "types/**/*.ts"],
   "ignore": [
     // The fixture pairs the semantic thresholds were calibrated on (see the
     // archived changes' calibration.md). Calibration runs by hand in the

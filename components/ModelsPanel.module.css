@@ -144,6 +144,34 @@
     margin: 0;
   }
 
+  .version {
+    color: var(--muted);
+    font-weight: 400;
+  }
+
+  .badge {
+    padding: 0 6px;
+    border-radius: var(--radius-pill);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .install {
+    display: grid;
+    gap: 10px;
+  }
+
+  .changes {
+    margin: 0 0 12px;
+    padding-left: 18px;
+    font-size: var(--text-13);
+  }
+
+  /* An install dialog row wraps its term and value, so the grid places them as if it didn't. */
+  .row {
+    display: contents;
+  }
+
   .fitChip {
     display: inline-flex;
     align-items: center;

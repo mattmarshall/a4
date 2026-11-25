@@ -8,17 +8,19 @@
  *   pnpm a4 stack <name> [folder] [--letter]
  *   pnpm a4 xray [folder] [--budget <pages>] [--json]
  *   pnpm a4 mailroom [folder]
+ *   pnpm a4 plugin keygen <file> | pack --card … | verify <file>
  *   node <checkout>/cli/a4.ts <command> ...
  *
  * This file parses the command line and dispatches; each command lives in its
- * own module (lint.ts, letters.ts, stacks.ts, xray.ts, mailroom.ts). `lint`, `letters`,
- * `stacks`, and `stack` only read files. `mailroom` serves the folder to an
- * agent over MCP on standard input and output and writes only new draft
- * letters. None makes a network request.
+ * own module (lint.ts, letters.ts, stacks.ts, xray.ts, mailroom.ts, plugin.ts).
+ * `lint`, `letters`, `stacks`, and `stack` only read files. `mailroom` serves
+ * the folder to an agent over MCP on standard input and output and writes only
+ * new draft letters. `plugin` makes keys and packages and checks them, and
+ * never runs a plugin's code. None makes a network request.
  *
  * Exit status: 0 when nothing fails, 1 when lint finds a failing file or
- * stack or the X-ray is over its budget, 2 for a usage error or a path that
- * can't be read.
+ * stack, the X-ray is over its budget, or a plugin package is refused, and 2
+ * for a usage error or a path that can't be read.
  */
 
 import { createInterface } from "node:readline";
@@ -28,6 +30,7 @@ import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
 import { folderArg, type LettersArgs, runLetters } from "./letters.ts";
 import { type LintArgs, runLint } from "./lint.ts";
 import { createMailroom } from "./mailroom.ts";
+import { PACK_OPTIONS, type PluginArgs, pluginArgs, runPlugin } from "./plugin.ts";
 import { runStack, runStacks, type StackArgs, type StacksArgs } from "./stacks.ts";
 import { UsageError } from "./usage.ts";
 import { runXray, type XrayArgs } from "./xray.ts";
@@ -38,6 +41,10 @@ const USAGE = `Usage: a4 lint [path ...] [--strict] [--exclude <glob>]... [--jso
        a4 stack <name> [folder] [--letter]
        a4 xray [folder] [--budget <pages>] [--json]
        a4 mailroom [folder]
+       a4 plugin keygen <file>
+       a4 plugin pack --card <json> --code <js> --key <file> --publisher <name>
+                      [--file <path>=<https url>]... [--out <file>]
+       a4 plugin verify <file>
 
 a4 lint checks agent context files, letters, and stack pages against one A4
 page (${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells), or a card or postcard on its own size (a
@@ -78,10 +85,23 @@ page, write_letter files a new draft letter in ${LETTERS_DIR}/, and
 read_letter returns the latest accepted letter. No tool seals a letter.
 Register it with your agent rather than running it by hand.
 
+a4 plugin makes and checks third-party plugin packages (.a4plugin files). It
+never runs a plugin's code.
+  keygen <file>     Write a new Ed25519 signing key, readable only by you, and
+                    print its public key and fingerprint. Never overwrites.
+  pack              Sign a plugin: a model card in proto3 JSON (--card), one
+                    script that imports nothing (--code), your key (--key), and
+                    the name you publish as (--publisher). Each --file is a
+                    model file and the HTTPS URL it will be served from.
+                    Writes <id>-<version>.a4plugin unless --out names a file.
+  verify <file>     Check a package as A4 does before installing it, and print
+                    what it does, where it sends text, and who signed it.
+
   -h, --help        Show this help
 
-Exit status: 0 when nothing fails, 1 when lint finds a failing file or stack or
-the X-ray is over its budget, 2 for a usage error or a path that doesn't exist.
+Exit status: 0 when nothing fails, 1 when lint finds a failing file or stack,
+the X-ray is over its budget, or a plugin package is refused, 2 for a usage
+error or a path that doesn't exist.
 `;
 
 type Command =
@@ -91,7 +111,8 @@ type Command =
   | ({ readonly kind: "stacks" } & StacksArgs)
   | ({ readonly kind: "stack" } & StackArgs)
   | ({ readonly kind: "xray" } & XrayArgs)
-  | { readonly kind: "mailroom"; readonly folder: string };
+  | { readonly kind: "mailroom"; readonly folder: string }
+  | { readonly kind: "plugin"; readonly plugin: PluginArgs };
 
 /** The options each command takes; any other is a usage error. */
 const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonly string[]>> = {
@@ -101,6 +122,7 @@ const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonl
   stack: ["letter"],
   xray: ["budget", "json"],
   mailroom: [],
+  plugin: PACK_OPTIONS,
 };
 
 function parse(argv: readonly string[]): Command {
@@ -115,6 +137,12 @@ function parse(argv: readonly string[]): Command {
       latest: { type: "boolean", default: false },
       letter: { type: "boolean", default: false },
       budget: { type: "string" },
+      card: { type: "string" },
+      code: { type: "string" },
+      key: { type: "string" },
+      publisher: { type: "string" },
+      file: { type: "string", multiple: true, default: [] },
+      out: { type: "string" },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -126,10 +154,13 @@ function parse(argv: readonly string[]): Command {
     command !== "stacks" &&
     command !== "stack" &&
     command !== "xray" &&
-    command !== "mailroom"
+    command !== "mailroom" &&
+    command !== "plugin"
   ) {
     throw new UsageError(
-      command ? `Unknown command “${command}”.` : "Name a command: lint, letters, stacks, stack, xray, or mailroom.",
+      command
+        ? `Unknown command “${command}”.`
+        : "Name a command: lint, letters, stacks, stack, xray, mailroom, or plugin.",
     );
   }
   const given = Object.entries(values)
@@ -180,6 +211,8 @@ function parse(argv: readonly string[]): Command {
     case "mailroom":
       if (paths.length > 1) throw new UsageError("a4 mailroom takes one folder.");
       return { kind: "mailroom", folder: paths[0] ?? "." };
+    case "plugin":
+      return { kind: "plugin", plugin: pluginArgs(paths, values, given) };
   }
 }
 
@@ -218,6 +251,8 @@ async function run(args: Exclude<Command, { kind: "help" }>): Promise<number> {
       return runXray(args);
     case "mailroom":
       return mailroom(args.folder);
+    case "plugin":
+      return runPlugin(args.plugin);
   }
 }
 

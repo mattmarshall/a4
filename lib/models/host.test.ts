@@ -11,7 +11,7 @@ import {
 import { pageSpec, PRESETS } from "../page/index.ts";
 import { Preset } from "../gen/a4/v1/sheet_pb.js";
 import { decodeGrid } from "../tensor/codec.ts";
-import { implement, type SheetModelHandlers } from "./client.ts";
+import { implement, type SheetModelHandlers, setCloser } from "./client.ts";
 import { ErrorCode, ModelError } from "./errors.ts";
 import { ModelHost } from "./host.ts";
 import { FakeWorker } from "./testing/fake-worker.ts";
@@ -432,4 +432,62 @@ test("sheet views: a text reader receives the text and no grid", async () => {
     },
   });
   await host.score(pid("fake"), "hello", T);
+});
+
+test("unregister closes the plugin's client, forgets its credentials, and later calls aren't found", async () => {
+  const card = create(ModelCardSchema, {
+    id: "example.pen",
+    name: "Pen",
+    operations: [Operation.SCORE],
+    views: [View.TEXT],
+    placement: { case: "browser", value: {} },
+    credentials: [{ kind: "api-key", label: "API key" }],
+  });
+  let closed = 0;
+  const host = new ModelHost();
+  const id = host.register({
+    card,
+    connect: async () => {
+      const client = implement({ describe: () => ({ card }), score: () => ({}) });
+      setCloser(client, () => closed++);
+      return client;
+    },
+  });
+  host.credentials.set(id, "api-key", "k-1");
+  await host.score(id, "hello", T);
+  host.unregister(id);
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(closed, 1);
+  assert.equal(host.credentials.has(id, "api-key"), false);
+  await assert.rejects(
+    host.score(id, "hello", T),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.NOT_FOUND,
+  );
+  assert.deepEqual(
+    host.list().map((c) => c.id),
+    [],
+  );
+  host.unregister(id); // removing it again does nothing
+});
+
+test("consent given before a plugin was removed doesn't carry over to it once it's installed again", async () => {
+  const card = create(ModelCardSchema, {
+    id: "example.remote",
+    name: "Remote",
+    operations: [Operation.SCORE],
+    views: [View.TEXT],
+    placement: { case: "remote", value: { destinationHost: "api.example.com" } },
+  });
+  const entry = { card, connect: async () => implement({ describe: () => ({ card }), score: () => ({}) }) };
+  const host = new ModelHost();
+  const id = host.register(entry);
+  const token = host.consent.request(id, Operation.SCORE, "hello").approve();
+  host.unregister(id);
+  host.register(entry);
+  await assert.rejects(
+    host.score(id, "hello", T, undefined, token),
+    (e: unknown) => e instanceof ModelError && e.code === ErrorCode.CONSENT_REQUIRED,
+  );
+  const fresh = host.consent.request(id, Operation.SCORE, "hello").approve();
+  await host.score(id, "hello", T, undefined, fresh);
 });

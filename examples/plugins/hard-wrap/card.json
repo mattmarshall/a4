@@ -1,0 +1,13 @@
+{
+  "id": "example.hard-wrap",
+  "name": "Hard wrap",
+  "version": "1.0.0",
+  "description": "Rewraps long lines at 72 columns, leaving code blocks alone.",
+  "operations": ["OPERATION_TRANSFORM"],
+  "views": ["VIEW_TEXT"],
+  "browser": {},
+  "transform": {
+    "instructions": ["Wrap at 72 columns"],
+    "maxAttempts": 1
+  }
+}

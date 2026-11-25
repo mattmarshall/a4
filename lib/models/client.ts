@@ -64,3 +64,17 @@ export function implement(handlers: Partial<SheetModelHandlers>): SheetModelClie
   }
   return client as SheetModelClient;
 }
+
+const closers = new WeakMap<SheetModelClient, () => void>();
+
+/** Register how to release `client`'s resources (a worker, a sandbox) when its plugin is removed. */
+export function setCloser(client: SheetModelClient, close: () => void): void {
+  closers.set(client, close);
+}
+
+/** Release `client`'s resources, if it registered a way to; safe to call twice. */
+export function closeClient(client: SheetModelClient): void {
+  const close = closers.get(client);
+  closers.delete(client);
+  close?.();
+}
