@@ -56,7 +56,8 @@ Each file SHALL show its path relative to the folder and its rows used on the
 
 ### Requirement: Other Markdown and skipped folders
 Other `.md` files SHALL be listed in an **Other Markdown** group, collapsed by
-default. The scan SHALL skip:
+default. Letters, the `.md` files directly inside `.agents/letters/`, SHALL be
+listed in the Letters group instead. The scan SHALL skip:
 - folders named `.git`, `node_modules`, `dist`, `build`, `out`, `target`,
   `vendor`, `.next`, or `.venv`;
 - other folders whose names start with a period, except `.claude`, `.github`,
@@ -66,6 +67,11 @@ default. The scan SHALL skip:
 - **GIVEN** the folder holds `docs/guide.md` and `node_modules/pkg/README.md`
 - **WHEN** the folder is listed
 - **THEN** "docs/guide.md" is under Other Markdown and nothing under `node_modules` is listed
+
+#### Scenario: Letters aren't Other Markdown
+- **GIVEN** the folder holds `.agents/letters/2026-11-25-0930-auth.md`
+- **WHEN** the folder is listed
+- **THEN** it is listed under Letters and not under Other Markdown
 
 ### Requirement: Search folder files
 The Pages search box SHALL filter folder files by a case-insensitive substring
@@ -146,7 +152,9 @@ A4 SHALL NOT offer rename or move to trash.
 ### Requirement: Creating files on request
 A4 SHALL create a file only when the user asks:
 - **New file in folder**, given a relative path ending in `.md` or `.mdc`;
-- **Save to folder**, which writes an open library page to a new path.
+- **Save to folder**, which writes an open library page to a new path;
+- **New letter**, which creates a draft letter in `.agents/letters/`;
+- sealing a letter, which writes its postmark beside it.
 
 A4 SHALL create missing parent folders. It SHALL refuse with a message, and
 change nothing, when the path already exists or points outside the folder.
@@ -164,6 +172,11 @@ change nothing, when the path already exists or points outside the folder.
 #### Scenario: A path outside the folder is refused
 - **WHEN** the user chooses New file in folder and enters "../notes.md"
 - **THEN** A4 refuses the path, and no file is created
+
+#### Scenario: The first letter
+- **GIVEN** the open folder has no `.agents` folder
+- **WHEN** the user chooses New letter
+- **THEN** `.agents/letters/` is created with the new draft inside it
 
 ### Requirement: Changes made outside A4
 While the tab is visible, A4 SHALL notice within 2 s that an open folder file

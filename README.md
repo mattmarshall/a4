@@ -879,6 +879,7 @@ The living specs are in `openspec/specs/`:
 - **Models:** `sheet-tensor`, `model-plugins`, `semantic-repetition`, and
   `fit-to-page`.
 - **The command line:** `page-lint`.
+- **Handoffs:** `letters`.
 - **Deployment:** `hosting`.
 
 The changes that produced these specs, each with its proposal, design, and
@@ -905,6 +906,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-24-refactor-styles` (styles only, with no spec changes)
 - `2026-11-24-fix-review-leftovers`
 - `2026-11-25-add-headless-desk`
+- `2026-11-25-add-letters`
 
 ```bash
 openspec list --specs
