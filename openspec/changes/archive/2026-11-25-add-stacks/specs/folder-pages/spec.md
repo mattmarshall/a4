@@ -5,8 +5,8 @@
 ### Requirement: Other Markdown and skipped folders
 Other `.md` files SHALL be listed in an **Other Markdown** group, collapsed by
 default. Letters, the `.md` files directly inside `.agents/letters/`, SHALL be
-listed in the Letters group instead, and stack pages, the `.md` files directly
-inside a stack in `.agents/stacks/`, in the Stacks group. The scan SHALL skip:
+listed in the Letters group instead, and stack pages in the Stacks group. The
+scan SHALL skip:
 - folders named `.git`, `node_modules`, `dist`, `build`, `out`, `target`,
   `vendor`, `.next`, or `.venv`;
 - other folders whose names start with a period, except `.claude`, `.github`,

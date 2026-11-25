@@ -1092,6 +1092,7 @@ The living specs are in `openspec/specs/`:
   `fit-to-page`.
 - **The command line:** `page-lint`.
 - **Handoffs:** `letters` and `mailroom`.
+- **Many pages:** `page-stacks` and `context-xray`.
 - **Deployment:** `hosting`.
 
 The changes that produced these specs, each with its proposal, design, and
@@ -1120,6 +1121,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-25-add-headless-desk`
 - `2026-11-25-add-letters`
 - `2026-11-25-add-mailroom-mcp`
+- `2026-11-25-add-stacks`
 
 ```bash
 openspec list --specs

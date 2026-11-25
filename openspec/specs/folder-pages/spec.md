@@ -57,7 +57,8 @@ Each file SHALL show its path relative to the folder and its rows used on the
 ### Requirement: Other Markdown and skipped folders
 Other `.md` files SHALL be listed in an **Other Markdown** group, collapsed by
 default. Letters, the `.md` files directly inside `.agents/letters/`, SHALL be
-listed in the Letters group instead. The scan SHALL skip:
+listed in the Letters group instead, and stack pages in the Stacks group. The
+scan SHALL skip:
 - folders named `.git`, `node_modules`, `dist`, `build`, `out`, `target`,
   `vendor`, `.next`, or `.venv`;
 - other folders whose names start with a period, except `.claude`, `.github`,
@@ -72,6 +73,11 @@ listed in the Letters group instead. The scan SHALL skip:
 - **GIVEN** the folder holds `.agents/letters/2026-11-25-0930-auth.md`
 - **WHEN** the folder is listed
 - **THEN** it is listed under Letters and not under Other Markdown
+
+#### Scenario: Stack pages aren't Other Markdown
+- **GIVEN** the folder holds `.agents/stacks/auth/01-charter.md`
+- **WHEN** the folder is listed
+- **THEN** it is listed under the stack "auth" in Stacks, and not under Other Markdown
 
 ### Requirement: Search folder files
 The Pages search box SHALL filter folder files by a case-insensitive substring
