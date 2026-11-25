@@ -101,13 +101,25 @@ size first, and keep the files for later sessions.
 - **WHEN** the author first runs an in-browser plugin that needs a model
 - **THEN** they are told the download size and asked before anything is downloaded
 
-### Requirement: Bundled plugins only
-The host SHALL run only plugins bundled with the application. It SHALL NOT load
-plugin code from page content, imports, or URLs.
+### Requirement: Where plugin code comes from
+The host SHALL run only plugins bundled with the application and plugins the
+author installed from a signed package that passed every check. It SHALL NOT
+load plugin code from page content or imports. It SHALL fetch plugin code
+from a URL only when the author installs from it or asks to check it for an
+update.
 
 #### Scenario: A page that names a plugin
 - **WHEN** an imported page's text contains a URL to a plugin script
 - **THEN** no code is fetched or run from it
+
+#### Scenario: An import that carries a package
+- **WHEN** the author imports a `.zip` of pages that also contains a plugin package
+- **THEN** the pages are imported, and nothing is installed or run from the package
+
+#### Scenario: Installed plugins follow the host's rules
+- **GIVEN** an installed pen whose card sends text off the device
+- **WHEN** the author runs it without confirming the call
+- **THEN** the host refuses the call before the plugin receives any text, as it does for Fit to page
 
 ### Requirement: Worker isolation
 In-browser plugins SHALL run off the main thread, so editing stays responsive

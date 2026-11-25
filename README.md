@@ -1259,6 +1259,7 @@ The living specs are in `openspec/specs/`:
 - **The element and 3D:** `a4-sheet-element` and `paper-view`.
 - **Models:** `sheet-tensor`, `model-plugins`, `semantic-repetition`, and
   `fit-to-page`.
+- **Third-party plugins:** `plugin-packages` and `installed-plugins`.
 - **The command line:** `page-lint`.
 - **Handoffs:** `letters` and `mailroom`.
 - **Many pages:** `page-stacks` and `context-xray`.
@@ -1291,6 +1292,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-25-add-letters`
 - `2026-11-25-add-mailroom-mcp`
 - `2026-11-25-add-stacks`
+- `2026-11-25-add-signed-plugins`
 
 ```bash
 openspec list --specs
