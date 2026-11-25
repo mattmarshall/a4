@@ -1,5 +1,6 @@
 // The result of `a4 lint`: each context file checked against the page, with
-// its outcome and its analysis report. Printed by `a4 lint --json` as proto3
+// its outcome and its analysis report, and each stack judged as a whole
+// (`a4 stacks --json` prints a StackList of the same reports). Printed by `a4 lint --json` as proto3
 // JSON, and built by `lintFolder()` and `lintFile()` in lib/desk/.
 //
 // Like the analysis report, it carries paths, outcomes, and numbers, never a
@@ -12,6 +13,8 @@
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 import type { AnalysisReport } from "./analysis_pb.js";
+import type { PaperSize } from "./sheet_pb.js";
+import type { StackLabel } from "./stack_pb.js";
 
 /**
  * Describes the file a4/v1/lint.proto.
@@ -49,6 +52,13 @@ export declare type LintReport = Message<"a4.v1.LintReport"> & {
    * @generated from field: bool strict = 4;
    */
   strict: boolean;
+
+  /**
+   * Each stack in a scanned folder, judged as a whole (stack.proto).
+   *
+   * @generated from field: repeated a4.v1.StackReport stacks = 5;
+   */
+  stacks: StackReport[];
 };
 
 /**
@@ -88,6 +98,14 @@ export declare type LintedFile = Message<"a4.v1.LintedFile"> & {
    * @generated from field: a4.v1.Unreadable unreadable = 4;
    */
   unreadable: Unreadable;
+
+  /**
+   * The page's size, from its name (a `.a5` or `.a6` name is a card or a
+   * postcard); it was judged on that paper.
+   *
+   * @generated from field: a4.v1.PaperSize paper = 5;
+   */
+  paper: PaperSize;
 };
 
 /**
@@ -95,6 +113,183 @@ export declare type LintedFile = Message<"a4.v1.LintedFile"> & {
  * Use `create(LintedFileSchema)` to create a new message.
  */
 export declare const LintedFileSchema: GenMessage<LintedFile>;
+
+/**
+ * One page of a stack, judged on its own size.
+ *
+ * @generated from message a4.v1.StackPage
+ */
+export declare type StackPage = Message<"a4.v1.StackPage"> & {
+  /**
+   * Relative to the folder, for example ".agents/stacks/auth/01-charter.md".
+   *
+   * @generated from field: string path = 1;
+   */
+  path: string;
+
+  /**
+   * @generated from field: a4.v1.PaperSize paper = 2;
+   */
+  paper: PaperSize;
+
+  /**
+   * Rows used, out of `page_rows` (60, 42, or 29 on Terminal).
+   *
+   * @generated from field: uint32 rows_used = 3;
+   */
+  rowsUsed: number;
+
+  /**
+   * @generated from field: uint32 page_rows = 4;
+   */
+  pageRows: number;
+
+  /**
+   * FAIL when over its size, WARN when Noisy or Busy, PASS otherwise.
+   *
+   * @generated from field: a4.v1.LintOutcome outcome = 5;
+   */
+  outcome: LintOutcome;
+
+  /**
+   * The page's analysis; unset when it couldn't be read.
+   *
+   * @generated from field: a4.v1.AnalysisReport report = 6;
+   */
+  report?: AnalysisReport | undefined;
+
+  /**
+   * Why the page couldn't be read; UNREADABLE_UNSPECIFIED when it was.
+   *
+   * @generated from field: a4.v1.Unreadable unreadable = 7;
+   */
+  unreadable: Unreadable;
+};
+
+/**
+ * Describes the message a4.v1.StackPage.
+ * Use `create(StackPageSchema)` to create a new message.
+ */
+export declare const StackPageSchema: GenMessage<StackPage>;
+
+/**
+ * A line, at least 20 characters once trimmed, found on two or more pages of
+ * a stack: a stack says each thing once. Positions only, never the line.
+ *
+ * @generated from message a4.v1.RepeatedLine
+ */
+export declare type RepeatedLine = Message<"a4.v1.RepeatedLine"> & {
+  /**
+   * The pages it's on, in stack order (paths as in StackPage).
+   *
+   * @generated from field: repeated string pages = 1;
+   */
+  pages: string[];
+
+  /**
+   * Its 1-based line number on each of those pages, in the same order.
+   *
+   * @generated from field: repeated uint32 lines = 2;
+   */
+  lines: number[];
+};
+
+/**
+ * Describes the message a4.v1.RepeatedLine.
+ * Use `create(RepeatedLineSchema)` to create a new message.
+ */
+export declare const RepeatedLineSchema: GenMessage<RepeatedLine>;
+
+/**
+ * A stack, judged as a whole.
+ *
+ * @generated from message a4.v1.StackReport
+ */
+export declare type StackReport = Message<"a4.v1.StackReport"> & {
+  /**
+   * The stack folder's name, for example "auth".
+   *
+   * @generated from field: string name = 1;
+   */
+  name: string;
+
+  /**
+   * Unset when the label is missing or can't be read.
+   *
+   * @generated from field: a4.v1.StackLabel label = 2;
+   */
+  label?: StackLabel | undefined;
+
+  /**
+   * @generated from field: a4.v1.LabelProblem label_problem = 3;
+   */
+  labelProblem: LabelProblem;
+
+  /**
+   * In stack order: by file name without the `.md` extension.
+   *
+   * @generated from field: repeated a4.v1.StackPage pages = 4;
+   */
+  pages: StackPage[];
+
+  /**
+   * Pages counted by paper: A4 1, A5 0.5, A6 0.25.
+   *
+   * @generated from field: double pages_used = 5;
+   */
+  pagesUsed: number;
+
+  /**
+   * Pages over the budget; 0 when within it or without a budget.
+   *
+   * @generated from field: double over_by_pages = 6;
+   */
+  overByPages: number;
+
+  /**
+   * FAIL when over budget or a page is over its size; WARN when there is no
+   * budget or lines repeat across pages; PASS otherwise.
+   *
+   * @generated from field: a4.v1.LintOutcome outcome = 7;
+   */
+  outcome: LintOutcome;
+
+  /**
+   * @generated from field: repeated a4.v1.RepeatedLine repeated_lines = 8;
+   */
+  repeatedLines: RepeatedLine[];
+};
+
+/**
+ * Describes the message a4.v1.StackReport.
+ * Use `create(StackReportSchema)` to create a new message.
+ */
+export declare const StackReportSchema: GenMessage<StackReport>;
+
+/**
+ * Every stack in a folder, in name order: what `a4 stacks --json` prints.
+ *
+ * @generated from message a4.v1.StackList
+ */
+export declare type StackList = Message<"a4.v1.StackList"> & {
+  /**
+   * @generated from field: repeated a4.v1.StackReport stacks = 1;
+   */
+  stacks: StackReport[];
+
+  /**
+   * True when a folder scan stopped at its entry limit, so stacks may be missing.
+   *
+   * @generated from field: bool partial = 2;
+   */
+  partial: boolean;
+};
+
+/**
+ * Describes the message a4.v1.StackList.
+ * Use `create(StackListSchema)` to create a new message.
+ */
+export declare const StackListSchema: GenMessage<StackList>;
 
 /**
  * @generated from enum a4.v1.LintOutcome
@@ -160,4 +355,42 @@ export enum Unreadable {
  * Describes the enum a4.v1.Unreadable.
  */
 export declare const UnreadableSchema: GenEnum<Unreadable>;
+
+/**
+ * Why a stack has no budget.
+ *
+ * @generated from enum a4.v1.LabelProblem
+ */
+export enum LabelProblem {
+  /**
+   * @generated from enum value: LABEL_PROBLEM_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * No `stack.json`.
+   *
+   * @generated from enum value: LABEL_PROBLEM_MISSING = 1;
+   */
+  MISSING = 1,
+
+  /**
+   * `stack.json` isn't a StackLabel in proto3 JSON.
+   *
+   * @generated from enum value: LABEL_PROBLEM_UNREADABLE = 2;
+   */
+  UNREADABLE = 2,
+
+  /**
+   * The label gives no budget (0 pages).
+   *
+   * @generated from enum value: LABEL_PROBLEM_NO_BUDGET = 3;
+   */
+  NO_BUDGET = 3,
+}
+
+/**
+ * Describes the enum a4.v1.LabelProblem.
+ */
+export declare const LabelProblemSchema: GenEnum<LabelProblem>;
 

@@ -1,28 +1,56 @@
 /**
- * Paper deformations: isometries of the A4 sheet (no stretching).
+ * Paper deformations: isometries of the sheet (no stretching), on any paper
+ * down the fold ladder.
  *
- * Paper coordinates are millimeters: x across (0–210), y down the page
- * (0–297). World coordinates put the desk at height 0, X right, Y up, Z toward
- * the viewer, with the sheet centered on the origin.
+ * Paper coordinates are millimeters: x across (0 to the paper's width), y
+ * down the page (0 to its height). World coordinates put the desk at height
+ * 0, X right, Y up, Z toward the viewer, with the sheet centered on the
+ * origin.
  *
  * This is the only copy of the deformation: when the pose changes, the
  * renderer deforms every vertex here (`deformAttributes`) and uploads the
  * result, and picking uses the same positions. The shader only transforms.
  */
 
-import { PAPER_H, PAPER_W } from "../../page/index.ts";
+import { PAPER_SIZES } from "../../page/index.ts";
 
-/** Letter-fold hinges (thirds) and their crease radii in mm. */
-export const HINGE_TOP = 99;
-export const HINGE_BOTTOM = 198;
-const CREASE_TOP = 3;
-const CREASE_BOTTOM = 1.5;
+/** A sheet's width and height in mm. */
+export interface Paper {
+  readonly w: number;
+  readonly h: number;
+}
 
-/** Corner curl: cylinder radius, direction toward the bottom-right corner, depth at amount 1. */
-const CURL_RADIUS = 16;
+export const A4: Paper = PAPER_SIZES.a4;
+
+/** Corner curl's direction toward the bottom-right corner (the same on every paper: they share a shape). */
 const curlLen = Math.hypot(1, 1.25);
 export const CURL_DIR: readonly [number, number] = [1 / curlLen, 1.25 / curlLen];
-const CURL_MAX_DEPTH = 125;
+
+/** The letter fold and corner curl on one paper, in mm. */
+export interface Folds {
+  /** Hinges at one third and two thirds of the sheet's height (99 and 198 on A4). */
+  readonly hingeTop: number;
+  readonly hingeBottom: number;
+  /** Crease radii: 3 and 1.5 on A4, scaled with the paper. */
+  readonly creaseTop: number;
+  readonly creaseBottom: number;
+  /** Curl cylinder radius, and how deep the curl reaches at amount 1. */
+  readonly curlRadius: number;
+  readonly curlMaxDepth: number;
+}
+
+/** The fold and curl geometry for `paper`: A4's, scaled by the paper's width. */
+export function folds(paper: Paper): Folds {
+  const k = paper.w / A4.w;
+  return {
+    hingeTop: paper.h / 3,
+    hingeBottom: (2 * paper.h) / 3,
+    creaseTop: 3 * k,
+    creaseBottom: 1.5 * k,
+    curlRadius: 16 * k,
+    curlMaxDepth: 125 * k,
+  };
+}
 
 export interface Pose {
   /** Bottom third folded up: 0 flat … 1 folded over. */
@@ -38,9 +66,9 @@ export const FLAT: Pose = { foldBottom: 0, foldTop: 0, curl: 0 };
 export type Vec3 = [number, number, number];
 
 /** Point on the curl line (it is perpendicular to CURL_DIR). */
-export function curlLinePoint(amount: number): [number, number] {
-  const d = Math.max(0, Math.min(1, amount)) * CURL_MAX_DEPTH;
-  return [PAPER_W - CURL_DIR[0] * d, PAPER_H - CURL_DIR[1] * d];
+export function curlLinePoint(amount: number, paper: Paper): [number, number] {
+  const d = Math.max(0, Math.min(1, amount)) * folds(paper).curlMaxDepth;
+  return [paper.w - CURL_DIR[0] * d, paper.h - CURL_DIR[1] * d];
 }
 
 /**
@@ -64,19 +92,20 @@ export interface Deformed {
   crease: number;
 }
 
-/** Deform paper point (x, y) mm under `pose` into world space. */
-export function deform(x: number, y: number, pose: Pose): Deformed {
+/** Deform paper point (x, y) mm under `pose` into world space, on `paper`. */
+export function deform(x: number, y: number, pose: Pose, paper: Paper): Deformed {
+  const f = folds(paper);
   let px = x;
   let py = y;
   let h = 0;
   let crease = 0;
 
   if (pose.curl > 0) {
-    const [lx, ly] = curlLinePoint(pose.curl);
+    const [lx, ly] = curlLinePoint(pose.curl, paper);
     const [nx, ny] = CURL_DIR;
     const s = (px - lx) * nx + (py - ly) * ny;
     if (s > 0) {
-      const R = CURL_RADIUS;
+      const R = f.curlRadius;
       let s2: number;
       if (s <= Math.PI * R) {
         s2 = R * Math.sin(s / R);
@@ -91,20 +120,20 @@ export function deform(x: number, y: number, pose: Pose): Deformed {
     }
   }
 
-  if (pose.foldBottom > 0 && py > HINGE_BOTTOM) {
-    const [along, height, onCrease] = bend(py - HINGE_BOTTOM, h, pose.foldBottom * Math.PI, CREASE_BOTTOM);
-    py = HINGE_BOTTOM + along;
+  if (pose.foldBottom > 0 && py > f.hingeBottom) {
+    const [along, height, onCrease] = bend(py - f.hingeBottom, h, pose.foldBottom * Math.PI, f.creaseBottom);
+    py = f.hingeBottom + along;
     h = height;
     if (onCrease) crease = 1;
   }
-  if (pose.foldTop > 0 && py < HINGE_TOP) {
-    const [along, height, onCrease] = bend(HINGE_TOP - py, h, pose.foldTop * Math.PI, CREASE_TOP);
-    py = HINGE_TOP - along;
+  if (pose.foldTop > 0 && py < f.hingeTop) {
+    const [along, height, onCrease] = bend(f.hingeTop - py, h, pose.foldTop * Math.PI, f.creaseTop);
+    py = f.hingeTop - along;
     h = height;
     if (onCrease) crease = 1;
   }
 
-  return { world: [px - PAPER_W / 2, h, py - PAPER_H / 2], crease };
+  return { world: [px - paper.w / 2, h, py - paper.h / 2], crease };
 }
 
 /** Curl and fold are exclusive: raising one resets the other. */
@@ -157,11 +186,11 @@ export function buildMesh(nx = 72, ny = 150): PaperMesh {
   return { nx, ny, uvs, indices };
 }
 
-/** World positions of every mesh vertex under `pose`. */
-export function deformMesh(mesh: PaperMesh, pose: Pose): Float32Array {
+/** World positions of every mesh vertex under `pose`, on `paper`. */
+export function deformMesh(mesh: PaperMesh, pose: Pose, paper: Paper): Float32Array {
   const out = new Float32Array((mesh.uvs.length / 2) * 3);
   for (let i = 0, j = 0; i < mesh.uvs.length; i += 2, j += 3) {
-    const { world } = deform(mesh.uvs[i] * PAPER_W, mesh.uvs[i + 1] * PAPER_H, pose);
+    const { world } = deform(mesh.uvs[i] * paper.w, mesh.uvs[i + 1] * paper.h, pose, paper);
     out[j] = world[0];
     out[j + 1] = world[1];
     out[j + 2] = world[2];
@@ -181,15 +210,15 @@ const NORMAL_STEP = 0.0015;
  * factor. Normals come from central differences of the deformation, so they
  * follow the paper wherever it bends.
  */
-export function deformAttributes(mesh: PaperMesh, pose: Pose): Float32Array {
+export function deformAttributes(mesh: PaperMesh, pose: Pose, paper: Paper): Float32Array {
   const count = mesh.uvs.length / 2;
   const out = new Float32Array(count * VERTEX_FLOATS);
   const e = NORMAL_STEP;
-  const at = (u: number, v: number) => deform(u * PAPER_W, v * PAPER_H, pose).world;
+  const at = (u: number, v: number) => deform(u * paper.w, v * paper.h, pose, paper).world;
   for (let i = 0; i < count; i++) {
     const u = mesh.uvs[i * 2] ?? 0;
     const v = mesh.uvs[i * 2 + 1] ?? 0;
-    const { world, crease } = deform(u * PAPER_W, v * PAPER_H, pose);
+    const { world, crease } = deform(u * paper.w, v * paper.h, pose, paper);
     const u1 = at(u + e, v);
     const u0 = at(u - e, v);
     const v1 = at(u, v + e);

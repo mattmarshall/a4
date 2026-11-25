@@ -12,13 +12,11 @@ import type { ConnectedFolder, FolderAccess, FolderState } from "../persist/fold
 import { isFsError } from "../persist/folder/fs.ts";
 import { scanFolder, type FolderFile } from "../persist/folder/scan.ts";
 import { FileWatcher } from "../persist/folder/watch.ts";
-import { layoutRows, PRESETS, rowsUsed } from "../page/index.ts";
+import { layoutRows, pageSpec, rowsUsed } from "../page/index.ts";
 import { parseFilePath, type FilePath } from "../persist/store/refs.ts";
 import type { PageName, PageStore, UnreadableReason, WriteResult } from "../persist/store/types.ts";
 import type { FolderSnapshot, Slot, WorkspaceNotice } from "./types.ts";
-import { type Letter, readLetters } from "../desk/index.ts";
-
-const TERMINAL_COLS = PRESETS.terminal.cols;
+import { type Letter, readLetters, readStacks, type StackReport } from "../desk/index.ts";
 
 /** What the folder index needs from the workspace. */
 export interface FolderHost {
@@ -40,6 +38,7 @@ export class FolderIndex<H> {
   readonly #stop: () => void;
   #files: readonly FolderFile[] = [];
   #letters: readonly Letter[] = [];
+  #stacks: readonly StackReport[] = [];
   #partial = false;
   #scanning = false;
   #watcher: FileWatcher | null = null;
@@ -82,6 +81,7 @@ export class FolderIndex<H> {
       state: this.access.state,
       files: this.#files,
       letters: this.#letters,
+      stacks: this.#stacks,
       partial: this.#partial,
       scanning: this.#scanning,
     };
@@ -148,6 +148,7 @@ export class FolderIndex<H> {
       });
       this.#partial = scan.partial;
       this.#letters = await this.#readLetters(folder);
+      this.#stacks = await this.#readStacks(folder);
       return this.#files;
     } catch (error) {
       // A folder that went away or lost access: find out which, which may leave `connected`.
@@ -170,6 +171,16 @@ export class FolderIndex<H> {
     }
   }
 
+  /** Each stack, judged as a whole; a folder whose stacks can't be read shows none. */
+  async #readStacks(folder: ConnectedFolder): Promise<readonly StackReport[]> {
+    try {
+      return (await readStacks(folder.fs)).map((s) => s.report);
+    } catch (error) {
+      this.#host.notify({ kind: "failed", action: "list-folder", subject: folder.name, error });
+      return [];
+    }
+  }
+
   /** The letter at `path`, as last listed. */
   letter(path: string): Letter | null {
     return this.#letters.find((l) => l.path === path) ?? null;
@@ -185,15 +196,24 @@ export class FolderIndex<H> {
     this.#publish();
   }
 
-  /** A file was saved: update its size, date, and (for context files and letters) rows. */
+  /** A file was saved: update its size, date, and (for context files, letters, and stack pages) rows on its size. */
   saved(path: FilePath, result: WriteResult<FilePath>, text: string): void {
-    const rows = rowsUsed(layoutRows(text, TERMINAL_COLS));
-    this.#files = this.#files.map((f) =>
-      f.path === path
-        ? { ...f, size: result.size, modifiedAt: result.modifiedAt, rows: f.group === "other" ? f.rows : rows }
-        : f,
-    );
+    let stackPage = false;
+    this.#files = this.#files.map((f) => {
+      if (f.path !== path) return f;
+      stackPage = f.group === "stack";
+      const rows = f.group === "other" ? f.rows : rowsUsed(layoutRows(text, pageSpec("terminal", f.paper).cols));
+      return { ...f, size: result.size, modifiedAt: result.modifiedAt, rows };
+    });
     this.#publish();
+    // A stack page's rows change its stack's judgment: judge the stacks again.
+    const folder = this.folder;
+    if (stackPage && folder) {
+      void this.#readStacks(folder).then((stacks) => {
+        this.#stacks = stacks;
+        this.#publish();
+      });
+    }
   }
 
   /** Create a new file (never overwrites) and list the folder again. @throws on an invalid or taken path */
@@ -221,6 +241,7 @@ export class FolderIndex<H> {
     const copies = await this.access.forget(store, journal, await this.#host.liveTabs());
     this.#files = [];
     this.#letters = [];
+    this.#stacks = [];
     this.#partial = false;
     this.#unreadable.clear();
     this.#publish();

@@ -73,16 +73,22 @@ export const SHEET_STYLE = /* css */ `
 .input::placeholder { color: ${PALETTE.faint}; }
 .print { display: none; }
 @media print {
+  /* One true-size page per sheet, on the named page of its paper (globals.css declares them). */
   :host {
     display: block !important;
     width: 210mm !important;
     height: 297mm !important;
+    page: a4;
     overflow: hidden;
     break-before: page;
     break-after: page;
     break-inside: avoid;
   }
+  :host([size="a5"]) { width: 148mm !important; height: 210mm !important; page: a5; }
+  :host([size="a6"]) { width: 105mm !important; height: 148mm !important; page: a6; }
   .stage { height: 297mm !important; }
+  :host([size="a5"]) .stage { height: 210mm !important; }
+  :host([size="a6"]) .stage { height: 148mm !important; }
   .gpu, .flat { display: none !important; }
   .print {
     display: block;

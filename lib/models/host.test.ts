@@ -8,7 +8,7 @@ import {
   View,
   type TransformRequest,
 } from "../gen/a4/v1/model_pb.js";
-import { PRESETS } from "../page/index.ts";
+import { pageSpec, PRESETS } from "../page/index.ts";
 import { Preset } from "../gen/a4/v1/sheet_pb.js";
 import { decodeGrid } from "../tensor/codec.ts";
 import { implement, type SheetModelHandlers } from "./client.ts";
@@ -189,6 +189,23 @@ test("fit with repairs: fits on the second attempt, with feedback and resume pas
   assert.equal(requests[1].feedback?.rowsAllowed, 60);
   assert.deepEqual([...requests[1].resume], [1], "resume from attempt 1 passed back unchanged");
   assert.equal(requests[1].attempt, 2);
+});
+
+test("fit with repairs on an A5 card: 44 rows asks again, and 40 fits within its 42", async () => {
+  const a5 = pageSpec("terminal", "a5");
+  const { host, requests } = rowsPlugin([44, 40, 30]);
+  const r = await host.transform(pid("fake"), "src", a5, { instruction: "fit" });
+  assert.equal(r.fits, true);
+  assert.equal(r.rowsUsed, 40);
+  assert.equal(r.attempts, 2);
+  assert.equal(requests.length, 2, "no third attempt");
+  assert.equal(requests[1].feedback?.rowsUsed, 44);
+  assert.equal(requests[1].feedback?.rowsAllowed, 42, "the repair asks for the card's rows");
+  assert.deepEqual(
+    [requests[0].sheet?.spec?.cols, requests[0].sheet?.spec?.rows],
+    [56, 42],
+    "the plugin sees the card",
+  );
 });
 
 test("fit with repairs: never fits, keeps the 63-row attempt, over by 3", async () => {

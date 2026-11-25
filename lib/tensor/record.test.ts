@@ -1,10 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { create, toBinary } from "@bufbuild/protobuf";
-import { Preset, SheetSchema } from "../gen/a4/v1/sheet_pb.js";
-import { PRESETS } from "../page/index.ts";
+import { PageSpecSchema, PaperSize, Preset, SheetSchema } from "../gen/a4/v1/sheet_pb.js";
+import { pageSpec, PRESETS } from "../page/index.ts";
 import { encodeGrid } from "./codec.ts";
-import { pageSpecMessage, readSheet, SheetRecordError, sheetRecord, verifySheet, writeSheet } from "./record.ts";
+import {
+  pageSpecMessage,
+  pageSpecOf,
+  readSheet,
+  SheetRecordError,
+  sheetRecord,
+  verifySheet,
+  writeSheet,
+} from "./record.ts";
 
 const T = PRESETS.terminal;
 
@@ -62,4 +70,34 @@ test("a sheet sent to a plugin may carry one view; it still needs a spec and a c
     () => verifySheet(create(SheetSchema, { spec, grid: encodeGrid("too narrow", PRESETS.pica) })),
     SheetRecordError,
   );
+});
+
+test("an A5 sheet round-trips with its paper, on its own grid", () => {
+  const a5 = pageSpec("terminal", "a5");
+  const text = Array.from({ length: 12 }, (_, i) => `Row ${i}`).join("\n");
+  const sheet = readSheet(writeSheet(sheetRecord(text, a5)));
+  assert.equal(sheet.spec?.paper, PaperSize.A5);
+  assert.deepEqual([sheet.grid?.rows, sheet.grid?.cols, sheet.grid?.rowsUsed], [42, 56, 12]);
+  assert.equal(sheet.spec && pageSpecOf(sheet.spec), a5);
+});
+
+test("a record from before paper sizes reads as A4", () => {
+  const old = create(SheetSchema, {
+    spec: create(PageSpecSchema, { ...pageSpecMessage(PRESETS.terminal), paper: PaperSize.UNSPECIFIED }),
+    text: "hello",
+    grid: encodeGrid("hello", PRESETS.terminal),
+  });
+  const read = readSheet(toBinary(SheetSchema, old));
+  assert.equal(read.spec && pageSpecOf(read.spec), PRESETS.terminal);
+});
+
+test("a record whose grid disagrees with its preset and paper is refused", () => {
+  // Claims A5, but carries the A4 page's 80 x 60 shape.
+  const lying = create(SheetSchema, {
+    spec: create(PageSpecSchema, { ...pageSpecMessage(PRESETS.terminal), paper: PaperSize.A5 }),
+    text: "hello",
+    grid: encodeGrid("hello", PRESETS.terminal),
+  });
+  assert.throws(() => verifySheet(lying), SheetRecordError);
+  assert.throws(() => readSheet(toBinary(SheetSchema, lying)), /A5 is 56 x 42/);
 });

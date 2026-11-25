@@ -32,7 +32,7 @@ const STARTING: WorkspaceSnapshot = {
     a: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
     b: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
   },
-  folder: { state: { status: "none" }, files: [], letters: [], partial: false, scanning: false },
+  folder: { state: { status: "none" }, files: [], letters: [], stacks: [], partial: false, scanning: false },
 };
 
 const noop = () => () => {};

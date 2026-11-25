@@ -11,6 +11,8 @@ interface A4SheetAttributes {
   value?: string | undefined;
   /** terminal, pica, elite, dense */
   preset?: "terminal" | "pica" | "elite" | "dense" | undefined;
+  /** a4, a5, or a6: the paper, down the fold ladder */
+  size?: "a4" | "a5" | "a6" | undefined;
   /** ink, syntax, repetition, structure, tokens, or model:<name> for a plane */
   lens?: "ink" | "syntax" | "repetition" | "structure" | "tokens" | `model:${string}` | undefined;
   /** auto (3D if WebGPU is available), 3d, flat */

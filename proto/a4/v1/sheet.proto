@@ -17,11 +17,25 @@ enum Preset {
   PRESET_DENSE = 4;
 }
 
+// The paper down the fold ladder (see lib/page/geometry.ts): each fold halves
+// the sheet and keeps its shape. A record without one is A4.
+enum PaperSize {
+  PAPER_SIZE_UNSPECIFIED = 0;
+  // 210 x 297 mm.
+  PAPER_SIZE_A4 = 1;
+  // 148 x 210 mm.
+  PAPER_SIZE_A5 = 2;
+  // 105 x 148 mm.
+  PAPER_SIZE_A6 = 3;
+}
+
 // The page's grid geometry (see lib/page/spec.ts).
 message PageSpec {
   // Field 1 was the preset id as a string.
   reserved 1;
   Preset preset = 8;
+  // The paper the grid is laid on; PAPER_SIZE_UNSPECIFIED reads as A4.
+  PaperSize paper = 9;
   uint32 cols = 2;
   uint32 rows = 3;
   double cell_w_mm = 4;

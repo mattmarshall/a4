@@ -4,8 +4,7 @@
  * the grid are both ours.
  */
 
-import { PAPER_H, PAPER_W } from "../../page/index.ts";
-import type { PaperMesh, Vec3 } from "./deform.ts";
+import type { Paper, PaperMesh, Vec3 } from "./deform.ts";
 
 export interface PaperHit {
   /** Paper coordinates in mm. */
@@ -26,6 +25,7 @@ export function raycast(
   positions: Float32Array,
   origin: Vec3,
   dir: Vec3,
+  paper: Paper,
   stride = 3,
 ): PaperHit | null {
   const { indices, uvs } = mesh;
@@ -75,7 +75,7 @@ export function raycast(
   const w = 1 - hit.u - hit.v;
   const pu = uvs[a] * w + uvs[b] * hit.u + uvs[c] * hit.v;
   const pv = uvs[a + 1] * w + uvs[b + 1] * hit.u + uvs[c + 1] * hit.v;
-  return { x: pu * PAPER_W, y: pv * PAPER_H, t: best };
+  return { x: pu * paper.w, y: pv * paper.h, t: best };
 }
 
 // Offset ↔ cell mapping lives with the grid codec, so the renderers and the

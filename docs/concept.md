@@ -195,9 +195,9 @@ so the folded letter is the page the agent gets.
 platform: page lint comes first, reams become stacks, and a page can travel
 between sessions as a sealed letter.
 
-- **Reams:** multi-page stacks with a page budget and a table of contents.
-  The library already stores pages under `a4/pages/`, so a ream could become a
-  sibling folder (`a4/reams/<name>/`) without migrating existing pages.
+- **Reams:** shipped as stacks. A stack is a folder of pages in a
+  repository's `.agents/stacks/`, with a page budget, judged as a whole (see
+  the README's Stacks section). Stacks in the browser library could follow.
 - **Page lint:** shipped. `a4 lint` runs the same analysis over a repository's
   context files, for review or CI (README, "Page lint").
 - **Exact token counts:** optional, model-specific tokenizers loaded on

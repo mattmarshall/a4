@@ -1,0 +1,16 @@
+// A stack's label: the `stack.json` in a stack folder,
+// `.agents/stacks/<name>/`, in proto3 JSON. It says what the stack is for and
+// how many pages it may hold. A stack's pages are the `.md` files beside it;
+// the desk's judgment of a stack is a StackReport (lint.proto). Read by
+// lib/desk/stacks.ts.
+
+syntax = "proto3";
+
+package a4.v1;
+
+message StackLabel {
+  // Who the stack is for and what it should let them do.
+  string purpose = 1;
+  // Whole pages, at least 1. An A5 page counts as half a page, A6 as a quarter.
+  uint32 budget_pages = 2;
+}

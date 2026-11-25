@@ -1,6 +1,6 @@
 /**
- * WebGPU renderer for the paper view: a deformable A4 mesh textured with the
- * page, lit by a directional light, with a planar shadow on the desk.
+ * WebGPU renderer for the paper view: a deformable sheet (A4, A5, or A6)
+ * textured with the page, lit by a directional light, with a planar shadow on the desk.
  * Browser-only.
  *
  * The paper is deformed on the CPU when the pose changes (deform.ts) and its
@@ -10,7 +10,16 @@
 
 import { pixelRatio, PIXEL_RATIO_CAP } from "../../page/index.ts";
 import { camera, rayFromNdc, type Camera } from "./camera.ts";
-import { buildMesh, deformAttributes, FLAT, type PaperMesh, type Pose, VERTEX_FLOATS } from "./deform.ts";
+import {
+  A4,
+  buildMesh,
+  deformAttributes,
+  FLAT,
+  type Paper,
+  type PaperMesh,
+  type Pose,
+  VERTEX_FLOATS,
+} from "./deform.ts";
 import { raycast, type PaperHit } from "./pick.ts";
 import { WebGpuUnavailableError, type GpuProvider } from "./gpu.ts";
 import { PAPER_WGSL } from "./shader.ts";
@@ -61,6 +70,8 @@ export class PaperRenderer {
   #desk: [number, number, number] = [0.91, 0.9, 0.87];
   #camera: Camera | null = null;
   #zoom: number | null = null;
+  #pose: Pose = FLAT;
+  #paper: Paper = A4;
 
   private constructor(
     canvas: HTMLCanvasElement,
@@ -79,7 +90,7 @@ export class PaperRenderer {
       usage: BUFFER.VERTEX | BUFFER.COPY_DST,
     });
     device.queue.writeBuffer(this.#uvBuffer, 0, this.#mesh.uvs);
-    this.#shape = deformAttributes(this.#mesh, FLAT);
+    this.#shape = deformAttributes(this.#mesh, FLAT, this.#paper);
     this.#shapeBuffer = device.createBuffer({
       size: this.#shape.byteLength,
       usage: BUFFER.VERTEX | BUFFER.COPY_DST,
@@ -193,8 +204,17 @@ export class PaperRenderer {
 
   /** Deform the paper to `pose` and upload its vertices. */
   setPose(pose: Pose): void {
-    this.#shape = deformAttributes(this.#mesh, pose);
+    this.#pose = pose;
+    this.#shape = deformAttributes(this.#mesh, pose, this.#paper);
     this.#device.queue.writeBuffer(this.#shapeBuffer, 0, this.#shape);
+  }
+
+  /** Change the sheet's size (A4, A5, or A6, in mm), keeping its pose. Returns whether it changed. */
+  setPaper(paper: Paper): boolean {
+    if (paper.w === this.#paper.w && paper.h === this.#paper.h) return false;
+    this.#paper = { w: paper.w, h: paper.h };
+    this.setPose(this.#pose);
+    return true;
   }
 
   setView(view: View): void {
@@ -244,6 +264,8 @@ export class PaperRenderer {
       aspect,
       pxPerMm: this.#zoom,
       cssHeight: this.canvas.clientHeight,
+      // Frame every sheet as an A4 sheet is framed, so a card looks like a card beside a page.
+      paper: A4,
     });
     const data = packUniforms({
       viewProj: this.#camera.viewProj,
@@ -251,6 +273,7 @@ export class PaperRenderer {
       light: lightDirection(this.#view.lightAzimuth, this.#view.lightElevation),
       shadow: SHADOW,
       desk: this.#desk,
+      paper: this.#paper,
     });
     this.#device.queue.writeBuffer(this.#uniforms, 0, data);
 
@@ -291,7 +314,7 @@ export class PaperRenderer {
     const ndcX = ((clientX - rect.left) / rect.width) * 2 - 1;
     const ndcY = 1 - ((clientY - rect.top) / rect.height) * 2;
     const { origin, dir } = rayFromNdc(this.#camera, ndcX, ndcY);
-    return raycast(this.#mesh, this.#shape, origin, dir, VERTEX_FLOATS);
+    return raycast(this.#mesh, this.#shape, origin, dir, this.#paper, VERTEX_FLOATS);
   }
 
   destroy(): void {

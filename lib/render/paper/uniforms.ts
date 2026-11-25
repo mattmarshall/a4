@@ -17,10 +17,12 @@ export const UNIFORM_OFFSETS = {
   lightDir: 20,
   /** vec4f: the desk's rgb, and in a how much the shadow darkens it. */
   desk: 24,
+  /** vec4f: the sheet's width and height in mm (xy). */
+  paper: 28,
 } as const;
 
 /** The block's size in floats. */
-export const UNIFORM_FLOATS = 28;
+export const UNIFORM_FLOATS = 32;
 
 export interface UniformInput {
   readonly viewProj: Float32Array;
@@ -30,6 +32,8 @@ export interface UniformInput {
   /** How much the shadow darkens the desk, 0 to 1. */
   readonly shadow: number;
   readonly desk: readonly [number, number, number];
+  /** The sheet's width and height in mm. */
+  readonly paper: { readonly w: number; readonly h: number };
 }
 
 export function packUniforms(input: UniformInput): Float32Array {
@@ -38,6 +42,7 @@ export function packUniforms(input: UniformInput): Float32Array {
   data.set([...input.eye, 1], UNIFORM_OFFSETS.eye);
   data.set([...input.light, 0], UNIFORM_OFFSETS.lightDir);
   data.set([...input.desk, input.shadow], UNIFORM_OFFSETS.desk);
+  data.set([input.paper.w, input.paper.h, 0, 0], UNIFORM_OFFSETS.paper);
   return data;
 }
 

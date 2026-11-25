@@ -7,12 +7,13 @@
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import {
   PageSpecSchema,
+  PaperSize,
   Preset,
   SheetSchema,
   type PageSpec as PageSpecMessage,
   type Sheet,
 } from "../gen/a4/v1/sheet_pb.js";
-import type { PageSpec, PresetId } from "../page/index.ts";
+import { type PageSpec, type PaperId, pageSpec, type PresetId } from "../page/index.ts";
 import { checkGridShape, encodeGrid, firstDifferingRow } from "./codec.ts";
 
 const PRESET: Record<PresetId, Preset> = {
@@ -22,9 +23,34 @@ const PRESET: Record<PresetId, Preset> = {
   dense: Preset.DENSE,
 };
 
+const PAPER: Record<PaperId, PaperSize> = {
+  a4: PaperSize.A4,
+  a5: PaperSize.A5,
+  a6: PaperSize.A6,
+};
+
 /** The protobuf enum value of a preset. */
 export function presetEnum(id: PresetId): Preset {
   return PRESET[id];
+}
+
+/** The protobuf enum value of a paper size. */
+export function paperEnum(paper: PaperId): PaperSize {
+  return PAPER[paper];
+}
+
+/** The paper a record names; a record from before paper sizes (UNSPECIFIED) is A4. */
+function paperOf(paper: PaperSize): PaperId {
+  return (Object.keys(PAPER) as PaperId[]).find((id) => PAPER[id] === paper) ?? "a4";
+}
+
+/**
+ * The page spec a record's spec names, from its preset and paper, or null
+ * when it names no known preset (a record built from bare columns and rows).
+ */
+export function pageSpecOf(message: PageSpecMessage): PageSpec | null {
+  const preset = (Object.keys(PRESET) as PresetId[]).find((id) => PRESET[id] === message.preset);
+  return preset ? pageSpec(preset, paperOf(message.paper)) : null;
 }
 
 /** A sheet record that is malformed or whose grid doesn't match its text. */
@@ -42,6 +68,7 @@ export class SheetRecordError extends Error {
 export function pageSpecMessage(spec: PageSpec): PageSpecMessage {
   return create(PageSpecSchema, {
     preset: presetEnum(spec.id),
+    paper: paperEnum(spec.paper),
     cols: spec.cols,
     rows: spec.rows,
     cellWMm: spec.cellW,
@@ -64,6 +91,12 @@ export function sheetRecord(text: string, spec: PageSpec): Sheet {
 export function verifySheet(sheet: Sheet): void {
   const { spec, grid, text } = sheet;
   if (!spec || spec.cols < 1) throw new SheetRecordError("sheet record has no page spec");
+  const named = pageSpecOf(spec);
+  if (named && (named.cols !== spec.cols || named.rows !== spec.rows)) {
+    throw new SheetRecordError(
+      `sheet record spec is ${spec.cols} x ${spec.rows}, but its preset on ${named.paper.toUpperCase()} is ${named.cols} x ${named.rows}`,
+    );
+  }
   if (text === undefined && !grid) throw new SheetRecordError("sheet record has neither text nor grid");
   if (!grid) return;
   try {

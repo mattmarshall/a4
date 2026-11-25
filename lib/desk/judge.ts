@@ -1,15 +1,21 @@
 /**
  * The desk's judgment of one page: whether it fits, its analysis, and its
- * report, on the canonical Terminal page, as the sheet shows it.
+ * report, on the Terminal page of its paper (A4, A5, or A6), as the sheet
+ * shows it.
  */
 
 import { analyze, type Analysis, type VerdictId } from "../analysis/index.ts";
 import { toReport, type AnalysisReport } from "../analysis/report.ts";
-import { pageFit, PRESETS, type PageFit, type PageSpec } from "../page/index.ts";
+import { pageFit, pageSpec, type PageFit, type PageSpec, type PaperId, PRESETS } from "../page/index.ts";
 import { toSheet } from "../persist/folder/faithful.ts";
 
-/** The page the desk judges on: the 80 × 60 Terminal preset. */
+/** The page the desk judges on: the 80 × 60 Terminal preset, on A4. */
 export const DESK_PAGE: PageSpec = PRESETS.terminal;
+
+/** The desk's page on `paper`: Terminal on A4 (80 × 60), A5 (56 × 42), or A6 (40 × 29). */
+export function deskPage(paper: PaperId): PageSpec {
+  return pageSpec("terminal", paper);
+}
 
 export interface Judgment {
   readonly fit: PageFit;
@@ -18,15 +24,16 @@ export interface Judgment {
   readonly report: AnalysisReport;
 }
 
-/** Judge sheet text: text as the sheet holds it (two-space tabs, LF line endings). */
-export function judge(sheetText: string): Judgment {
-  const analysis = analyze(sheetText, DESK_PAGE);
-  return { fit: pageFit(sheetText, DESK_PAGE), analysis, report: toReport(analysis, DESK_PAGE) };
+/** Judge sheet text (two-space tabs, LF line endings) on the desk's page of `paper`. */
+export function judge(sheetText: string, paper: PaperId = "a4"): Judgment {
+  const page = deskPage(paper);
+  const analysis = analyze(sheetText, page);
+  return { fit: pageFit(sheetText, page), analysis, report: toReport(analysis, page) };
 }
 
-/** Judge a file's raw text as the folder view shows it on the sheet. */
-export function judgeFile(raw: string): Judgment {
-  return judge(toSheet(raw));
+/** Judge a file's raw text as the folder view shows it on the sheet of `paper`. */
+export function judgeFile(raw: string, paper: PaperId = "a4"): Judgment {
+  return judge(toSheet(raw), paper);
 }
 
 export type Outcome = "pass" | "warn" | "fail";

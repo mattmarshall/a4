@@ -88,6 +88,7 @@ const NO_FOLDER: FolderSnapshot = {
   state: { status: "none" },
   files: [],
   letters: [],
+  stacks: [],
   partial: false,
   scanning: false,
 };

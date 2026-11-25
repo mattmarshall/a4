@@ -8,7 +8,7 @@ import type { Recovery } from "../persist/autosave/bootstrap.ts";
 import type { SaveStatus } from "../persist/autosave/session.ts";
 import type { FolderState } from "../persist/folder/access.ts";
 import type { FolderFile } from "../persist/folder/scan.ts";
-import type { Letter } from "../desk/index.ts";
+import type { Letter, StackReport } from "../desk/index.ts";
 import type { FilePath, FileRef, LibraryRef } from "../persist/store/refs.ts";
 import type { PageName, PageSummary, StoreKind, TrashEntry } from "../persist/store/types.ts";
 import type { Slot } from "./pending.ts";
@@ -46,6 +46,8 @@ export interface FolderSnapshot {
   readonly files: readonly FolderFile[];
   /** Each letter's state and postmark, oldest first (paths match `files`). */
   readonly letters: readonly Letter[];
+  /** Each stack in `.agents/stacks/`, judged as a whole, in name order (page paths match `files`). */
+  readonly stacks: readonly StackReport[];
   /** True when the scan stopped at the entry limit. */
   readonly partial: boolean;
   readonly scanning: boolean;

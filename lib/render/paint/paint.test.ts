@@ -2,7 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { analyze } from "../../analysis/index.ts";
 import { INCIDENT_JSON, INCIDENT_NARRATIVE, WELCOME } from "../../content/index.ts";
-import { layoutRows, PAPER_H, PRESETS, type LensId } from "../../page/index.ts";
+import { layoutRows, PAPER_SIZES, PRESETS, type LensId } from "../../page/index.ts";
+
+const PAPER_H = PAPER_SIZES.a4.h;
 import { SHEET_STYLE } from "../element/style.ts";
 import { PALETTE } from "../palette.ts";
 import type { PaintSettings } from "./frame.ts";

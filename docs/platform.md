@@ -67,7 +67,7 @@ page, desk, lens, fold, ream, letter.
 | **Red pen** | The editor's marks: the verdict and findings, about form | The analysis |
 | **Desk** | Where sheets are laid out, compared, judged, and signed. It holds the keys. | The workbench and the model host; a headless desk is new |
 | **Drawers** | Where sheets are kept | The library and folders |
-| **Stack** | An ordered set of pages with a page budget: an agent's whole context window | New (the "reams" idea in concept.md) |
+| **Stack** | An ordered set of pages with a page budget: an agent's whole context window | Built: stacks in `.agents/stacks/`, and the context X-ray |
 | **Letter** | A sheet that's folded, sealed, and addressed. Its text is frozen once it's sealed. | The 3D letter fold exists as a gesture |
 | **Seal** | A person's acceptance of a letter | Consent for outgoing calls exists; sealing letters is new |
 | **Postmark** | The record on a sealed sheet: content digest, author, model, time, and the letter it follows | New |
@@ -90,6 +90,7 @@ page, desk, lens, fold, ream, letter.
    - the card folds into an A6 postcard for a notification (about 250).
 
    Each fold halves the budget, and each result is a page a person can read.
+   *(Built: A5 and A6 page sizes, judged everywhere a page is.)*
 5. **Agents write, people seal.** An agent can draft a letter. Only a
    person, at the desk, can seal it, and only sealed letters are delivered.
 6. **A seal is acceptance, not truth.** A seal records that a person read a
@@ -248,10 +249,24 @@ Each step is its own OpenSpec change, in this order.
      - a tool that seals on a person's recorded verdict, if an outside
        review system makes the case for one;
      - showing drafts to a reviewer outside A4.
-4. **`add-stacks`.**
-   - Reams with a page budget.
-   - The fold ladder.
-   - A context X-ray that shows an agent's window as a stack of pages.
+4. **`add-stacks`, built.** Context counts as paper (README, "Page sizes",
+   "Stacks", and "Context X-ray").
+   - **The fold ladder:** A5 cards (56 × 42 on Terminal) and A6 postcards
+     (40 × 29). A page's size comes from its name (`.a5.md`, `.a6.md`), and
+     every surface judges a page on its size: the sheet in 3D and flat,
+     print, analysis, lint, letters, the mailroom, and Fit to page. No model
+     folds a page.
+   - **Stacks:** folders in `.agents/stacks/`, one sheet on one stack, with a
+     label giving the purpose and a page budget (A5 counts half, A6 a
+     quarter). The desk judges a stack's budget, its pages on their sizes,
+     and the lines it says twice. The app lists stacks, `a4 lint` fails one
+     over its budget, and `a4 stack <name> --letter` hands a session its
+     stack with the latest letter on top.
+   - **The context X-ray:** `a4 xray` counts, in pages, what a coding agent
+     loads from files before its first turn, says what it can't count, and
+     fails CI over a `--budget`.
+   - **Still to come:** a mailroom tool that reads stacks, and a model pen
+     that folds a page down the ladder.
 5. **Later.**
    - Signed third-party pens and overlays.
    - Share links (the page format decision in concept.md).

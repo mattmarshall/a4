@@ -991,12 +991,29 @@
 }
 
 /* ------------------------------------------------------------------------
-   Print: each <a4-sheet> prints itself as a true-size A4 page of text.
+   Print: each <a4-sheet> prints itself as a true-size page of text, on the
+   named page of its paper (A4, A5, or A6).
    ------------------------------------------------------------------------ */
 
 @layer print {
   @page {
     size: a4;
+    margin: 0;
+  }
+
+  @page a4 {
+    size: a4;
+    margin: 0;
+  }
+
+  @page a5 {
+    size: a5;
+    margin: 0;
+  }
+
+  /* CSS has no a6 keyword: 105 x 148 mm. */
+  @page a6 {
+    size: 105mm 148mm;
     margin: 0;
   }
 

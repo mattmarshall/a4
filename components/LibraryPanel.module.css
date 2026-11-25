@@ -280,6 +280,58 @@
     color: var(--crit);
   }
 
+  /* Stacks: each stack's name and pages used out of its budget, then its pages. */
+  .stacks {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .stack {
+    display: grid;
+    gap: 2px;
+  }
+
+  .stackHead {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 8px;
+    font-size: var(--text-12-5);
+  }
+
+  .stackName {
+    font-weight: 600;
+  }
+
+  .stackUse {
+    font-size: var(--text-11-5);
+    color: var(--muted);
+  }
+
+  .stackPurpose,
+  .stackNote {
+    margin: 0;
+    padding: 0 8px;
+    font-size: var(--text-11-5);
+    line-height: 1.4;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .stack[data-state="fail"] .stackUse,
+  .stack[data-state="fail"] .stackNote {
+    color: var(--crit);
+    font-weight: 600;
+  }
+
+  .stack[data-state="warn"] .stackNote {
+    color: var(--warn);
+  }
+
   .rows[data-over] {
     color: var(--crit);
     font-weight: 600;

@@ -107,3 +107,15 @@ test("readonly sets the read-only state, and only it changes", () => {
   assert.equal(changed.content, false);
   assert.equal(reduce(on, { type: "attribute", name: "readonly", value: null }).readOnly, false);
 });
+
+test("size folds the paper down the ladder, keeping the preset, and bad sizes fall back to A4", () => {
+  let s = reduce(INITIAL_STATE, attr("size", "a5"));
+  assert.deepEqual([s.spec.paper, s.spec.cols, s.spec.rows, s.spec.paperW, s.spec.paperH], ["a5", 56, 42, 148, 210]);
+  assert.ok(changes(INITIAL_STATE, s).content, "a new size repaints the sheet");
+  s = reduce(s, attr("preset", "pica"));
+  assert.deepEqual([s.spec.id, s.spec.paper], ["pica", "a5"], "the preset keeps the size");
+  s = reduce(s, attr("size", "a3"));
+  assert.equal(s.spec, PRESETS.pica, "an invalid size is A4");
+  s = reduce(s, attr("size", null));
+  assert.equal(s.spec.paper, "a4");
+});

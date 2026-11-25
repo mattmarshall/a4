@@ -6,6 +6,7 @@ test("the element observes every attribute in the table, once", () => {
   assert.deepEqual(OBSERVED_ATTRIBUTES, [
     "value",
     "preset",
+    "size",
     "lens",
     "render",
     "fold-bottom",

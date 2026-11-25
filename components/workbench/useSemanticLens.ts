@@ -3,7 +3,7 @@
 /**
  * The Semantic repetition lens: a model lens that replaces the built-in lens
  * while it's on. It scores the shown pages once when it's turned on, then
- * 1,500 ms after a shown page's text (or the preset) stops changing.
+ * 1,500 ms after a shown page's text (or its preset or size) stops changing.
  * `ScoreSchedule` skips duplicate requests and drops stale results.
  *
  * Planes don't survive a reload, so only built-in lenses are saved in settings.
@@ -13,7 +13,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { realScheduler } from "@/lib/persist";
 import { type A4Plane, modelLens, type LensAttr } from "@/lib/render";
 import { type ScoreResult, type PluginId, SEMANTIC_REPETITION, ScoreSchedule } from "@/lib/models";
-import { PRESETS, type LensId, type PageSpec, type PresetId } from "@/lib/page";
+import { isPaperId, isPresetId, type LensId, type PageSpec, pageSpec, PRESETS } from "@/lib/page";
 import type { Notify, Slot } from "@/lib/workspace";
 import type { ModelLegend } from "../MetricsPanel";
 import type { SemanticSummary } from "../ModelsPanel";
@@ -40,15 +40,23 @@ function legendOf(): ModelLegend | null {
 
 const LEGEND = legendOf();
 
-type Scored = ScoreResult & { readonly preset: PresetId };
+/** A page spec as a schedule key: its preset and paper, so a plane is only ever shown on the grid it was scored on. */
+const specKey = (spec: PageSpec) => `${spec.id}/${spec.paper}`;
+
+function specOfKey(key: string): PageSpec {
+  const [id, paper] = key.split("/");
+  return isPresetId(id) && isPaperId(paper) ? pageSpec(id, paper) : PRESETS.terminal;
+}
+
+type Scored = ScoreResult & { readonly spec: string };
 type Planes = Readonly<Record<string, A4Plane>>;
 
 /** Planes are keyed by plugin and plane name, so one plugin's planes never replace another's. */
 const planeKey = (pluginId: PluginId, name: string) => `${pluginId}/${name}`;
 
-/** A slot's planes for the sheet, when its latest result is for the current preset. */
-function planesOf(result: Scored | null, preset: PresetId): Planes | undefined {
-  if (!result || result.preset !== preset) return undefined;
+/** A slot's planes for the sheet, when its latest result is for the slot's current spec. */
+function planesOf(result: Scored | null, key: string): Planes | undefined {
+  if (!result || result.spec !== key) return undefined;
   return Object.fromEntries(
     result.planes.map((p) => [planeKey(p.pluginId, p.name), { text: p.text, values: p.values, label: p.label }]),
   );
@@ -58,7 +66,8 @@ export interface SemanticLensInput {
   models: ModelsState;
   notify: Notify;
   texts: Readonly<Record<Slot, string>>;
-  spec: PageSpec;
+  /** Each slot's page spec: its preset on its page's size. */
+  specs: Readonly<Record<Slot, PageSpec>>;
   compare: boolean;
   /** The slot the inspector describes. */
   target: Slot;
@@ -66,7 +75,7 @@ export interface SemanticLensInput {
   lens: LensId;
 }
 
-export function useSemanticLens({ models, notify, texts, spec, compare, target, lens }: SemanticLensInput) {
+export function useSemanticLens({ models, notify, texts, specs, compare, target, lens }: SemanticLensInput) {
   const [active, setActive] = useState<PluginId | null>(null);
   const [scored, setScored] = useState<Record<Slot, Scored | null>>({ a: null, b: null });
 
@@ -80,9 +89,8 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
       new ScoreSchedule<Slot, ScoreResult>({
         scheduler: realScheduler,
         delayMs: RESCORE_MS,
-        score: (_slot, text, preset) => latest.current.score(SEMANTIC_ID, text, PRESETS[preset as PresetId]),
-        onResult: (slot, result, _text, preset) =>
-          setScored((s) => ({ ...s, [slot]: { ...result, preset: preset as PresetId } })),
+        score: (_slot, text, key) => latest.current.score(SEMANTIC_ID, text, specOfKey(key)),
+        onResult: (slot, result, _text, key) => setScored((s) => ({ ...s, [slot]: { ...result, spec: key } })),
         onError: (_slot, error) =>
           latest.current.notify(
             `Semantic repetition: ${error instanceof Error ? error.message : String(error)}`,
@@ -95,14 +103,16 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
   const available = models.status[SEMANTIC_ID] === "ready";
   const on = active === SEMANTIC_ID;
   const { a: textA, b: textB } = texts;
+  const keyA = specKey(specs.a);
+  const keyB = specKey(specs.b);
   useEffect(() => {
     if (!on || !available) return;
-    schedule.changed("a", textA, spec.id);
-    if (compare) schedule.changed("b", textB, spec.id);
-  }, [schedule, on, available, textA, textB, spec.id, compare]);
+    schedule.changed("a", textA, keyA);
+    if (compare) schedule.changed("b", textB, keyB);
+  }, [schedule, on, available, textA, textB, keyA, keyB, compare]);
 
-  const planesA = useMemo(() => planesOf(scored.a, spec.id), [scored.a, spec.id]);
-  const planesB = useMemo(() => planesOf(scored.b, spec.id), [scored.b, spec.id]);
+  const planesA = useMemo(() => planesOf(scored.a, keyA), [scored.a, keyA]);
+  const planesB = useMemo(() => planesOf(scored.b, keyB), [scored.b, keyB]);
 
   /** The plane a model lens shows: the plugin's first plane in either slot's latest result. */
   const lensPlane = (pluginId: PluginId) =>
@@ -120,7 +130,7 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
       restating: value(NAMES.scores.restating),
       units: value(NAMES.scores.units),
       pairs: result.findings.filter((f) => f.kind === NAMES.findings.similar),
-      stale: result.planes[0]?.text !== texts[target] || result.preset !== spec.id,
+      stale: result.planes[0]?.text !== texts[target] || result.spec !== specKey(specs[target]),
     };
   })();
 
@@ -136,8 +146,8 @@ export function useSemanticLens({ models, notify, texts, spec, compare, target, 
     /** Turn the lens on and score the shown pages now. */
     show() {
       setActive(SEMANTIC_ID);
-      schedule.now("a", textA, spec.id);
-      if (compare) schedule.now("b", textB, spec.id);
+      schedule.now("a", textA, keyA);
+      if (compare) schedule.now("b", textB, keyB);
     },
     /** Turn the lens off (a built-in lens was chosen). */
     off() {

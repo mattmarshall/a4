@@ -9,7 +9,7 @@ export function systemPrompt(shape: PageShape): string {
   return [
     "You rewrite one page of context that an engineer will hand to an AI agent.",
     "",
-    `The page is an A4 sheet quantized into a grid of ${shape.cols} columns and ${shape.rows} rows of monospace cells. Every character takes one cell. A line longer than ${shape.cols} characters wraps onto the next row, every newline starts a new row, and a blank line uses a row. The rewrite must fit in ${shape.rows} rows.`,
+    `The page is a sheet of paper quantized into a grid of ${shape.cols} columns and ${shape.rows} rows of monospace cells. Every character takes one cell. A line longer than ${shape.cols} characters wraps onto the next row, every newline starts a new row, and a blank line uses a row. The rewrite must fit in ${shape.rows} rows.`,
     "",
     "Keep every fact the agent needs to act: identifiers, numbers, times, names, commands, and instructions stay exact. Write it as narrative data:",
     "- Open with who the page is for and what they will do with it.",

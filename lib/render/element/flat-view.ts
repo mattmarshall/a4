@@ -4,7 +4,6 @@
  * changed (the selection is the textarea's own, so it never repaints this).
  */
 
-import { PAPER_H, PAPER_W } from "../../page/index.ts";
 import type { PageModel } from "../paint/model.ts";
 import { paintPage } from "../paint/page.ts";
 
@@ -58,12 +57,13 @@ export class FlatView {
       chrome: "flat",
     });
     const { scale } = settings;
-    const width = `${PAPER_W * scale}px`;
+    const { paperW, paperH } = model.spec;
+    const width = `${paperW * scale}px`;
     const height = `${heightMm * scale}px`;
     this.element.style.width = width;
     this.element.style.height = height;
     this.#paper.style.width = width;
-    this.#paper.style.height = `${PAPER_H * scale}px`;
+    this.#paper.style.height = `${paperH * scale}px`;
     this.#page.style.width = width;
     this.#page.style.height = height;
   }

@@ -12,8 +12,11 @@
  */
 
 import {
+  DEFAULT_PAPER,
   DEFAULT_PRESET,
   isPresetId,
+  PAPER_IDS,
+  type PaperId,
   PRESETS,
   PX_PER_MM_ACTUAL,
   type PresetId,
@@ -175,6 +178,7 @@ const PRESET_IDS = Object.keys(PRESETS).filter(isPresetId);
 export const ATTRIBUTES = {
   value: text("value", "Initial text (then use the value property)"),
   preset: choice<PresetId, "preset">("preset", PRESET_IDS, DEFAULT_PRESET),
+  size: choice<PaperId, "size">("size", PAPER_IDS, DEFAULT_PAPER, "a4, a5, or a6: the paper, down the fold ladder"),
   lens: {
     kind: "lens",
     name: "lens",

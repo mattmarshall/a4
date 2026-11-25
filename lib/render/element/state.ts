@@ -9,7 +9,7 @@
  * Framework-free and DOM-free, so Node tests it.
  */
 
-import { assertNever, PRESETS, type LensId, type PageSpec } from "../../page/index.ts";
+import { assertNever, pageSpec, PRESETS, type LensId, type PageSpec } from "../../page/index.ts";
 import { FLAT, type Pose } from "../paper/deform.ts";
 import {
   ATTRIBUTES,
@@ -89,7 +89,9 @@ function applyAttribute(state: SheetState, name: A4AttributeName, value: string 
       // The editor owns the text; `value` only seeds it.
       return state;
     case "preset":
-      return { ...state, spec: PRESETS[ATTRIBUTES.preset.parse(value)] };
+      return { ...state, spec: pageSpec(ATTRIBUTES.preset.parse(value), state.spec.paper) };
+    case "size":
+      return { ...state, spec: pageSpec(state.spec.id, ATTRIBUTES.size.parse(value)) };
     case "lens": {
       const { lens, plane } = parseLensAttr(value);
       return { ...state, lens, plane };

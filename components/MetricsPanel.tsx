@@ -236,9 +236,9 @@ export function MetricsPanel({
           </div>
         </div>
         <p className="panel-foot">
-          {spec.name} page: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} × {spec.cellH.toFixed(2)} mm (
-          {fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate. Nothing you write leaves this
-          browser.
+          {spec.name} page on {spec.paper.toUpperCase()}: {spec.cols} × {spec.rows} cells of {spec.cellW.toFixed(2)} ×{" "}
+          {spec.cellH.toFixed(2)} mm ({fontSizePt(spec).toFixed(1)} pt mono). Token counts are an on-device estimate.
+          Nothing you write leaves this browser.
         </p>
       </InspectorSection>
 

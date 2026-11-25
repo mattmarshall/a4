@@ -28,6 +28,13 @@ export declare type PageSpec = Message<"a4.v1.PageSpec"> & {
   preset: Preset;
 
   /**
+   * The paper the grid is laid on; PAPER_SIZE_UNSPECIFIED reads as A4.
+   *
+   * @generated from field: a4.v1.PaperSize paper = 9;
+   */
+  paper: PaperSize;
+
+  /**
    * @generated from field: uint32 cols = 2;
    */
   cols: number;
@@ -273,6 +280,45 @@ export enum Preset {
  * Describes the enum a4.v1.Preset.
  */
 export declare const PresetSchema: GenEnum<Preset>;
+
+/**
+ * The paper down the fold ladder (see lib/page/geometry.ts): each fold halves
+ * the sheet and keeps its shape. A record without one is A4.
+ *
+ * @generated from enum a4.v1.PaperSize
+ */
+export enum PaperSize {
+  /**
+   * @generated from enum value: PAPER_SIZE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * 210 x 297 mm.
+   *
+   * @generated from enum value: PAPER_SIZE_A4 = 1;
+   */
+  A4 = 1,
+
+  /**
+   * 148 x 210 mm.
+   *
+   * @generated from enum value: PAPER_SIZE_A5 = 2;
+   */
+  A5 = 2,
+
+  /**
+   * 105 x 148 mm.
+   *
+   * @generated from enum value: PAPER_SIZE_A6 = 3;
+   */
+  A6 = 3,
+}
+
+/**
+ * Describes the enum a4.v1.PaperSize.
+ */
+export declare const PaperSizeSchema: GenEnum<PaperSize>;
 
 /**
  * @generated from enum a4.v1.Granularity

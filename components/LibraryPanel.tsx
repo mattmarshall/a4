@@ -7,11 +7,10 @@
  * `FolderActions`.
  */
 
-import { useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import { type FormEvent, type KeyboardEvent, type ReactNode, useMemo, useRef, useState } from "react";
 import {
   type FolderFile,
   MAX_FILE_BYTES,
-  PAGE_ROWS,
   SCAN_ENTRY_LIMIT,
   fileRef,
   libraryRef,
@@ -22,7 +21,15 @@ import {
   type TrashEntry,
   type TrashId,
 } from "@/lib/persist";
-import { compareLetterNames, type Letter, LETTERS_DIR, LetterState } from "@/lib/desk";
+import {
+  compareLetterNames,
+  LabelProblem,
+  type Letter,
+  LETTERS_DIR,
+  LetterState,
+  LintOutcome,
+  type StackReport,
+} from "@/lib/desk";
 import { SLOTS, type FolderSnapshot, type Slot, type StorageInfo } from "@/lib/workspace";
 import { ENGLISH, formatByteLimit } from "./analysis-copy";
 import styles from "./LibraryPanel.module.css";
@@ -447,7 +454,7 @@ function FileRow({
   const { compare, activeSlot } = placement;
   const ref = fileRef(file.path);
   const slot = slotOf(placement, ref);
-  const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
+  const over = file.rows !== null && file.rows > file.pageRows ? file.rows - file.pageRows : 0;
   if (file.unreadable) {
     return (
       <li className={`${styles.item} ${styles.file}`} data-unreadable="">
@@ -473,7 +480,8 @@ function FileRow({
             <>
               {" · "}
               <span className={styles.rows} data-over={over ? "" : undefined}>
-                {file.rows} of {PAGE_ROWS} rows{over ? `, ${over} over` : ""}
+                {file.paper === "a4" ? "" : `${file.paper.toUpperCase()} · `}
+                {file.rows} of {file.pageRows} rows{over ? `, ${over} over` : ""}
               </span>
             </>
           ) : null}
@@ -529,7 +537,7 @@ function LetterRow({
   const ref = fileRef(file.path);
   const slot = slotOf(placement, ref);
   const state = letter?.state ?? LetterState.DRAFT;
-  const over = file.rows !== null && file.rows > PAGE_ROWS ? file.rows - PAGE_ROWS : 0;
+  const over = file.rows !== null && file.rows > file.pageRows ? file.rows - file.pageRows : 0;
   const postmark = letter?.postmark;
   const sealedBy = postmark && state !== LetterState.BROKEN ? ` by ${postmark.signer}` : "";
   return (
@@ -550,7 +558,8 @@ function LetterRow({
             <>
               {" · "}
               <span className={styles.rows} data-over={over ? "" : undefined}>
-                {file.rows} of {PAGE_ROWS} rows{over ? `, ${over} over` : ""}
+                {file.paper === "a4" ? "" : `${file.paper.toUpperCase()} · `}
+                {file.rows} of {file.pageRows} rows{over ? `, ${over} over` : ""}
               </span>
             </>
           ) : null}
@@ -562,6 +571,71 @@ function LetterRow({
           Duplicate to library
         </button>
       </div>
+    </li>
+  );
+}
+
+/** "1.75 of 3 pages", or "1.75 pages" without a budget. */
+function stackUse(stack: StackReport): string {
+  const pages = (n: number) => `${n} ${n === 1 ? "page" : "pages"}`;
+  const budget = stack.labelProblem === LabelProblem.UNSPECIFIED ? stack.label?.budgetPages : undefined;
+  return budget ? `${stack.pagesUsed} of ${pages(budget)}` : pages(stack.pagesUsed);
+}
+
+const LABEL_NOTE: Readonly<Record<LabelProblem, string>> = {
+  [LabelProblem.UNSPECIFIED]: "",
+  [LabelProblem.MISSING]: "No label: add stack.json with a page budget",
+  [LabelProblem.UNREADABLE]: "stack.json isn’t a stack label",
+  [LabelProblem.NO_BUDGET]: "No page budget in stack.json",
+};
+
+/** A stack's most severe problem, in words, or null when it passes. */
+function stackNote(stack: StackReport): string | null {
+  const file = (path: string) => path.slice(path.lastIndexOf("/") + 1);
+  if (stack.overByPages > 0)
+    return `${stack.overByPages} ${stack.overByPages === 1 ? "page" : "pages"} over its budget`;
+  const over = stack.pages.find((p) => p.rowsUsed > p.pageRows);
+  if (over) return `${file(over.path)} is ${over.rowsUsed - over.pageRows} rows over its page`;
+  if (stack.labelProblem !== LabelProblem.UNSPECIFIED) return LABEL_NOTE[stack.labelProblem];
+  const [line] = stack.repeatedLines;
+  if (line) return `A line repeats on ${line.pages.map(file).join(" and ")}: say it once`;
+  return null;
+}
+
+const STACK_STATE: Readonly<Record<LintOutcome, string>> = {
+  [LintOutcome.UNSPECIFIED]: "pass",
+  [LintOutcome.PASS]: "pass",
+  [LintOutcome.WARN]: "warn",
+  [LintOutcome.FAIL]: "fail",
+};
+
+/** One stack: its name, pages used out of its budget, and its problem, then its pages in order. */
+function StackGroup({
+  stack,
+  files,
+  row,
+}: {
+  stack: StackReport;
+  files: readonly FolderFile[];
+  row: (f: FolderFile) => ReactNode;
+}) {
+  const byPath = new Map(files.map((f) => [f.path as string, f]));
+  const pages = stack.pages.map((p) => byPath.get(p.path)).filter((f): f is FolderFile => f !== undefined);
+  const note = stackNote(stack);
+  const state = STACK_STATE[stack.outcome];
+  return (
+    <li className={styles.stack} data-state={state}>
+      <div className={styles.stackHead}>
+        <span className={styles.stackName}>{stack.name}</span>
+        <span className={styles.stackUse}>{stackUse(stack)}</span>
+      </div>
+      {stack.label?.purpose ? <p className={styles.stackPurpose}>{stack.label.purpose}</p> : null}
+      {note ? (
+        <p className={styles.stackNote} role="status">
+          {note}
+        </p>
+      ) : null}
+      <ul className={styles.list}>{pages.map(row)}</ul>
     </li>
   );
 }
@@ -603,6 +677,10 @@ function FolderSection({
     .sort((x, y) => compareLetterNames(letterName(y.path), letterName(x.path)));
   const context = visible.filter((f) => f.group === "context");
   const other = visible.filter((f) => f.group === "other");
+  const stackFiles = visible.filter((f) => f.group === "stack");
+  // A stack shows while any of its pages matches the search.
+  const shownPaths = new Set<string>(stackFiles.map((f) => f.path));
+  const stacks = folder.stacks.filter((s) => s.pages.length === 0 || s.pages.some((p) => shownPaths.has(p.path)));
   const row = (f: FolderFile) => (
     <FileRow key={f.path} file={f} placement={placement} onOpen={onOpen} onDuplicate={onDuplicate} />
   );
@@ -766,6 +844,17 @@ function FolderSection({
               />
             ))}
             {letters.length === 0 ? <li className={styles.empty}>No letters match.</li> : null}
+          </ul>
+        </>
+      ) : null}
+
+      {stacks.length > 0 ? (
+        <>
+          <h3 className={`${styles.group} eyebrow`}>Stacks</h3>
+          <ul className={styles.stacks}>
+            {stacks.map((stack) => (
+              <StackGroup key={stack.name} stack={stack} files={stackFiles} row={row} />
+            ))}
           </ul>
         </>
       ) : null}

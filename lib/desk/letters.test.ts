@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ANALYSIS_TEXTS } from "../analysis/testing/texts.ts";
+import { PaperSize } from "../gen/a4/v1/sheet_pb.js";
 import {
   browserFixture,
   nodeFixture,
@@ -179,6 +180,27 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
     });
   });
 
+  test(`${label}: a card is judged on A5 and a postcard on A6, and Accept needs the letter to fit its size`, async () => {
+    const card = ".agents/letters/2026-11-25-0930-auth.a5.md";
+    const postcard = ".agents/letters/2026-11-25-0931-deploy.a6.md";
+    const rows = (n: number) => Array.from({ length: n }, (_, i) => `Row ${i + 1}.`).join("\n");
+    await inFolder({ [card]: rows(30), [postcard]: rows(31) }, async (fs) => {
+      const [a5, a6] = await readLetters(fs);
+      assert.deepEqual([a5?.letter.rowsUsed, a5?.letter.paper], [30, PaperSize.A5], "30 of 42 rows");
+      assert.deepEqual([a6?.letter.rowsUsed, a6?.letter.paper], [31, PaperSize.A6]);
+      await assert.rejects(
+        accept(fs, postcard),
+        (e) => e instanceof SealRefusedError && e.reason === "over-page" && e.overBy === 2,
+      );
+      await accept(fs, card);
+      assert.equal(
+        latestDelivery(await readLetters(fs))?.letter.letter.path,
+        card,
+        "a card is delivered like any letter",
+      );
+    });
+  });
+
   test(`${label}: editing a sealed letter breaks its seal`, async () => {
     await inFolder({ [A]: fits }, async (fs, folder) => {
       await accept(fs, A);
@@ -250,4 +272,6 @@ test("letters order by name without .md, so a minute's second letter is newer", 
   assert.equal(letterPathAt(at, 2), ".agents/letters/2026-11-25-0930-letter-2.md");
   assert.equal(letterPathAt(at, 1, "auth-migration"), ".agents/letters/2026-11-25-0930-auth-migration.md");
   assert.equal(letterPathAt(at, 2, "auth"), ".agents/letters/2026-11-25-0930-auth-2.md");
+  assert.equal(letterPathAt(at, 1, "auth", "a5"), ".agents/letters/2026-11-25-0930-auth.a5.md");
+  assert.equal(letterPathAt(at, 3, "deploy", "a6"), ".agents/letters/2026-11-25-0930-deploy-3.a6.md");
 });

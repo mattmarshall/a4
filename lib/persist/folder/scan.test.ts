@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fileGroup, isContextFile, isLetterPath, PAGE_ROWS, scanFolder } from "./scan.ts";
+import { fileGroup, isContextFile, isLetterPath, PAGE_ROWS, scanFolder, stackOfPath } from "./scan.ts";
 import { browserFixture, nodeFixture, type FolderFixture } from "./testing/fixtures.ts";
 
 const lines = (n: number) =>
@@ -126,3 +126,41 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
 
 suite("browser", async () => browserFixture());
 suite("node", nodeFixture);
+
+test("stacks: .md files directly in a named stack folder are its pages, grouped after letters", () => {
+  assert.equal(stackOfPath(".agents/stacks/auth/01-charter.md"), "auth");
+  assert.equal(stackOfPath(".agents/stacks/auth/02-service.a5.md"), "auth");
+  assert.equal(fileGroup(".agents/stacks/auth/01-charter.md"), "stack");
+  for (const path of [
+    ".agents/stacks/auth/old/x.md",
+    ".agents/stacks/Auth Notes/01.md",
+    ".agents/stacks/auth/stack.json",
+    ".agents/stacks/01.md",
+    ".agents/stacks/-auth/01.md",
+    `.agents/stacks/${"a".repeat(41)}/01.md`,
+  ]) {
+    assert.equal(stackOfPath(path), null, path);
+  }
+  assert.equal(fileGroup(".agents/stacks/auth/old/x.md"), "other");
+  // A stack page named like a context file is still a stack page: a sheet lies on one stack.
+  assert.equal(fileGroup(".agents/stacks/auth/CLAUDE.md"), "stack");
+});
+
+test("stack pages are listed in their own group, with each page's size and rows out of its size's", async () => {
+  const fixture = await nodeFixture();
+  try {
+    const folder = await fixture.folder("repo", {
+      ".agents/stacks/auth/01-charter.md": "Charter.\n",
+      ".agents/stacks/auth/02-service.a5.md": Array.from({ length: 45 }, (_, i) => `Row ${i}.`).join("\n"),
+      "docs/guide.md": "Guide.\n",
+    });
+    const scan = await scanFolder(fixture.source.open(folder.handle));
+    const byPath = new Map<string, (typeof scan.files)[number]>(scan.files.map((f) => [f.path, f]));
+    assert.equal(byPath.get(".agents/stacks/auth/01-charter.md")?.group, "stack");
+    const card = byPath.get(".agents/stacks/auth/02-service.a5.md");
+    assert.deepEqual([card?.group, card?.paper, card?.rows, card?.pageRows], ["stack", "a5", 45, 42]);
+    assert.equal(byPath.get("docs/guide.md")?.group, "other");
+  } finally {
+    await fixture.dispose();
+  }
+});

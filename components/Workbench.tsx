@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeImport, MAX_IMPORT_FILE_BYTES } from "@/lib/archive";
-import { type LensId, PRESETS } from "@/lib/page";
+import { type LensId, pageSpec, sizeOfName } from "@/lib/page";
 import {
   Operation,
   FIT_TO_PAGE,
@@ -71,12 +71,16 @@ export function Workbench() {
   const sheetB = useRef<A4SheetHandle>(null);
   const handles = { a: sheetA, b: sheetB };
 
-  const spec = PRESETS[presetId];
   const { compare, target, setMode, setActive } = layout;
   const { slots, ready } = lib;
+  // Each slot's page on its own size: the preset is the typeface, and the
+  // page's name says its paper (a `.a5` or `.a6` name is a card or a postcard).
+  const specA = pageSpec(presetId, sizeOfName(slots.a.label ?? ""));
+  const specB = pageSpec(presetId, sizeOfName(slots.b.label ?? ""));
+  const spec = target === "a" ? specA : specB;
   const page = slots[target];
-  const a = useAnalysis(slots.a.text, spec);
-  const b = useAnalysis(slots.b.text, spec);
+  const a = useAnalysis(slots.a.text, specA);
+  const b = useAnalysis(slots.b.text, specB);
   const targetAnalysis = target === "a" ? a.analysis : b.analysis;
   const effectiveRender = gpuMissing ? "flat" : render;
 
@@ -103,7 +107,7 @@ export function Workbench() {
     models,
     notify,
     texts: { a: slots.a.text, b: slots.b.text },
-    spec,
+    specs: { a: specA, b: specB },
     compare,
     target,
     lens,
@@ -384,7 +388,7 @@ export function Workbench() {
           target={target}
           ready={ready}
           failure={lib.failure}
-          spec={spec}
+          specs={{ a: specA, b: specB }}
           lens={semantic.sheetLens}
           planes={semantic.planes}
           render={effectiveRender}
@@ -459,7 +463,7 @@ export function Workbench() {
                 }}
               />
             ) : (
-              <MetricsPanel analysis={a.analysis} spec={spec} compress={a.compress} />
+              <MetricsPanel analysis={a.analysis} spec={specA} compress={a.compress} />
             )}
             <ModelsPanel
               models={models}

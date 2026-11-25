@@ -147,6 +147,7 @@ export class PaperView {
     const { model, state, selection } = frame;
     const shown = this.#shown;
     let dirty = renderer.resize();
+    if (renderer.setPaper({ w: model.spec.paperW, h: model.spec.paperH })) dirty = true;
 
     const dpr = pixelRatio(window.devicePixelRatio, PIXEL_RATIO_CAP.flat);
     const content: ContentKey = {
@@ -156,7 +157,7 @@ export class PaperView {
       focused: selection.focused,
       grid: state.grid,
       fontFamily: frame.fontFamily,
-      density: textureDensity(this.canvas.clientHeight * Math.min(2, dpr)),
+      density: textureDensity(this.canvas.clientHeight * Math.min(2, dpr), model.spec.paperH),
     };
     if (!shown.content || !sameContent(shown.content, content)) {
       paintPage(this.#texture, model, {

@@ -19,6 +19,7 @@ import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2"
 import type { Message } from "@bufbuild/protobuf";
 import type { LintOutcome } from "./lint_pb.js";
 import type { AnalysisReport } from "./analysis_pb.js";
+import type { PaperSize } from "./sheet_pb.js";
 import type { Letter } from "./letter_pb.js";
 
 /**
@@ -72,6 +73,13 @@ export declare type PageCheck = Message<"a4.v1.PageCheck"> & {
    * @generated from field: string note = 6;
    */
   note: string;
+
+  /**
+   * The paper it was judged on: A4 (60 rows), A5 (42), or A6 (29).
+   *
+   * @generated from field: a4.v1.PaperSize paper = 7;
+   */
+  paper: PaperSize;
 };
 
 /**

@@ -427,3 +427,30 @@ test("the signer setting trims, and blank reads as unset", () => {
   assert.equal(SETTINGS.signer.codec.format(null), "");
   assert.equal(readSetting(SETTINGS.signer), null);
 });
+
+// Stacks
+
+test("the folder snapshot judges each stack, and its pages are in the stack group at their sizes", async () => {
+  const b = browser();
+  const { workspace } = b.open();
+  await workspace.start();
+  const root = folder(b.volume, {
+    ".agents/stacks/auth/stack.json": JSON.stringify({ purpose: "Start on auth", budgetPages: 1 }),
+    ".agents/stacks/auth/01-charter.md": "Charter.\n",
+    ".agents/stacks/auth/02-service.a5.md": "Service.\n",
+    "AGENTS.md": "Agents.\n",
+  });
+  await workspace.openFolder(asDirectoryHandle(root));
+  const { folder: snapshot } = workspace.getSnapshot();
+  assert.deepEqual(
+    snapshot.stacks.map((s) => [s.name, s.pagesUsed, s.overByPages, s.label?.purpose]),
+    [["auth", 1.5, 0.5, "Start on auth"]],
+  );
+  assert.deepEqual(
+    snapshot.files.filter((f) => f.group === "stack").map((f) => [f.path, f.paper, f.pageRows]),
+    [
+      [".agents/stacks/auth/01-charter.md", "a4", 60],
+      [".agents/stacks/auth/02-service.a5.md", "a5", 42],
+    ],
+  );
+});

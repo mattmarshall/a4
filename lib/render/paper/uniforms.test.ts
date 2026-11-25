@@ -50,6 +50,7 @@ test("packUniforms puts each value at its member's offset", () => {
     light: [0, 1, 0],
     shadow: 0.22,
     desk: [0.1, 0.2, 0.3],
+    paper: { w: 148, h: 210 },
   });
   assert.equal(data.length, UNIFORM_FLOATS);
   assert.deepEqual([...data.subarray(0, 16)], [...viewProj]);
@@ -59,6 +60,7 @@ test("packUniforms puts each value at its member's offset", () => {
     [...data.subarray(UNIFORM_OFFSETS.desk, UNIFORM_OFFSETS.desk + 4)],
     [Math.fround(0.1), Math.fround(0.2), Math.fround(0.3), Math.fround(0.22)],
   );
+  assert.deepEqual([...data.subarray(UNIFORM_OFFSETS.paper, UNIFORM_OFFSETS.paper + 2)], [148, 210]);
 });
 
 test("the light direction is a unit vector toward the light", () => {

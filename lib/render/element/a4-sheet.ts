@@ -444,7 +444,8 @@ export class A4SheetElement extends HTMLElement {
 
   /** Flat sheet scale in CSS px per mm. */
   #flatScale(): number {
-    return this.#state.zoom ?? fitScale({ width: this.clientWidth });
+    const { paperW: w, paperH: h } = this.#state.spec;
+    return this.#state.zoom ?? fitScale({ width: this.clientWidth }, { paper: { w, h } });
   }
 
   #paint() {

@@ -4,7 +4,7 @@
  * by every layer.
  */
 
-import { fontSizeMm, PAPER_H, PAPER_W, rowTop, type PageSpec } from "../../page/index.ts";
+import { fontSizeMm, rowTop, type PageSpec } from "../../page/index.ts";
 import type { PageModel } from "./model.ts";
 
 export interface PaintSettings {
@@ -43,21 +43,21 @@ export interface PaintFrame extends PaintSettings {
   readonly fontPx: number;
 }
 
-/** Height in mm of the painted surface (taller than A4 when overflow rows are painted). */
+/** Height in mm of the painted surface (taller than the paper when overflow rows are painted). */
 function paintedHeightMm(spec: PageSpec, rowsTotal: number, overflow: boolean): number {
-  if (!overflow || rowsTotal <= spec.rows) return PAPER_H;
-  return Math.max(PAPER_H, rowTop(spec, rowsTotal) + 10);
+  if (!overflow || rowsTotal <= spec.rows) return spec.paperH;
+  return Math.max(spec.paperH, rowTop(spec, rowsTotal) + 10);
 }
 
-function textureSize(pxPerMm: number, heightMm: number = PAPER_H): { width: number; height: number } {
-  return { width: Math.round(PAPER_W * pxPerMm), height: Math.round(heightMm * pxPerMm) };
+function textureSize(spec: PageSpec, pxPerMm: number, heightMm: number): { width: number; height: number } {
+  return { width: Math.round(spec.paperW * pxPerMm), height: Math.round(heightMm * pxPerMm) };
 }
 
 export function paintFrame(model: PageModel, settings: PaintSettings): PaintFrame {
   const { spec, rows } = model;
   const k = settings.pxPerMm;
   const heightMm = paintedHeightMm(spec, rows.length, settings.overflow);
-  const { width, height } = textureSize(k, heightMm);
+  const { width, height } = textureSize(spec, k, heightMm);
   return {
     ...settings,
     heightMm,

@@ -20,8 +20,10 @@ import {
   type PageCheck,
   PageCheckSchema,
 } from "../gen/a4/v1/mailroom_pb.js";
+import type { PaperId } from "../page/index.ts";
 import { type FolderFs, isFsError } from "../persist/folder/fs.ts";
 import { MAX_FILE_BYTES } from "../persist/store/folder.ts";
+import { paperEnum } from "../tensor/record.ts";
 import { judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
 import { latestDelivery, letterDigest, letterPathAt, LetterState, type ReadLetter } from "./letters.ts";
 
@@ -49,11 +51,12 @@ export interface Checked {
   readonly judgment: Judgment;
 }
 
-/** Judge `text` as the folder view shows it on the Terminal page, the way `a4 lint` judges a file. */
-export function checkPage(text: string): Checked {
-  const judgment = judgeFile(text);
+/** Judge `text` as the folder view shows it on the Terminal page of `paper`, the way `a4 lint` judges a file. */
+export function checkPage(text: string, paper: PaperId = "a4"): Checked {
+  const judgment = judgeFile(text, paper);
   const { fit } = judgment;
   const check = create(PageCheckSchema, {
+    paper: paperEnum(paper),
     outcome: OUTCOME[outcomeOf(judgment)],
     rowsUsed: fit.rowsUsed,
     pageRows: fit.pageRows,
@@ -80,6 +83,8 @@ export interface FileOptions {
   readonly now: number;
   /** Default "letter". */
   readonly topic?: string;
+  /** The letter's size (default A4): an A5 letter is a card, filed as `…-<topic>.a5.md`. */
+  readonly paper?: PaperId;
 }
 
 /** A filing's record, and the judgment behind its check when the text was judged. */
@@ -105,11 +110,12 @@ export async function fileLetter(fs: FolderFs, text: string, options: FileOption
   const problem = textProblem(text);
   if (problem === "empty") return refuse(FilingRefusal.EMPTY);
   if (problem === "too-large") return refuse(FilingRefusal.TOO_LARGE);
-  const checked = checkPage(text);
+  const paper = options.paper ?? "a4";
+  const checked = checkPage(text, paper);
   if (!checked.judgment.fit.fits) return refuse(FilingRefusal.OVER_PAGE, checked);
   const bytes = new TextEncoder().encode(text);
   for (let n = 1; n <= NAMES_PER_MINUTE; n++) {
-    const path = letterPathAt(options.now, n, topic);
+    const path = letterPathAt(options.now, n, topic, paper);
     try {
       await fs.writeAtomic(path, bytes, { exclusive: true });
     } catch (error) {

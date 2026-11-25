@@ -12,7 +12,7 @@
  */
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import type { PresetId } from "@/lib/page";
+import type { PaperId, PresetId } from "@/lib/page";
 import {
   A4_EVENTS,
   defineSheetElement,
@@ -41,6 +41,8 @@ export interface A4SheetProps {
   value: string;
   onValue: (value: string) => void;
   preset: PresetId;
+  /** The paper, down the fold ladder (default A4). */
+  size?: PaperId | undefined;
   /** A built-in lens, or `modelLens(name)` to show the plane named `name`. */
   lens: LensAttr;
   /** Model planes by name, shown with `lens="model:<name>"`. */
@@ -168,11 +170,13 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
   const written = useRef(new Map<A4AttributeName, string | null>());
   const { preset, lens, render, pose, tilt, turn, light, zoom, grid, label } = props;
   const readOnly = props.readOnly ?? false;
+  const size = props.size ?? "a4";
   useEffect(() => {
     const el = host.current;
     if (!el) return;
     const attrs = toAttributes({
       preset,
+      size,
       lens,
       render,
       foldBottom: pose.foldBottom,
@@ -191,7 +195,7 @@ export const A4Sheet = forwardRef<A4SheetHandle, A4SheetProps>(function A4Sheet(
       else el.setAttribute(name, value);
       written.current.set(name, value);
     }
-  }, [preset, lens, render, pose, tilt, turn, light, zoom, grid, label, readOnly]);
+  }, [preset, size, lens, render, pose, tilt, turn, light, zoom, grid, label, readOnly]);
 
   return <a4-sheet ref={host} class={props.className} />;
 });

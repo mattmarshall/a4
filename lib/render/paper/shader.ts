@@ -6,23 +6,18 @@
  * (a test checks every offset).
  */
 
-import { PAPER_H, PAPER_W } from "../../page/index.ts";
-
-const f = (n: number) => (Number.isInteger(n) ? `${n}.0` : String(n));
-
 export const PAPER_WGSL = /* wgsl */ `
 struct Uniforms {
   viewProj: mat4x4f,
   eye: vec4f,
   lightDir: vec4f,   // xyz: direction toward the light
   desk: vec4f,       // rgb: the desk; a: how much the shadow darkens it
+  paper: vec4f,      // xy: the sheet's width and height in mm
 };
 
 @group(0) @binding(0) var<uniform> U: Uniforms;
 @group(0) @binding(1) var pageTex: texture_2d<f32>;
 @group(0) @binding(2) var pageSampler: sampler;
-
-const PAPER = vec2f(${f(PAPER_W)}, ${f(PAPER_H)});
 
 struct PaperIn {
   @location(0) uv: vec2f,
@@ -68,7 +63,7 @@ fn fsPaper(in: PaperOut) -> @location(0) vec4f {
   var n = normalize(in.normal);
   let front = dot(n, view) > 0.0;
   if (!front) { n = -n; }
-  let mm = in.uv * PAPER;
+  let mm = in.uv * U.paper.xy;
   let grain = noise(mm * 0.9) * 0.5 + noise(mm * 3.7) * 0.3 + noise(vec2f(mm.x * 0.35, mm.y * 5.0)) * 0.2;
   n = normalize(n + vec3f(noise(mm * 2.3) - 0.5, 0.0, noise(mm * 2.3 + 17.0) - 0.5) * 0.035);
   let l = normalize(U.lightDir.xyz);

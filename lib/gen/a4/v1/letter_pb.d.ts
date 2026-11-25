@@ -13,6 +13,7 @@
 import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 import type { Timestamp } from "@bufbuild/protobuf/wkt";
+import type { PaperSize } from "./sheet_pb.js";
 
 /**
  * Describes the file a4/v1/letter.proto.
@@ -105,7 +106,7 @@ export declare type Letter = Message<"a4.v1.Letter"> & {
   postmark?: Postmark | undefined;
 
   /**
-   * Rows used on the 80 x 60 Terminal page.
+   * Rows used on the Terminal page of its size (80 x 60 on A4).
    *
    * @generated from field: uint32 rows_used = 4;
    */
@@ -117,6 +118,14 @@ export declare type Letter = Message<"a4.v1.Letter"> & {
    * @generated from field: a4.v1.BrokenSeal broken = 5;
    */
   broken: BrokenSeal;
+
+  /**
+   * The letter's size, from its name: a `.a5` letter is a card and a `.a6`
+   * letter a postcard, judged on that paper.
+   *
+   * @generated from field: a4.v1.PaperSize paper = 6;
+   */
+  paper: PaperSize;
 };
 
 /**

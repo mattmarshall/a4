@@ -75,7 +75,8 @@ export interface SheetStageProps {
   /** Storage is open: sheets show once their page is. */
   ready: boolean;
   failure: string | null;
-  spec: PageSpec;
+  /** Each slot's page spec: the preset on its page's size. */
+  specs: Readonly<Record<Slot, PageSpec>>;
   lens: LensAttr;
   planes: Readonly<Record<Slot, Readonly<Record<string, A4Plane>> | undefined>>;
   render: Render;
@@ -101,7 +102,7 @@ export interface SheetStageProps {
 }
 
 export function SheetStage(props: SheetStageProps) {
-  const { handles, slots, analyses, compare, target, spec, render, focus, posePanel, onPosePanel } = props;
+  const { handles, slots, analyses, compare, target, specs, render, focus, posePanel, onPosePanel } = props;
   const [poses, setPoses] = useState<Record<Slot, Pose>>({ a: FLAT, b: FLAT });
   const [view, setView] = useState<SheetView>(DEFAULT_VIEW);
   const shown: readonly Slot[] = compare ? ["a", "b"] : ["a"];
@@ -120,6 +121,8 @@ export function SheetStage(props: SheetStageProps) {
           {shown.map((slot) => {
             const state = slots[slot];
             const analysis = analyses[slot];
+            const spec = specs[slot];
+            const size = spec.paper.toUpperCase();
             return (
               <div
                 key={slot}
@@ -139,6 +142,7 @@ export function SheetStage(props: SheetStageProps) {
                     />
                     <SaveStatusPill status={state.status} />
                     <span>
+                      {spec.paper === "a4" ? null : `${size} · ${spec.cols}×${spec.rows} · `}
                       {VERDICT_LABEL[analysis.assessment.verdict]} · ≈{analysis.metrics.tokens.toLocaleString("en-US")}{" "}
                       tokens
                     </span>
@@ -154,6 +158,7 @@ export function SheetStage(props: SheetStageProps) {
                   onViewChange={({ tilt, turn }) => setView((v) => ({ ...v, tilt, turn }))}
                   onPoseChange={(pose) => setPoses((p) => ({ ...p, [slot]: pose }))}
                   preset={spec.id}
+                  size={spec.paper}
                   lens={props.lens}
                   planes={props.planes[slot]}
                   render={render}
@@ -164,7 +169,7 @@ export function SheetStage(props: SheetStageProps) {
                   zoom={props.zoom}
                   grid={props.grid}
                   readOnly={state.readOnly}
-                  label={`${state.label ?? `Page ${slot.toUpperCase()}`}: A4 page, ${spec.cols} columns by ${spec.rows} rows`}
+                  label={`${state.label ?? `Page ${slot.toUpperCase()}`}: ${size} page, ${spec.cols} columns by ${spec.rows} rows`}
                 />
               </div>
             );

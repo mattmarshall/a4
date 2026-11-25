@@ -1,5 +1,6 @@
 // The result of `a4 lint`: each context file checked against the page, with
-// its outcome and its analysis report. Printed by `a4 lint --json` as proto3
+// its outcome and its analysis report, and each stack judged as a whole
+// (`a4 stacks --json` prints a StackList of the same reports). Printed by `a4 lint --json` as proto3
 // JSON, and built by `lintFolder()` and `lintFile()` in lib/desk/.
 //
 // Like the analysis report, it carries paths, outcomes, and numbers, never a
@@ -10,6 +11,8 @@ syntax = "proto3";
 package a4.v1;
 
 import "a4/v1/analysis.proto";
+import "a4/v1/sheet.proto";
+import "a4/v1/stack.proto";
 
 message LintReport {
   // The preset every file was judged on: "terminal".
@@ -20,6 +23,8 @@ message LintReport {
   bool partial = 3;
   // True when Noisy and Busy pages fail as well as overflowing ones.
   bool strict = 4;
+  // Each stack in a scanned folder, judged as a whole (stack.proto).
+  repeated StackReport stacks = 5;
 }
 
 message LintedFile {
@@ -32,6 +37,9 @@ message LintedFile {
   AnalysisReport report = 3;
   // Why the file couldn't be read; UNREADABLE_UNSPECIFIED when it was.
   Unreadable unreadable = 4;
+  // The page's size, from its name (a `.a5` or `.a6` name is a card or a
+  // postcard); it was judged on that paper.
+  PaperSize paper = 5;
 }
 
 enum LintOutcome {
@@ -50,4 +58,66 @@ enum Unreadable {
   UNREADABLE_TOO_LARGE = 1;
   // Not valid UTF-8 text.
   UNREADABLE_NOT_UTF8 = 2;
+}
+
+// One page of a stack, judged on its own size.
+message StackPage {
+  // Relative to the folder, for example ".agents/stacks/auth/01-charter.md".
+  string path = 1;
+  PaperSize paper = 2;
+  // Rows used, out of `page_rows` (60, 42, or 29 on Terminal).
+  uint32 rows_used = 3;
+  uint32 page_rows = 4;
+  // FAIL when over its size, WARN when Noisy or Busy, PASS otherwise.
+  LintOutcome outcome = 5;
+  // The page's analysis; unset when it couldn't be read.
+  AnalysisReport report = 6;
+  // Why the page couldn't be read; UNREADABLE_UNSPECIFIED when it was.
+  Unreadable unreadable = 7;
+}
+
+// A line, at least 20 characters once trimmed, found on two or more pages of
+// a stack: a stack says each thing once. Positions only, never the line.
+message RepeatedLine {
+  // The pages it's on, in stack order (paths as in StackPage).
+  repeated string pages = 1;
+  // Its 1-based line number on each of those pages, in the same order.
+  repeated uint32 lines = 2;
+}
+
+// Why a stack has no budget.
+enum LabelProblem {
+  LABEL_PROBLEM_UNSPECIFIED = 0;
+  // No `stack.json`.
+  LABEL_PROBLEM_MISSING = 1;
+  // `stack.json` isn't a StackLabel in proto3 JSON.
+  LABEL_PROBLEM_UNREADABLE = 2;
+  // The label gives no budget (0 pages).
+  LABEL_PROBLEM_NO_BUDGET = 3;
+}
+
+// A stack, judged as a whole.
+message StackReport {
+  // The stack folder's name, for example "auth".
+  string name = 1;
+  // Unset when the label is missing or can't be read.
+  StackLabel label = 2;
+  LabelProblem label_problem = 3;
+  // In stack order: by file name without the `.md` extension.
+  repeated StackPage pages = 4;
+  // Pages counted by paper: A4 1, A5 0.5, A6 0.25.
+  double pages_used = 5;
+  // Pages over the budget; 0 when within it or without a budget.
+  double over_by_pages = 6;
+  // FAIL when over budget or a page is over its size; WARN when there is no
+  // budget or lines repeat across pages; PASS otherwise.
+  LintOutcome outcome = 7;
+  repeated RepeatedLine repeated_lines = 8;
+}
+
+// Every stack in a folder, in name order: what `a4 stacks --json` prints.
+message StackList {
+  repeated StackReport stacks = 1;
+  // True when a folder scan stopped at its entry limit, so stacks may be missing.
+  bool partial = 2;
 }

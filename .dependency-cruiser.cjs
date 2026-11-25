@@ -130,7 +130,7 @@ module.exports = {
     ),
     layer(
       "desk",
-      ["page", "analysis", "persist", "platform", "gen"],
+      ["page", "analysis", "persist", "platform", "gen", "tensor"],
       "The headless desk judges pages and lints context files without a browser: the page, the analysis, and the folder walk.",
     ),
     {
@@ -145,7 +145,7 @@ module.exports = {
       name: "cli-through-index",
       severity: "error",
       comment:
-        "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk and the desk modules the app's first load leaves out (lint, the mailroom).",
+        "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk and the desk modules the app's first load leaves out (lint, the mailroom, the X-ray).",
       from: { path: "^cli/", pathNot: NOT_TESTS },
       to: {
         path: "^lib/",
@@ -154,6 +154,7 @@ module.exports = {
           "^lib/persist/folder/fs-node\\.ts$",
           "^lib/desk/lint\\.ts$",
           "^lib/desk/mailroom\\.ts$",
+          "^lib/desk/xray\\.ts$",
         ],
       },
     },

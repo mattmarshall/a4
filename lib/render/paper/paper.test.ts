@@ -1,20 +1,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { PRESETS, layoutRows, PAPER_H, PAPER_W, cellAt } from "../../page/index.ts";
+import { PRESETS, layoutRows, cellAt, pageSpec } from "../../page/index.ts";
+import { paintFrame } from "../paint/frame.ts";
+import { pageModel } from "../paint/model.ts";
 import { FOLD_DURATION, FOLD_TIMELINE, foldPoseAt } from "./animation.ts";
 import { camera, projectToNdc, rayFromNdc } from "./camera.ts";
 import {
+  A4,
   buildMesh,
   CURL_DIR,
   curlLinePoint,
   deform,
   deformMesh,
   FLAT,
-  HINGE_BOTTOM,
-  HINGE_TOP,
+  folds,
   withPose,
   type Pose,
 } from "./deform.ts";
+
+// The A4 tests, unchanged from before paper sizes: A4 is the paper here.
+const PAPER_W = A4.w;
+const PAPER_H = A4.h;
+const { hingeTop: HINGE_TOP, hingeBottom: HINGE_BOTTOM } = folds(A4);
 import { caretCell, caretOffset, raycast } from "./pick.ts";
 
 const T = PRESETS.terminal;
@@ -28,7 +35,7 @@ const POSES: Record<string, Pose> = {
   "curl 1": { foldBottom: 0, foldTop: 0, curl: 1 },
 };
 
-const at = (x: number, y: number, pose: Pose) => deform(x, y, pose).world;
+const at = (x: number, y: number, pose: Pose) => deform(x, y, pose, A4).world;
 const diff = (a: number[], b: number[]) => a.map((v, i) => v - b[i]);
 const len = (a: number[]) => Math.hypot(...a);
 const dot = (a: number[], b: number[]) => a.reduce((s, v, i) => s + v * b[i], 0);
@@ -97,7 +104,7 @@ test("fully folded: the sheet covers one third and panels never pass through eac
 
 test("the curl only moves points past its line, and lifts the corner", () => {
   const pose = POSES["curl 0.5"];
-  const [lx, ly] = curlLinePoint(0.5);
+  const [lx, ly] = curlLinePoint(0.5, A4);
   for (let x = 0; x <= PAPER_W; x += 10) {
     for (let y = 0; y <= PAPER_H; y += 10) {
       const s = (x - lx) * CURL_DIR[0] + (y - ly) * CURL_DIR[1];
@@ -135,8 +142,8 @@ test("a ray through a cell on a curled, tilted sheet picks that cell", () => {
     [POSES["mid letter fold"], 25, -20],
     [FLAT, 0, 0],
   ] as const) {
-    const positions = deformMesh(mesh, pose);
-    const cam = camera({ tilt, yaw, aspect: 0.8 });
+    const positions = deformMesh(mesh, pose, A4);
+    const cam = camera({ paper: A4, tilt, yaw, aspect: 0.8 });
     for (const [row, col] of [
       [3, 10],
       [0, 0],
@@ -145,7 +152,7 @@ test("a ray through a cell on a curled, tilted sheet picks that cell", () => {
       const [x, y] = centerOf(row, col);
       const [ndcX, ndcY] = projectToNdc(cam, at(x, y, pose));
       const { origin, dir } = rayFromNdc(cam, ndcX, ndcY);
-      const hit = raycast(mesh, positions, origin, dir);
+      const hit = raycast(mesh, positions, origin, dir, A4);
       assert.ok(hit, `no hit for row ${row} col ${col} (tilt ${tilt})`);
       assert.deepEqual(cellAt(hit.x, hit.y, T), { row, col });
       assert.equal(caretOffset(ROWS, TEXT.length, row, col), ROWS[row].start + col);
@@ -156,12 +163,12 @@ test("a ray through a cell on a curled, tilted sheet picks that cell", () => {
 test("cells on the curled corner itself are picked exactly", () => {
   const mesh = buildMesh();
   const pose = POSES["curl 0.5"];
-  const positions = deformMesh(mesh, pose);
+  const positions = deformMesh(mesh, pose, A4);
   // The roll's outer surface (the back of the paper) faces the corner, so the
   // printed, rising part of the curl is only visible looking into the roll
   // from the opposite (top-left) side.
-  const cam = camera({ tilt: 55, yaw: -140, aspect: 0.8 });
-  const [lx, ly] = curlLinePoint(pose.curl);
+  const cam = camera({ paper: A4, tilt: 55, yaw: -140, aspect: 0.8 });
+  const [lx, ly] = curlLinePoint(pose.curl, A4);
   let tested = 0;
   for (let row = 40; row < T.rows; row += 2) {
     for (let col = 50; col < T.cols; col += 3) {
@@ -170,7 +177,7 @@ test("cells on the curled corner itself are picked exactly", () => {
       if (s < 6 || s > 20) continue; // on the rising part of the curl, still facing up
       const [ndcX, ndcY] = projectToNdc(cam, at(x, y, pose));
       const { origin, dir } = rayFromNdc(cam, ndcX, ndcY);
-      const hit = raycast(mesh, positions, origin, dir);
+      const hit = raycast(mesh, positions, origin, dir, A4);
       assert.ok(hit, `no hit on the curl at row ${row} col ${col}`);
       assert.deepEqual(cellAt(hit.x, hit.y, T), { row, col });
       tested++;
@@ -182,28 +189,28 @@ test("cells on the curled corner itself are picked exactly", () => {
 test("from the front, the roll hides the curl's printed side, so it is not pickable", () => {
   const mesh = buildMesh();
   const pose = POSES["curl 0.5"];
-  const positions = deformMesh(mesh, pose);
-  const cam = camera({ tilt: 35, yaw: 10, aspect: 0.8 });
-  const [lx, ly] = curlLinePoint(pose.curl);
+  const positions = deformMesh(mesh, pose, A4);
+  const cam = camera({ paper: A4, tilt: 35, yaw: 10, aspect: 0.8 });
+  const [lx, ly] = curlLinePoint(pose.curl, A4);
   const [x, y] = [lx + CURL_DIR[0] * 12, ly + CURL_DIR[1] * 12];
   const [ndcX, ndcY] = projectToNdc(cam, at(x, y, pose));
   const { origin, dir } = rayFromNdc(cam, ndcX, ndcY);
-  assert.equal(raycast(mesh, positions, origin, dir), null);
+  assert.equal(raycast(mesh, positions, origin, dir, A4), null);
 });
 
 test("the back of a folded panel and the desk are not pickable", () => {
   const mesh = buildMesh();
   const pose = POSES["full letter fold"];
-  const positions = deformMesh(mesh, pose);
-  const cam = camera({ tilt: 0, yaw: 0, aspect: 0.8 });
+  const positions = deformMesh(mesh, pose, A4);
+  const cam = camera({ paper: A4, tilt: 0, yaw: 0, aspect: 0.8 });
   // Looking straight down at the folded letter shows the back of the top panel.
   const [ndcX, ndcY] = projectToNdc(cam, [0, 6, 0]);
   const down = rayFromNdc(cam, ndcX, ndcY);
-  assert.equal(raycast(mesh, positions, down.origin, down.dir), null);
+  assert.equal(raycast(mesh, positions, down.origin, down.dir, A4), null);
   // A ray toward the desk beside the sheet misses.
   const [dx, dy] = projectToNdc(cam, [PAPER_W, 0, 0]);
   const desk = rayFromNdc(cam, dx, dy);
-  assert.equal(raycast(mesh, deformMesh(mesh, FLAT), desk.origin, desk.dir), null);
+  assert.equal(raycast(mesh, deformMesh(mesh, FLAT, A4), desk.origin, desk.dir, A4), null);
 });
 
 test("cells, margins, and caret offsets", () => {
@@ -250,7 +257,7 @@ test("camera zoom: an untilted sheet spans 210 × pxPerMm CSS px", async () => {
   const aspect = 1.2;
   const cssWidth = cssHeight * aspect;
   for (const pxPerMm of [2, 3.7795, 5]) {
-    const cam = camera({ tilt: 0, yaw: 0, aspect, pxPerMm, cssHeight });
+    const cam = camera({ paper: A4, tilt: 0, yaw: 0, aspect, pxPerMm, cssHeight });
     const [l] = projectToNdc(cam, [-PAPER_W / 2, 0, 0]);
     const [r] = projectToNdc(cam, [PAPER_W / 2, 0, 0]);
     const widthPx = ((r - l) / 2) * cssWidth;
@@ -262,8 +269,8 @@ test("the uploaded vertices: the same positions as picking, with unit printed-si
   const { deformAttributes, VERTEX_FLOATS } = await import("./deform.ts");
   const mesh = buildMesh(24, 40);
   for (const [label, pose] of Object.entries(POSES)) {
-    const attrs = deformAttributes(mesh, pose);
-    const positions = deformMesh(mesh, pose);
+    const attrs = deformAttributes(mesh, pose, A4);
+    const positions = deformMesh(mesh, pose, A4);
     assert.equal(attrs.length, (positions.length / 3) * VERTEX_FLOATS);
     for (let i = 0; i < positions.length / 3; i++) {
       const o = i * VERTEX_FLOATS;
@@ -284,14 +291,103 @@ test("normals: up on flat paper, down on a panel folded over, and creases shade"
     const o = i * VERTEX_FLOATS;
     return { normalY: attrs[o + 4] ?? 0, crease: attrs[o + 6] ?? 0 };
   };
-  const flat = deformAttributes(mesh, FLAT);
+  const flat = deformAttributes(mesh, FLAT, A4);
   for (let i = 0; i < flat.length; i += VERTEX_FLOATS) {
     assert.ok(Math.abs((flat[i + 4] ?? 0) - 1) < 1e-6);
     assert.equal(flat[i + 6], 0);
   }
-  const folded = deformAttributes(mesh, { foldBottom: 1, foldTop: 0, curl: 0 });
+  const folded = deformAttributes(mesh, { foldBottom: 1, foldTop: 0, curl: 0 }, A4);
   assert.ok(vertex(folded, 0.5, 0.95).normalY < -0.99, "the bottom third, folded over, faces the desk");
   assert.ok(vertex(folded, 0.5, 0.3).normalY > 0.99, "the top stays face up");
   const creased = [...Array(mesh.ny + 1).keys()].some((j) => vertex(folded, 0.5, j / mesh.ny).crease === 1);
   assert.ok(creased, "vertices on the crease arc are shaded");
+});
+
+// ---------------------------------------------------------------------------
+// Down the fold ladder: the same paper physics on A5 and A6.
+
+const LADDER = [
+  { label: "A5", paper: { w: 148, h: 210 }, spec: pageSpec("terminal", "a5"), hinges: [70, 140] },
+  { label: "A6", paper: { w: 105, h: 148 }, spec: pageSpec("terminal", "a6"), hinges: [148 / 3, (2 * 148) / 3] },
+] as const;
+
+test("A5 and A6: every pose is an isometry within 0.5%", () => {
+  const e = 0.01;
+  for (const { label, paper } of LADDER) {
+    for (const [name, pose] of Object.entries(POSES)) {
+      for (let x = 1; x < paper.w; x += 6.1) {
+        for (let y = 1; y < paper.h; y += 3.7) {
+          const p = deform(x, y, pose, paper).world;
+          const dx = diff(deform(x + e, y, pose, paper).world, p);
+          const dy = diff(deform(x, y + e, pose, paper).world, p);
+          assert.ok(Math.abs(len(dx) / e - 1) < 0.005, `${label} ${name} x-stretch at (${x}, ${y})`);
+          assert.ok(Math.abs(len(dy) / e - 1) < 0.005, `${label} ${name} y-stretch at (${x}, ${y})`);
+          assert.ok(Math.abs(dot(dx, dy)) / (e * e) < 0.005, `${label} ${name} shear at (${x}, ${y})`);
+        }
+      }
+    }
+  }
+});
+
+test("A5 and A6: the letter fold creases at thirds of the sheet, and panels never intersect", () => {
+  for (const { label, paper, hinges } of LADDER) {
+    const { hingeTop, hingeBottom } = folds(paper);
+    assert.ok(Math.abs(hingeTop - hinges[0]) < 1e-9 && Math.abs(hingeBottom - hinges[1]) < 1e-9, label);
+    const pose = POSES["full letter fold"];
+    const zs: number[] = [];
+    const bottom: number[][] = [];
+    const top: number[][] = [];
+    const k = paper.w / A4.w;
+    for (let x = 0; x <= paper.w; x += 7) {
+      for (let y = 0; y <= paper.h; y += 1.5) {
+        const p = deform(x, y, pose, paper).world;
+        zs.push(p[2] + paper.h / 2);
+        if (y > hingeBottom + 6 * k) bottom.push(p);
+        if (y < hingeTop - 12 * k) top.push(p);
+        if (y > hingeBottom + 6 * k || y < hingeTop - 12 * k) assert.ok(p[1] > 2.5 * k, `${label} (${x}, ${y})`);
+      }
+    }
+    assert.ok(Math.max(...zs) - Math.min(...zs) <= paper.h / 3 + 8 * k, `${label} footprint is about one third`);
+    let closest = Infinity;
+    for (const b of bottom) for (const t of top) closest = Math.min(closest, len(diff(b, t)));
+    assert.ok(closest > k, `${label}: top and bottom panels come within ${closest} mm`);
+    // The A4 fold is unchanged: hinges at 99 and 198.
+    assert.deepEqual([folds(A4).hingeTop, folds(A4).hingeBottom], [99, 198]);
+  }
+});
+
+test("A6: a ray through the last row's first cell picks row 29", () => {
+  const { paper, spec } = LADDER[1];
+  const mesh = buildMesh();
+  for (const [pose, tilt, yaw] of [
+    [FLAT, 0, 0],
+    // Tilted, with the opposite corner curled (a folded bottom third shows its back).
+    [POSES["curl 0.5"], 40, 15],
+  ] as const) {
+    const positions = deformMesh(mesh, pose, paper);
+    const cam = camera({ paper, tilt, yaw, aspect: 0.8 });
+    const row = spec.rows - 1;
+    const x = spec.marginX + spec.cellW / 2;
+    const y = spec.marginY + (row + 0.5) * spec.cellH;
+    const [ndcX, ndcY] = projectToNdc(cam, deform(x, y, pose, paper).world);
+    const { origin, dir } = rayFromNdc(cam, ndcX, ndcY);
+    const hit = raycast(mesh, positions, origin, dir, paper);
+    assert.ok(hit, `no hit (tilt ${tilt})`);
+    assert.deepEqual(cellAt(hit.x, hit.y, spec), { row: 28, col: 0 }, "row 29 of 29, counting from 1");
+  }
+});
+
+test("the paint texture has its paper's shape", () => {
+  for (const spec of [PRESETS.terminal, ...LADDER.map((l) => l.spec)]) {
+    const frame = paintFrame(pageModel("Hello.", spec, "ink"), {
+      fontFamily: "monospace",
+      pxPerMm: 6,
+      selection: { start: 0, end: 0, focused: false },
+      overflow: false,
+      grid: false,
+      chrome: "texture",
+    });
+    assert.ok(Math.abs(frame.height / frame.width - spec.paperH / spec.paperW) < 0.01, spec.paper);
+    assert.equal(frame.width, Math.round(spec.paperW * 6));
+  }
 });

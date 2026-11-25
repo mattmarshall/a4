@@ -48,6 +48,9 @@ pnpm dev          # http://localhost:5173
 | `pnpm check` | lint, test, typecheck, proto:check, build, check:bundle, and build:element |
 | `pnpm a4 lint [path ...] [--strict] [--exclude <glob>] [--json]` | Check context files and letters against one page (see "Page lint") |
 | `pnpm a4 letters [folder] [--latest \| --json]` | List a folder's letters, or print the newest accepted one (see "Letters") |
+| `pnpm a4 stacks [folder] [--json]` | List a folder's stacks with their page budgets (see "Stacks") |
+| `pnpm a4 stack <name> [folder] [--letter]` | Print a stack's pages, with the latest letter on top, for a session-start hook |
+| `pnpm a4 xray [folder] [--budget <pages>] [--json]` | Count what Claude Code loads before its first turn, in pages (see "Context X-ray") |
 | `pnpm a4 mailroom [folder]` | Serve a folder's letters to an agent over MCP on stdio (see "Mailroom") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
@@ -222,6 +225,7 @@ both edit the same text.
 | `value` | Initial text. After that, use the `value` property. |
 | `render` | `auto` (3D when WebGPU is available, the default), `3d`, or `flat` |
 | `preset` | `terminal`, `pica`, `elite`, `dense` |
+| `size` | `a4` (the default), `a5`, or `a6`: the paper, down the fold ladder (see "Page sizes") |
 | `lens` | `ink`, `syntax`, `repetition`, `structure`, `tokens`, or `model:<name>` for a plane set with `setPlane` |
 | `fold-bottom`, `fold-top`, `curl` | 0 to 1. Curl and folds are exclusive. |
 | `tilt`, `turn`, `light` | 0–65°, −180–180°, and light azimuth in degrees |
@@ -259,8 +263,17 @@ the sheet under another tag too; each extra name gets its own subclass.
   `a4-posechange` (the pose after `fold()`).
 - **Styling hooks**: `--a4-font`, `--a4-desk`, `--a4-3d-height`,
   `--a4-radius`, and `--a4-shadow`.
-- **Print**: each element prints as one true-size A4 page of plain black text
-  at the preset's cell size and margins, whatever its rendering or pose.
+- **Print**: each element prints as one true-size page of its paper (A4, A5,
+  or A6) of plain black text at the preset's cell size and margins, whatever
+  its rendering or pose. Each sheet asks for the named page of its size
+  (`page: a4`, `a5`, or `a6`), so a page that prints sheets of mixed sizes
+  declares them:
+
+  ```css
+  @page a4 { size: a4; margin: 0; }
+  @page a5 { size: a5; margin: 0; }
+  @page a6 { size: 105mm 148mm; margin: 0; }
+  ```
 - **Demo**: `/element` shows two elements built from plain HTML markup.
 - **React**: `components/A4Sheet.tsx` wraps the element. It defines it on the
   client, writes each prop's attribute whenever the prop changes (so a reset
@@ -679,6 +692,36 @@ Safari and Firefox, the Pages panel says so, and the library works as before.
   While Chrome saves a file, a temporary `<file>.crswap` appears next to it
   for a moment.
 
+## Page sizes
+
+A-series paper halves when folded and keeps its shape, and so does a page.
+Each fold halves the paper; cells keep their size, so text reads at the same
+point size, and the margins shrink with the paper.
+
+| Size | Paper | Terminal grid | Cells | Token ceiling |
+| --- | --- | --- | --- | --- |
+| A4, a page | 210 × 297 mm | 80 × 60 | 4,800 | ≈1,200 |
+| A5, a card | 148 × 210 mm | 56 × 42 | 2,352 | ≈588 |
+| A6, a postcard | 105 × 148 mm | 40 × 29 | 1,160 | ≈290 |
+
+- **A page's size comes from its name.** A name ending in `.a5` or `.a6`
+  before its extension, such as `auth-card.a5.md` or the library page
+  "Deploy note.a6", is that size. Every other page is A4, so `CLAUDE.md` and
+  `AGENTS.md` always are.
+- **Everywhere a page is judged:**
+  - the sheet in 3D and flat;
+  - print, at true size;
+  - the inspector's rows and token ceiling;
+  - Compare, where each sheet keeps its own size, shown true to scale beside
+    the other;
+  - `a4 lint`, letters (an A5 letter is a card), and stacks;
+  - the mailroom's `size`;
+  - Fit to page, which fits a card to 42 rows.
+- **The other presets fold too.** Pica, Elite, and Dense derive their A5 and
+  A6 grids the same way.
+- **No model folds a page.** You or an agent write the smaller page, and the
+  desk says whether it fits.
+
 ## Page lint
 
 `a4 lint` checks a repository's agent context files against one page from the
@@ -701,15 +744,21 @@ warn   6/60  Noisy        packages/api/CLAUDE.md — 37% of the ink is syntax
   - Given a folder (the current directory by default), it checks the context
     files the folder view lists, at any depth: `AGENTS.md`, `CLAUDE.md`,
     `SKILL.md`, and the rest. It also checks the letters in
-    `.agents/letters/` (see "Letters").
+    `.agents/letters/` (see "Letters") and the stack pages in
+    `.agents/stacks/` (see "Stacks"), and judges each stack's budget.
   - It skips the same folders as the folder view, and stops after 20,000
     entries, saying so on stderr.
   - A file named on the command line is checked whatever its name.
-  - Each file is measured as the sheet shows it, on the 80 × 60 Terminal page.
-    Tabs count as two spaces, and CRLF as a newline.
+  - Each file is measured as the sheet shows it, on the Terminal page of its
+    size: 80 × 60 for A4, or 56 × 42 and 40 × 29 for a card (`.a5.md`) and a
+    postcard (`.a6.md`; see "Page sizes"). Tabs count as two spaces, and CRLF
+    as a newline.
 - **Pass and fail:**
-  - A file **fails** when it uses more than 60 rows. Trailing blank lines
-    don't count.
+  - A file **fails** when it uses more rows than its size holds (60, 42, or
+    29). Trailing blank lines don't count.
+  - A stack **fails** when it's over its page budget or a page is over its
+    size, and **warns** without a budget or when a line repeats across its
+    pages.
   - A Noisy or Busy file **warns**. With `--strict`, it fails too.
   - A file over 1 MiB, or one that isn't UTF-8, fails with its reason.
 - **Each line shows** the outcome, the rows used, the verdict, the path, and
@@ -821,6 +870,108 @@ session starts from the newest accepted letter.
     exclusively, so two processes can't both write one.
   - The sheet's `readonly` attribute keeps sealed letters from being edited.
 
+## Stacks
+
+A stack is the pile of pages an agent is handed: a charter, a brief, a few
+entity cards. It has a page budget, and A4 counts it in paper.
+
+```
+.agents/stacks/auth/
+  stack.json          {"purpose": "Start an agent on the auth service", "budgetPages": 3}
+  01-charter.md       A4: 1 page
+  02-service.a5.md    A5 card: half a page
+  03-owners.a6.md     A6 postcard: a quarter
+```
+
+- **Where they live:**
+  - A stack is a folder directly in `.agents/stacks/`, named with lowercase
+    letters, digits, and single hyphens (at most 40 characters).
+  - Its pages are the `.md` files directly inside it, in name order (without
+    the `.md`, as letters sort), so number them. Subfolders aren't pages.
+  - A sheet lies on one stack only. Write each page for its stack's reader.
+- **The label:** `stack.json` is an `a4.v1.StackLabel` (`proto/a4/v1/stack.proto`)
+  in proto3 JSON, with the stack's `purpose` and its `budgetPages`, a whole
+  number of pages.
+- **Counting:** an A4 page counts as 1, an A5 card as 0.5, and an A6 postcard
+  as 0.25, whatever its rows. Each page is judged on its own size.
+- **Judging:**
+  - A stack **fails** when it uses more pages than its budget, or a page is
+    over its size or can't be read.
+  - It **warns** without a label or budget, or when a line of 20 or more
+    characters appears on two pages. A stack says each thing once.
+- **In the app:** the Pages panel lists stacks in a **Stacks** group after
+  Letters, with each stack's pages used out of its budget and its pages in
+  order, each with its size and rows.
+- **From the command line:**
+  - `pnpm a4 stacks [folder]` lists stacks with their use, purpose, and
+    problems; `--json` prints an `a4.v1.StackList`, without page text.
+  - `pnpm a4 stack <name> [folder]` prints the stack's pages' exact text in
+    order, each after a `--- <file name> ---` line. `--letter` puts the
+    newest accepted letter on top. A failing stack is still printed, with its
+    problems on stderr, and the command exits 0.
+  - `a4 lint` judges each stack too (see "Page lint").
+  - Like `a4 letters`, they only read and make no network request.
+
+  A session-start hook can hand an agent its stack and the latest letter. In
+  Claude Code, in `.claude/settings.json`:
+
+  ```json
+  {
+    "hooks": {
+      "SessionStart": [
+        { "hooks": [{ "type": "command", "command": "node ~/src/a4/cli/a4.ts stack auth --letter" }] }
+      ]
+    }
+  }
+  ```
+
+## Context X-ray
+
+`a4 xray` shows what a coding agent carries before its first turn, counted in
+pages. It follows Claude Code's loading rules and reads only files.
+
+```
+$ pnpm a4 xray
+Claude Code loads these files before its first turn in “.”:
+source  rows  pages  verdict      path
+user      24    0.4  Balanced     ~/.claude/CLAUDE.md
+project   90    1.5  Overflowing  CLAUDE.md
+import    12    0.2  Light        docs/agents.md  (imported by CLAUDE.md)
+skills    79   1.32  Overflowing  23 skill descriptions
+Before its first turn, Claude Code loads 3.42 pages (≈3,000 tokens) from 4 sources.
+```
+
+- **What it reads, in load order:**
+  - the managed policy `CLAUDE.md` for your operating system, then
+    `~/.claude/CLAUDE.md` and the rules in `~/.claude/rules/`;
+  - `CLAUDE.md`, `.claude/CLAUDE.md`, and `CLAUDE.local.md` in each folder
+    from the filesystem root down to this one (`AGENTS.md` and
+    `.claude/AGENTS.md` instead when there are none);
+  - the folder's `.claude/rules/`;
+  - every `@path` import, after the file that first imports it, up to four
+    hops;
+  - auto memory's `MEMORY.md` (its first 200 lines, at most 25 KB);
+  - one index each for skill and subagent names and descriptions.
+- **What it leaves out:**
+  - rules with `paths` and `CLAUDE.md` files below the folder, which load
+    only when the agent touches a matching file;
+  - skills with `disable-model-invocation: true`.
+- **What it can't count,** and says so: the system prompt, tool and MCP
+  definitions, plugins, output styles, and session-start hook output. It
+  measures files as written, so HTML comments the agent strips count.
+- **Pages** are each source's rows on the A4 Terminal page divided by 60.
+- **Options:**
+  - `--budget <pages>` exits 1 when the total is over, for CI.
+  - `--json` prints an `a4.v1.ContextXray` (`proto/a4/v1/xray.proto`).
+- **Privacy:** it reads your home folder and the repository on the device,
+  prints paths and numbers (paths under your home as `~/…`), and never prints
+  a file's text.
+- **This repository**, on the maintainer's machine, starts an agent with
+  about 2.2 pages:
+  - a user `CLAUDE.md`;
+  - an `AGENTS.md` in a folder above the checkout;
+  - 23 skill descriptions, which alone take 1.3 pages.
+
 ## Mailroom
 
 `a4 mailroom` is a local MCP server for one repository's letters. An agent
@@ -830,8 +981,8 @@ coding agent, a harness, or a review system.
 
 | Tool | Annotations | What it does |
 | --- | --- | --- |
-| `lint_page` | `readOnlyHint: true` | Judges text on the 80 × 60 page, like `a4 lint`. It returns rows used, rows over, the verdict, and findings, and writes nothing. |
-| `write_letter` | `readOnlyHint: false`, `destructiveHint: false` | Files `text` as a new draft, `.agents/letters/<UTC YYYY-MM-DD-HHMM>-<topic>.md` (topic default `letter`). It doesn't file a letter over 60 rows; the agent gets the rows over and the findings, and rewrites. It never writes over a file: a taken name gets `-2` to `-9`. |
+| `lint_page` | `readOnlyHint: true` | Judges text on the 80 × 60 page, like `a4 lint`, or on a card or postcard with `size` (`a5`, `a6`). It returns rows used, rows over, the verdict, and findings, and writes nothing. |
+| `write_letter` | `readOnlyHint: false`, `destructiveHint: false` | Files `text` as a new draft, `.agents/letters/<UTC YYYY-MM-DD-HHMM>-<topic>.md` (topic default `letter`). With `size` `a5` or `a6` it files a card or a postcard, `…-<topic>.a5.md`. It doesn't file a letter over its size's rows (60, 42, or 29); the agent gets the rows over and the findings, and rewrites. It never writes over a file: a taken name gets `-2` to `-9`. |
 | `read_letter` | `readOnlyHint: true` | Returns the letter `a4 letters --latest` delivers: the newest accepted letter with its seal intact, its signer and digest, and a note for each letter returned since. Given a `digest`, it returns that letter if it was accepted, or else says its state. It never returns a draft's text. |
 
 - **No tool seals.** Agents write, people seal, in the app's seal dialog.

@@ -14,11 +14,14 @@ import {
   LintReportSchema,
   Unreadable,
 } from "../gen/a4/v1/lint_pb.js";
+import { sizeOfName } from "../page/index.ts";
 import type { FolderFs } from "../persist/folder/fs.ts";
-import { isContextFile } from "../persist/folder/scan.ts";
+import { isContextFile, stackOfPath } from "../persist/folder/scan.ts";
 import { decodeStrict, MAX_FILE_BYTES, SCAN_ENTRY_LIMIT, walkFolder } from "../persist/store/folder.ts";
+import { paperEnum } from "../tensor/record.ts";
 import { DESK_PAGE, judgeFile, type Judgment, type Outcome, outcomeOf } from "./judge.ts";
 import { isLetterPath } from "./letters.ts";
+import { readStacks, type StackReport } from "./stacks.ts";
 
 export type { LintedFile, LintReport } from "../gen/a4/v1/lint_pb.js";
 export { LintedFileSchema, LintOutcome, LintReportSchema, Unreadable } from "../gen/a4/v1/lint_pb.js";
@@ -55,9 +58,11 @@ export async function lintFile(
   if (bytes === null) return unreadable(label, Unreadable.TOO_LARGE);
   const text = decodeStrict(bytes);
   if (text === null) return unreadable(label, Unreadable.NOT_UTF8);
-  const judgment = judgeFile(text);
+  const paper = sizeOfName(path);
+  const judgment = judgeFile(text, paper);
   const file = create(LintedFileSchema, {
     path: label,
+    paper: paperEnum(paper),
     outcome: OUTCOME[outcomeOf(judgment, options)],
     report: judgment.report,
   });
@@ -65,7 +70,15 @@ export async function lintFile(
 }
 
 function unreadable(path: string, reason: Unreadable): LintResult {
-  return { file: create(LintedFileSchema, { path, outcome: LintOutcome.FAIL, unreadable: reason }), judgment: null };
+  return {
+    file: create(LintedFileSchema, {
+      path,
+      outcome: LintOutcome.FAIL,
+      unreadable: reason,
+      paper: paperEnum(sizeOfName(path)),
+    }),
+    judgment: null,
+  };
 }
 
 export interface LintFolderOptions extends LintOptions {
@@ -76,17 +89,20 @@ export interface LintFolderOptions extends LintOptions {
 }
 
 export interface FolderLint {
-  /** One per context file, sorted by path. */
+  /** One per context file, letter, and stack page, sorted by path. */
   readonly results: readonly LintResult[];
+  /** Each stack, judged as a whole, in name order. */
+  readonly stacks: readonly StackReport[];
   /** True when the walk stopped at its entry limit. */
   readonly partial: boolean;
 }
 
-/** Lint every context file and letter in `fs`. */
+/** Lint every context file, letter, and stack page in `fs`, and judge each stack. */
 export async function lintFolder(fs: FolderFs, options: LintFolderOptions = {}): Promise<FolderLint> {
   const walk = await walkFolder(fs, options.limit ?? SCAN_ENTRY_LIMIT);
+  const checked = (path: string) => isContextFile(path) || isLetterPath(path) || stackOfPath(path) !== null;
   const paths = walk.files
-    .filter((path) => (isContextFile(path) || isLetterPath(path)) && !options.exclude?.(path))
+    .filter((path) => checked(path) && !options.exclude?.(path))
     // By code unit, not locale, so the order is the same on every machine.
     .sort((a, b) => Number(a > b) - Number(a < b));
   const results: LintResult[] = [];
@@ -97,23 +113,25 @@ export async function lintFolder(fs: FolderFs, options: LintFolderOptions = {}):
       // Gone since the walk, as the folder view treats it.
     }
   }
-  return { results, partial: walk.partial };
+  const stacks = (await readStacks(fs)).map((s) => s.report);
+  return { results, stacks, partial: walk.partial };
 }
 
 /** The `a4.v1.LintReport` for `results`, judged on the desk's page. */
 export function lintReport(
   results: readonly LintResult[],
-  options: { readonly partial: boolean; readonly strict: boolean },
+  options: { readonly partial: boolean; readonly strict: boolean; readonly stacks?: readonly StackReport[] },
 ): LintReport {
   return create(LintReportSchema, {
     preset: DESK_PAGE.id,
     files: results.map((r) => r.file),
     partial: options.partial,
     strict: options.strict,
+    stacks: [...(options.stacks ?? [])],
   });
 }
 
-/** True when any file failed. */
-export function lintFailed(results: readonly LintResult[]): boolean {
-  return results.some((r) => r.file.outcome === LintOutcome.FAIL);
+/** True when any file or stack failed. */
+export function lintFailed(results: readonly LintResult[], stacks: readonly StackReport[] = []): boolean {
+  return results.some((r) => r.file.outcome === LintOutcome.FAIL) || stacks.some((s) => s.outcome === LintOutcome.FAIL);
 }

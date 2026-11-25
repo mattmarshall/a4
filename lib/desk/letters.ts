@@ -22,10 +22,12 @@ import {
   type Postmark,
   PostmarkSchema,
 } from "../gen/a4/v1/letter_pb.js";
+import { type PaperId, sizeOfName } from "../page/index.ts";
 import { FsError, type FolderFs, isFsError } from "../persist/folder/fs.ts";
 import { isLetterPath, LETTERS_DIR } from "../persist/folder/scan.ts";
 import { decodeStrict, MAX_FILE_BYTES } from "../persist/store/folder.ts";
 import { sha256 } from "../platform/digest.ts";
+import { paperEnum } from "../tensor/record.ts";
 import { judgeFile } from "./judge.ts";
 
 export type { Letter, LetterList, Postmark } from "../gen/a4/v1/letter_pb.js";
@@ -41,11 +43,13 @@ export { isLetterPath, LETTERS_DIR } from "../persist/folder/scan.ts";
  * they were written. The topic is the caller's to check (the mailroom allows
  * only a-z, 0-9, and inner hyphens).
  */
-export function letterPathAt(now: number, n = 1, topic = "letter"): string {
+export function letterPathAt(now: number, n = 1, topic = "letter", paper: PaperId = "a4"): string {
   const t = new Date(now);
   const two = (v: number) => String(v).padStart(2, "0");
   const stamp = `${t.getUTCFullYear()}-${two(t.getUTCMonth() + 1)}-${two(t.getUTCDate())}-${two(t.getUTCHours())}${two(t.getUTCMinutes())}`;
-  return `${LETTERS_DIR}/${stamp}-${topic}${n > 1 ? `-${n}` : ""}.md`;
+  // A card or a postcard says its size in its name, before the extension.
+  const size = paper === "a4" ? "" : `.${paper}`;
+  return `${LETTERS_DIR}/${stamp}-${topic}${n > 1 ? `-${n}` : ""}${size}.md`;
 }
 
 /**
@@ -107,10 +111,12 @@ async function readOne(fs: FolderFs, name: string): Promise<ReadLetter> {
   const path = `${LETTERS_DIR}/${name}`;
   const { bytes } = await fs.readBytes(path, { maxBytes: MAX_FILE_BYTES });
   const text = bytes ? decodeStrict(bytes) : null;
-  const rowsUsed = text === null ? 0 : judgeFile(text).fit.rowsUsed;
+  const size = sizeOfName(name);
+  const rowsUsed = text === null ? 0 : judgeFile(text, size).fit.rowsUsed;
   // Only a readable letter has a digest: one over 1 MiB or not UTF-8 can't be delivered or matched.
   const digest = bytes === null || text === null ? null : await letterDigest(bytes);
-  const row = (init: MessageInitShape<typeof LetterSchema>) => create(LetterSchema, { path, rowsUsed, ...init });
+  const row = (init: MessageInitShape<typeof LetterSchema>) =>
+    create(LetterSchema, { path, rowsUsed, paper: paperEnum(size), ...init });
   if (!(await fs.stat(postmarkPath(path)))) return { letter: row({ state: LetterState.DRAFT }), text, digest };
   const sidecar = await fs.readBytes(postmarkPath(path), { maxBytes: MAX_POSTMARK_BYTES });
   const postmark = parsePostmark(sidecar.bytes, name);
@@ -244,7 +250,7 @@ export async function sealLetter(fs: FolderFs, path: string, options: SealOption
     throw new SealRefusedError("unreadable", `“${path}” isn’t UTF-8 text of at most 1 MiB.`);
   }
   if (options.verdict === "accepted") {
-    const { fit } = judgeFile(text);
+    const { fit } = judgeFile(text, sizeOfName(path));
     if (!fit.fits) {
       throw new SealRefusedError(
         "over-page",

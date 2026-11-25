@@ -10,6 +10,7 @@ syntax = "proto3";
 
 package a4.v1;
 
+import "a4/v1/sheet.proto";
 import "google/protobuf/timestamp.proto";
 
 message Postmark {
@@ -43,10 +44,13 @@ message Letter {
   LetterState state = 2;
   // Unset for a draft, or when the postmark can't be read.
   Postmark postmark = 3;
-  // Rows used on the 80 x 60 Terminal page.
+  // Rows used on the Terminal page of its size (80 x 60 on A4).
   uint32 rows_used = 4;
   // Why the seal is broken, when the state is LETTER_STATE_BROKEN.
   BrokenSeal broken = 5;
+  // The letter's size, from its name: a `.a5` letter is a card and a `.a6`
+  // letter a postcard, judged on that paper.
+  PaperSize paper = 6;
 }
 
 enum LetterState {

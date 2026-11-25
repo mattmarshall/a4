@@ -3,7 +3,6 @@
  * orbit camera used by the paper view.
  */
 
-import { PAPER_H, PAPER_W } from "../../page/index.ts";
 import type { Vec3 } from "./deform.ts";
 
 export type Mat4 = Float32Array;
@@ -103,6 +102,8 @@ export interface CameraOptions {
   pxPerMm?: number | null;
   /** The canvas's CSS height in pixels (for `pxPerMm`). */
   cssHeight?: number;
+  /** The sheet's width and height in mm, to fit it. */
+  paper: { readonly w: number; readonly h: number };
 }
 
 export interface Camera {
@@ -113,12 +114,12 @@ export interface Camera {
 
 export const FOV_Y = (30 * Math.PI) / 180;
 
-export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight }: CameraOptions): Camera {
+export function camera({ tilt, yaw, aspect, pxPerMm, cssHeight, paper }: CameraOptions): Camera {
   const t = (tilt * Math.PI) / 180;
   const w = (yaw * Math.PI) / 180;
   const margin = 18;
-  const fitH = (PAPER_H / 2 + margin) / Math.tan(FOV_Y / 2);
-  const fitW = (PAPER_W / 2 + margin) / (Math.tan(FOV_Y / 2) * aspect);
+  const fitH = (paper.h / 2 + margin) / Math.tan(FOV_Y / 2);
+  const fitW = (paper.w / 2 + margin) / (Math.tan(FOV_Y / 2) * aspect);
   const dist = pxPerMm && cssHeight ? cssHeight / (2 * Math.tan(FOV_Y / 2) * pxPerMm) : Math.max(fitH, fitW);
   const eye: Vec3 = [dist * Math.sin(t) * Math.sin(w), dist * Math.cos(t), dist * Math.sin(t) * Math.cos(w)];
   const target: Vec3 = [0, 0, 0];

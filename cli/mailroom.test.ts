@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { ANALYSIS_TEXTS } from "../lib/analysis/testing/texts.ts";
 import { latestDelivery, LetterState, readLetters, sealLetter } from "../lib/desk/index.ts";
+import { PaperSize } from "../lib/gen/a4/v1/sheet_pb.js";
 import { FiledLetterSchema, LetterDeliverySchema, PageCheckSchema } from "../lib/desk/mailroom.ts";
 import type { FolderFs } from "../lib/persist/index.ts";
 import { nodeFixture } from "../lib/persist/folder/testing/fixtures.ts";
@@ -289,5 +290,39 @@ test("prompts: one letter prompt holding the Handoff form", async () => {
     assert.match(text, /write_letter, with the topic "auth"/);
     assert.match(text, /lint_page/);
     assert.equal((await call(mailroom, "prompts/get", { name: "other" })).error?.code, -32602);
+  });
+});
+
+test("sizes: a card is checked on 42 rows, filed as .a5.md, and a postcard over 29 rows isn't filed", async () => {
+  await withMailroom({}, async (mailroom, fs, text) => {
+    const checked = await tool(mailroom, "lint_page", { text: rows(45), size: "a5" });
+    assert.match(allText(checked), /^45 of 42 rows, 3 over: fails/);
+    assert.ok(checked.structuredContent);
+    assert.equal(fromJson(PageCheckSchema, checked.structuredContent).paper, PaperSize.A5);
+
+    const card = await tool(mailroom, "write_letter", { text: rows(30), topic: "auth", size: "a5" });
+    assert.equal(card.isError, undefined);
+    assert.equal(await text(`${DIR}/2026-11-25-0930-auth.a5.md`), rows(30));
+
+    const short = Array.from({ length: 31 }, (_, i) => `Row ${i + 1}.`).join("\n");
+    const postcard = await tool(mailroom, "write_letter", { text: short, topic: "deploy", size: "a6" });
+    assert.equal(postcard.isError, true);
+    assert.match(allText(postcard), /Not filed: the letter is 2 rows over the page/);
+    assert.equal(await fs.stat(`${DIR}/2026-11-25-0930-deploy.a6.md`), null);
+
+    const a3 = await tool(mailroom, "write_letter", { text: rows(10), topic: "big", size: "a3" });
+    assert.equal(a3.isError, true);
+    assert.match(allText(a3), /isn't a size/);
+    assert.equal(await fs.stat(`${DIR}/2026-11-25-0930-big.md`), null);
+  });
+});
+
+test("tools/list: lint_page and write_letter declare the sizes", async () => {
+  await withMailroom({}, async (mailroom) => {
+    const { result } = await call(mailroom, "tools/list");
+    const tools = result?.tools as { name: string; inputSchema: { properties: Record<string, { enum?: string[] }> } }[];
+    for (const name of ["lint_page", "write_letter"]) {
+      assert.deepEqual(tools.find((t) => t.name === name)?.inputSchema.properties.size?.enum, ["a4", "a5", "a6"], name);
+    }
   });
 });

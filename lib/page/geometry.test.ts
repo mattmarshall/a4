@@ -4,8 +4,7 @@ import {
   cellAt,
   cellRect,
   fitScale,
-  PAPER_H,
-  PAPER_W,
+  PAPER_SIZES,
   PIXEL_RATIO_CAP,
   pixelRatio,
   PX_PER_MM_ACTUAL,
@@ -33,8 +32,8 @@ test("cells and paper points convert both ways", () => {
 test("points in the margins are no cell; rows past the page continue below it", () => {
   const t = PRESETS.terminal;
   assert.equal(cellAt(1, 1, t), null);
-  assert.equal(cellAt(PAPER_W - 1, PAPER_H / 2, t), null);
-  assert.equal(cellAt(PAPER_W / 2, PAPER_H - 1, t), null);
+  assert.equal(cellAt(PAPER_SIZES.a4.w - 1, PAPER_SIZES.a4.h / 2, t), null);
+  assert.equal(cellAt(PAPER_SIZES.a4.w / 2, PAPER_SIZES.a4.h - 1, t), null);
   assert.ok(close(rowTop(t, t.rows), t.marginY + t.rows * t.cellH));
 });
 
@@ -65,7 +64,9 @@ test("pixel ratio is capped, and missing means 1", () => {
 });
 
 test("texture density follows the canvas height, between 5 and 10 px per mm", () => {
-  assert.equal(textureDensity(100), 5);
-  assert.equal(textureDensity(2000), 9);
-  assert.equal(textureDensity(10_000), 10);
+  assert.equal(textureDensity(100, 297), 5);
+  assert.equal(textureDensity(2000, 297), 9);
+  assert.equal(textureDensity(10_000, 297), 10);
+  // The same canvas over a shorter sheet shows each millimeter bigger.
+  assert.equal(textureDensity(1000, 148), 9);
 });

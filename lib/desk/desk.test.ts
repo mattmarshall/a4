@@ -4,6 +4,7 @@ import { toJsonString } from "@bufbuild/protobuf";
 import { ANALYSIS_TEXTS } from "../analysis/testing/texts.ts";
 import { fileRows } from "../persist/folder/scan.ts";
 import { browserFixture, nodeFixture, type FolderFixture } from "../persist/folder/testing/fixtures.ts";
+import { PaperSize } from "../gen/a4/v1/sheet_pb.js";
 import { judge, judgeFile, outcomeOf } from "./index.ts";
 import {
   lintFailed,
@@ -183,3 +184,38 @@ function suite<H>(label: string, makeFixture: () => Promise<FolderFixture<H>>) {
 
 suite("browser", async () => browserFixture());
 suite("node", nodeFixture);
+
+test("each file is judged on its own size: a card on 56 x 42, a postcard on 40 x 29", async () => {
+  const seventy = "x".repeat(70);
+  const fixture = await nodeFixture();
+  try {
+    const folder = await fixture.folder("repo", {
+      "docs/auth-card.a5.md": Array.from({ length: 10 }, () => seventy).join("\n"),
+      "note.a6.md": Array.from({ length: 31 }, (_, i) => `Note ${i}.`).join("\n"),
+      "AGENTS.md": Array.from({ length: 10 }, () => seventy).join("\n"),
+    });
+    const fs = fixture.source.open(folder.handle);
+    const card = await lintFile(fs, "docs/auth-card.a5.md");
+    assert.deepEqual(
+      [card.judgment?.fit.rowsUsed, card.judgment?.fit.pageRows],
+      [20, 42],
+      "70 characters wrap to 2 rows",
+    );
+    assert.equal(card.file.paper, PaperSize.A5);
+    assert.notEqual(card.file.outcome, LintOutcome.FAIL, "a card within 42 rows fits");
+    const postcard = await lintFile(fs, "note.a6.md");
+    assert.deepEqual([postcard.judgment?.fit.rowsUsed, postcard.judgment?.fit.overBy], [31, 2]);
+    assert.equal(postcard.file.outcome, LintOutcome.FAIL);
+    const page = await lintFile(fs, "AGENTS.md");
+    assert.deepEqual([page.judgment?.fit.rowsUsed, page.judgment?.fit.pageRows], [10, 60], "A4 is unchanged");
+    assert.equal(page.file.paper, PaperSize.A4);
+  } finally {
+    await fixture.dispose();
+  }
+});
+
+test("judge on a size: the desk's page for each paper", () => {
+  assert.equal(judge("hello", "a5").report.metrics?.pageRows, 42);
+  assert.equal(judge("hello", "a6").report.metrics?.cols, 40);
+  assert.equal(judgeFile("\thello", "a4").report.metrics?.pageRows, 60);
+});

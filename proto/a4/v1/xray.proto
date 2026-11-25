@@ -1,0 +1,79 @@
+// The context X-ray: what a coding agent loads from files before its first
+// turn, laid out as pages. Printed by `a4 xray --json`; built by
+// lib/desk/xray.ts from the files cli/xray.ts finds.
+//
+// Like the lint report, it carries paths and numbers, never a file's text
+// (repeated terms excepted, inside each AnalysisReport). Paths under the home
+// folder are written `~/…`.
+
+syntax = "proto3";
+
+package a4.v1;
+
+import "a4/v1/analysis.proto";
+import "a4/v1/lint.proto";
+
+// Where a source comes from, in the agent's load order.
+enum XraySourceKind {
+  XRAY_SOURCE_KIND_UNSPECIFIED = 0;
+  // The managed policy CLAUDE.md for the operating system.
+  XRAY_SOURCE_KIND_MANAGED = 1;
+  // ~/.claude/CLAUDE.md.
+  XRAY_SOURCE_KIND_USER = 2;
+  // CLAUDE.md or .claude/CLAUDE.md in the folder or a folder above it.
+  XRAY_SOURCE_KIND_PROJECT = 3;
+  // CLAUDE.local.md in the folder or a folder above it.
+  XRAY_SOURCE_KIND_LOCAL = 4;
+  // AGENTS.md or .claude/AGENTS.md, read when no CLAUDE file is on the walk.
+  XRAY_SOURCE_KIND_AGENTS = 5;
+  // A rule in ~/.claude/rules/ or the folder's .claude/rules/ without `paths`.
+  XRAY_SOURCE_KIND_RULE = 6;
+  // A file another source imports with `@path`.
+  XRAY_SOURCE_KIND_IMPORT = 7;
+  // The first 200 lines (at most 25 KB) of auto memory's MEMORY.md.
+  XRAY_SOURCE_KIND_AUTO_MEMORY = 8;
+  // Every skill's name and description, as one index.
+  XRAY_SOURCE_KIND_SKILLS = 9;
+  // Every subagent's name and description, as one index.
+  XRAY_SOURCE_KIND_SUBAGENTS = 10;
+}
+
+// One source, judged on the A4 Terminal page.
+message XraySource {
+  XraySourceKind kind = 1;
+  // `~/…` under the home folder, relative under the X-rayed folder, else absolute.
+  // For an index, the folders it was gathered from.
+  string path = 2;
+  // The source that imported this one, for an import.
+  string imported_by = 3;
+  uint32 rows_used = 4;
+  // Rows used divided by 60.
+  double pages = 5;
+  // The analysis's on-device estimate.
+  uint32 tokens = 6;
+  // The source's analysis; unset when it couldn't be read.
+  AnalysisReport report = 7;
+  // Why the file couldn't be read; UNREADABLE_UNSPECIFIED when it was.
+  Unreadable unreadable = 8;
+  // True for an import that doesn't exist.
+  bool missing = 9;
+  // For an index: how many skills or subagents it lists.
+  uint32 entries = 10;
+}
+
+message ContextXray {
+  // The agent whose loading rules were followed: "claude-code".
+  string agent = 1;
+  // The folder X-rayed, as given.
+  string folder = 2;
+  // In load order; an import follows the source that first imports it.
+  repeated XraySource sources = 3;
+  // The sum of every source's pages.
+  double total_pages = 4;
+  uint32 total_tokens = 5;
+  // The budget asked for with --budget; 0 when none.
+  double budget_pages = 6;
+  bool over_budget = 7;
+  // What the agent loads that the X-ray can't count, in words.
+  repeated string not_counted = 8;
+}

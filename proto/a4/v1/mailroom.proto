@@ -18,6 +18,7 @@ package a4.v1;
 import "a4/v1/analysis.proto";
 import "a4/v1/letter.proto";
 import "a4/v1/lint.proto";
+import "a4/v1/sheet.proto";
 
 // A page judged on the 80 x 60 Terminal page, as `a4 lint` judges a file.
 message PageCheck {
@@ -33,6 +34,8 @@ message PageCheck {
   // The check in words: "74 of 60 rows, 14 over: fails, Overflowing." and a
   // line per finding. Empty inside a FiledLetter, whose own note says it.
   string note = 6;
+  // The paper it was judged on: A4 (60 rows), A5 (42), or A6 (29).
+  PaperSize paper = 7;
 }
 
 // The result of filing a letter.
