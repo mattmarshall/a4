@@ -183,6 +183,22 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
 /** Serve until interrupted. Exit status: 0 when stopped, 2 for a folder or port that can't be used. */
 export async function runServe(args: ServeArgs): Promise<number> {
   const running = await startServer(args);
+  // Listen before printing the link, so a Ctrl-C the moment it appears still closes the server, and keep
+  // listening while it closes, so a second Ctrl-C doesn't kill the process mid-close.
+  const stopped = new Promise<void>((done) => {
+    let closing = false;
+    const stop = () => {
+      if (closing) return;
+      closing = true;
+      void running.close().then(() => {
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+        done();
+      });
+    };
+    process.on("SIGINT", stop);
+    process.on("SIGTERM", stop);
+  });
   process.stdout.write(
     [
       `Serving the library in ${resolve(args.folder)}`,
@@ -195,10 +211,6 @@ export async function runServe(args: ServeArgs): Promise<number> {
       "",
     ].join("\n"),
   );
-  await new Promise<void>((done) => {
-    const stop = () => void running.close().then(done);
-    process.once("SIGINT", stop);
-    process.once("SIGTERM", stop);
-  });
+  await stopped;
   return 0;
 }

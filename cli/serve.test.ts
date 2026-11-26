@@ -202,10 +202,16 @@ function runCli(args: string[]): Promise<{ status: number | null; stdout: string
     const child = spawn(process.execPath, [cli, "serve", ...args], { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
+    let interrupted = false;
     child.stdout.on("data", (c: Buffer) => {
       stdout += c.toString("utf8");
-      // Once it says where it's serving, stop it as Ctrl-C would.
-      if (stdout.includes("#serve=")) child.kill("SIGINT");
+      // Once it says where it's serving, stop it as Ctrl-C would, and press it twice: the second press
+      // (or a later chunk of output) must not cut the close short.
+      if (!interrupted && stdout.includes("#serve=")) {
+        interrupted = true;
+        child.kill("SIGINT");
+        child.kill("SIGINT");
+      }
     });
     child.stderr.on("data", (c: Buffer) => {
       stderr += c.toString("utf8");
