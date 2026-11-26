@@ -202,9 +202,11 @@ between sessions as a sealed letter.
   context files, for review or CI (README, "Page lint").
 - **Exact token counts:** optional, model-specific tokenizers loaded on
   demand.
-- **A server backend:** it would implement the `PageStore` contract and pass
-  the shared contract tests. (A user-chosen folder shipped: see the README's
-  Folders section.)
+- **A server backend:** shipped as the served library. `a4 serve` keeps a
+  library as Markdown files in a folder on your machine and serves it to the
+  app on 127.0.0.1. Its store, and the store over HTTP, pass the shared
+  `PageStore` contract tests (see the README's Served library section). A
+  user-chosen folder shipped too: see the README's Folders section.
 - **Share links:** shipped. The page format is protobuf, as the project
   default says: a link carries an `a4.v1.SharedPages` message in its
   fragment, so the page never reaches a server (see the README's Share links

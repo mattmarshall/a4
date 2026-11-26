@@ -16,6 +16,7 @@
 
 import { browserKeyValue, type KeyValue } from "../platform/key-value.ts";
 import { pageRefCodec } from "./store/refs.ts";
+import { formatServedConnection, parseServedConnection, type ServedConnection } from "./store/served.ts";
 import { DEFAULT_PRESET, LENS_IDS, PRESET_IDS, type LensId, type PresetId } from "../page/index.ts";
 import type { IdCodec } from "./store/types.ts";
 import type { PageRef } from "./store/refs.ts";
@@ -66,6 +67,12 @@ const openRefCodec: IdCodec<PageRef | null> = {
   format: (ref) => (ref ? pageRefCodec.format(ref) : ""),
 };
 
+/** A served library's connection as "<address>.<token>" ("" for none). */
+const servedCodec: IdCodec<ServedConnection | null> = {
+  parse: (raw) => parseServedConnection(raw),
+  format: (connection) => (connection ? formatServedConnection(connection) : ""),
+};
+
 /** A person's name as they typed it, trimmed; blank reads as unset. */
 const nameCodec: IdCodec<string | null> = {
   parse: (raw) => {
@@ -90,6 +97,17 @@ export const SETTINGS = {
   inspector: defineSetting({ key: "inspector", codec: flagCodec, default: true }),
   openA: defineSetting({ key: "open:a", codec: openRefCodec, default: null }),
   openB: defineSetting({ key: "open:b", codec: openRefCodec, default: null }),
+  /** The served library this browser connects to (`a4 serve`); unset after Disconnect. */
+  servedLibrary: defineSetting<ServedConnection | null>({ key: "served", codec: servedCodec, default: null }),
+  /** Which library the Pages panel shows: this browser's or the served one. */
+  librarySource: defineSetting<"browser" | "served">({
+    key: "library:source",
+    codec: choiceCodec(["browser", "served"]),
+    default: "browser",
+  }),
+  /** The pages open in A and B on the served library (openA and openB are this browser's library). */
+  servedOpenA: defineSetting({ key: "served:open:a", codec: openRefCodec, default: null }),
+  servedOpenB: defineSetting({ key: "served:open:b", codec: openRefCodec, default: null }),
   /** The name written into the postmarks of letters sealed in this browser. */
   signer: defineSetting<string | null>({ key: "signer", codec: nameCodec, default: null }),
 } as const;

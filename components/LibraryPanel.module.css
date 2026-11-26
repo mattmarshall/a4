@@ -363,6 +363,56 @@
     gap: 6px;
   }
 
+  /* The library switch: this browser's pages or a4 serve's, and Connect or Disconnect. */
+  .libraries {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .libraryLink {
+    padding: 2px 4px;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: var(--text-12);
+    cursor: pointer;
+    border-radius: var(--radius-6);
+  }
+
+  .libraryLink:hover {
+    color: var(--ink);
+  }
+
+  .libraryLink:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  .connect {
+    display: grid;
+    gap: 6px;
+    width: 100%;
+    padding: 8px;
+    border-radius: var(--radius-8);
+    background: var(--wash);
+  }
+
+  .connectHint {
+    margin: 0;
+    font-size: var(--text-12);
+    line-height: 1.45;
+    color: var(--muted);
+  }
+
+  .connectActions {
+    display: flex;
+    gap: 6px;
+  }
+
   .foot {
     margin-top: auto;
     padding-top: 10px;

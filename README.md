@@ -54,6 +54,7 @@ pnpm dev          # http://localhost:5173
 | `pnpm a4 mailroom [folder]` | Serve a folder's letters to an agent over MCP on stdio (see "Mailroom") |
 | `pnpm a4 share <file> [<file>]` | Print a share link to a page or a pair (see "Share links") |
 | `pnpm a4 open <link> [--out <folder>]` | Write a share link's pages to new files (see "Share links") |
+| `pnpm a4 serve <folder> [--port <n>] [--origin <url>] [--new-token]` | Serve a library of Markdown files to A4 on this machine (see "Served library") |
 | `pnpm a4 plugin keygen \| pack \| verify` | Make signing keys, and pack and check plugin packages (see "Third-party plugins") |
 | `node --env-file=.env.local scripts/fit-smoke.ts [out.md] [--rows N]` | One real Fit to page run against Claude with your key (a few cents). `--rows` shrinks the page |
 | `node scripts/screenshots.ts capture <dir> [--url <origin>]` | Capture 33 fixed views of a running server (default `pnpm start` on port 4173) in headless Chrome, in light and dark: Single, Compare, both drawers, focus mode, every lens, the prose pages, and print to PDF. Keep captures under `.screenshots/` (ignored by git) |
@@ -1102,6 +1103,76 @@ link's fragment, the part after `#`, which browsers don't send to a server.
     - It exits 1 for a link it can't read.
 
   Neither makes a network request.
+
+## Served library
+
+`a4 serve` keeps a page library as Markdown files in a folder on your
+machine, and A4 shows it in place of this browser's library. An agent, an
+editor, or `git` works on the same files the sheet shows.
+
+```sh
+node ~/src/a4/cli/a4.ts serve ~/notes/a4
+```
+
+- **The folder.** Pages are `pages/<name>.md`, holding exactly the page text,
+  and trashed pages are in `trash/`, as in this browser's library. The
+  library's token is in `.a4-serve-token`. A missing folder is created.
+- **The command.** It prints its address and a link that connects A4, then
+  serves until Ctrl-C.
+  - **`--port <n>`** listens on another port (default 4320; 0 picks a free
+    one).
+  - **`--origin <url>`** also allows another origin, such as
+    `http://localhost:5173` for a development server. It prints a link for
+    each origin.
+  - **`--new-token`** replaces the token, which disconnects every browser.
+  - It exits 2 for a folder it can't use or a port that's taken.
+- **What keeps it private.**
+  - It listens on 127.0.0.1 only, and answers only requests whose `Host` is
+    that address, or `localhost`, with its port. That stops DNS rebinding.
+  - Only `https://a4.marsh.build`, and any `--origin`, may call it. A request
+    from another origin, or with none, gets 403.
+  - Every request carries the library's token, 32 random bytes kept in
+    `.a4-serve-token` (readable only by you), and reused across runs so a
+    connected browser stays connected. A wrong token gets 401.
+  - Page text goes only between this browser and 127.0.0.1. a4.marsh.build
+    still stores nothing.
+  - It keeps out web pages, not programs: anything running as you can read
+    the folder anyway.
+- **The protocol.** One POST per store operation to
+  `/a4.v1.PageStoreService/<Method>`, with protobuf bodies
+  (`proto/a4/v1/store.proto`). A store error comes back as a `StoreFailure`,
+  so a conflict or a taken name behaves as it does in this browser. The
+  served store, and the store over HTTP, pass the same contract tests as
+  this browser's.
+- **Connecting.** Open the link it prints:
+  `https://a4.marsh.build/#serve=127.0.0.1:4320.<token>`. A4 connects,
+  shows the served pages, remembers the connection in this browser, and
+  removes the token from the address bar. When the link can't be clicked,
+  choose **Connect a4 serve…** in the Pages panel and enter the address and
+  the token (the end of the link, after the last dot). A4 connects only to
+  127.0.0.1 or localhost.
+- **Switching.** The Pages panel switches between **This browser** and
+  **a4 serve**. Every library action works on the one shown. Each library
+  keeps its own open pages, unsaved edits, and other-tab updates, so
+  switching back shows each as you left it. The open folder stays open.
+- **Changes on disk.** While the served library is shown in a visible tab,
+  A4 lists it every 2 seconds. A page added, removed, or changed on disk
+  shows up within 5 seconds. An open page with no unsaved edits shows the
+  new text; one with unsaved edits keeps both versions when it saves, as a
+  conflict with another tab does.
+- **When the server is down.** Starting on, or switching to, the served
+  library while `a4 serve` isn't running says so, with its address, and
+  shows this browser's library. Edits typed while it stopped stay in this
+  browser, and are saved to the served library when you switch back with it
+  running.
+- **Disconnect** forgets the address and token in this browser and shows
+  this browser's library. The folder's files stay as they are.
+- **The two libraries don't sync.** To copy pages from one to the other, use
+  **Export all** and **Import .zip**.
+
+Chromium may ask once whether A4 can reach devices on your local network:
+allow it. Safari's handling of a secure page reaching 127.0.0.1 has varied
+by version; if it can't connect, use Chrome or Firefox.
 
 ## Third-party plugins
 

@@ -1,0 +1,171 @@
+// The served library (README, "Served library"): `a4 serve` answers each page
+// store operation as a POST to /a4.v1.PageStoreService/<Method> with these
+// messages as binary protobuf bodies, the shape of a unary Connect call. The
+// app's RemotePageStore (lib/persist/store/remote.ts) calls it, and the
+// handler (lib/persist/store/serve.ts) answers it over a PageStore.
+//
+// A store error comes back with a non-200 status and a StoreFailure body, so
+// the app throws the same typed error the browser's own store would.
+
+syntax = "proto3";
+
+package a4.v1;
+
+service PageStoreService {
+  rpc ListPages(ListPagesRequest) returns (ListPagesResponse);
+  rpc ReadPage(ReadPageRequest) returns (ReadPageResponse);
+  rpc CreatePage(CreatePageRequest) returns (CreatePageResponse);
+  rpc CreateUniquePage(CreateUniquePageRequest) returns (CreateUniquePageResponse);
+  rpc WritePage(WritePageRequest) returns (WritePageResponse);
+  rpc RenamePage(RenamePageRequest) returns (RenamePageResponse);
+  rpc TrashPage(TrashPageRequest) returns (TrashPageResponse);
+  rpc ListTrash(ListTrashRequest) returns (ListTrashResponse);
+  rpc RestorePage(RestorePageRequest) returns (RestorePageResponse);
+  rpc PurgePage(PurgePageRequest) returns (PurgePageResponse);
+}
+
+// A page in a listing.
+message StoredPageSummary {
+  string name = 1;
+  // Stored size in bytes.
+  uint64 size = 2;
+  // Epoch milliseconds of the last write.
+  double modified_at = 3;
+}
+
+// A page as read.
+message StoredPage {
+  string name = 1;
+  // Exactly the page's text.
+  string text = 2;
+  // Opaque; equal text always has an equal revision.
+  string revision = 3;
+  uint64 size = 4;
+  double modified_at = 5;
+}
+
+// What a write stored.
+message StoredWrite {
+  string name = 1;
+  string revision = 2;
+  uint64 size = 3;
+  double modified_at = 4;
+}
+
+// A page in the trash.
+message StoredTrashEntry {
+  string id = 1;
+  // The page's name when it was trashed.
+  string name = 2;
+  uint64 size = 3;
+  // Epoch milliseconds when the page was trashed.
+  double trashed_at = 4;
+}
+
+message ListPagesRequest {}
+
+message ListPagesResponse {
+  repeated StoredPageSummary pages = 1;
+}
+
+message ReadPageRequest {
+  string name = 1;
+}
+
+message ReadPageResponse {
+  StoredPage page = 1;
+}
+
+message CreatePageRequest {
+  string name = 1;
+  string text = 2;
+}
+
+message CreatePageResponse {
+  StoredWrite result = 1;
+}
+
+message CreateUniquePageRequest {
+  // The name wanted; the store picks it or the first free variant ("Brief 2").
+  string desired = 1;
+  string text = 2;
+}
+
+message CreateUniquePageResponse {
+  StoredWrite result = 1;
+}
+
+message WritePageRequest {
+  string name = 1;
+  string text = 2;
+  // When set, the write fails as a conflict unless the stored page still has
+  // this revision.
+  optional string expected = 3;
+}
+
+message WritePageResponse {
+  StoredWrite result = 1;
+}
+
+message RenamePageRequest {
+  string from = 1;
+  string to = 2;
+}
+
+message RenamePageResponse {
+  StoredWrite result = 1;
+}
+
+message TrashPageRequest {
+  string name = 1;
+}
+
+message TrashPageResponse {
+  StoredTrashEntry entry = 1;
+}
+
+message ListTrashRequest {}
+
+message ListTrashResponse {
+  repeated StoredTrashEntry entries = 1;
+}
+
+message RestorePageRequest {
+  string id = 1;
+}
+
+message RestorePageResponse {
+  StoredWrite result = 1;
+}
+
+message PurgePageRequest {
+  string id = 1;
+}
+
+message PurgePageResponse {}
+
+// The store errors a page store throws (lib/persist/store/types.ts).
+enum StoreErrorCode {
+  STORE_ERROR_CODE_UNSPECIFIED = 0;
+  STORE_ERROR_CODE_NOT_FOUND = 1;
+  STORE_ERROR_CODE_EXISTS = 2;
+  STORE_ERROR_CODE_INVALID_NAME = 3;
+  STORE_ERROR_CODE_INVALID_TEXT = 4;
+  STORE_ERROR_CODE_CONFLICT = 5;
+  STORE_ERROR_CODE_UNAVAILABLE = 6;
+  STORE_ERROR_CODE_UNREADABLE = 7;
+}
+
+// A store error, carried back to the caller as the same typed error.
+message StoreFailure {
+  StoreErrorCode code = 1;
+  string message = 2;
+  // The page (or name input) the error is about.
+  string page = 3;
+  // For a conflict: the revision the write expected, and the stored one
+  // (unset when the stored content can't be read).
+  string expected = 4;
+  optional string actual = 5;
+  // For an unreadable file: "too-large" or "not-utf8".
+  string reason = 6;
+}

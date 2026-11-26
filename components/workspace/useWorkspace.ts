@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { PageName, PageRef, TrashId } from "@/lib/persist";
+import type { PageName, PageRef, ServedConnection, TrashId } from "@/lib/persist";
 import {
   describeError,
   reportResult,
@@ -33,6 +33,7 @@ const STARTING: WorkspaceSnapshot = {
     b: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
   },
   folder: { state: { status: "none" }, files: [], letters: [], stacks: [], partial: false, scanning: false },
+  served: null,
 };
 
 const noop = () => () => {};
@@ -171,6 +172,12 @@ export function useWorkspaceApi(notify: Notify) {
       createLetter: (text: string, slot: Slot) => inline((w) => w.createLetter(text, slot)),
       sealLetter: (slot: Slot, seal: { verdict: "accepted" | "returned"; reason: string; signer: string }) =>
         inline((w) => w.sealLetter(slot, seal)),
+      switchLibrary: (kind: "browser" | "served") =>
+        run(kind === "browser" ? "switch to this browser’s library" : "switch to the served library", (w) =>
+          w.switchLibrary(kind),
+        ),
+      connectServed: (connection: ServedConnection) => run("connect to a4 serve", (w) => w.connectServed(connection)),
+      disconnectServed: () => run("disconnect from a4 serve", (w) => w.disconnectServed()),
       /** A sealed letter's exact bytes and postmark, for a share link; null for any other page. */
       letterForShare: async (slot: Slot) => {
         if (!ws) return null;
@@ -190,6 +197,7 @@ export function useWorkspaceApi(notify: Notify) {
     slots: snapshot.slots,
     storage: snapshot.storage,
     folder: snapshot.folder,
+    served: snapshot.served,
     ...commands,
   };
 }

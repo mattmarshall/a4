@@ -22,7 +22,16 @@ import {
 } from "@/lib/models";
 import { SAMPLE_PAIRS, TEMPLATES } from "@/lib/content";
 import { isLetterPath, LetterState } from "@/lib/desk";
-import { SETTINGS, baseName, copyNameFor, fileRef, sameRef, type PageName, type PageRef } from "@/lib/persist";
+import {
+  SETTINGS,
+  baseName,
+  copyNameFor,
+  fileRef,
+  sameRef,
+  servedConnection,
+  type PageName,
+  type PageRef,
+} from "@/lib/persist";
 import { type SharePageInput, ShareError, shareLink } from "@/lib/share";
 import type { Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
@@ -30,7 +39,7 @@ import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { ConsentDialog } from "./ConsentDialog";
 import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
-import { LibraryPanel, type FolderActions, type PageActions } from "./LibraryPanel";
+import { LibraryPanel, type FolderActions, type LibraryActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { type CredentialStoreView, PenControls } from "./PenControls";
@@ -48,6 +57,7 @@ import { useLayout } from "./workbench/useLayout";
 import { lensSources } from "./workbench/model-lens";
 import { useModelLens } from "./workbench/useModelLens";
 import { SharedBanner } from "./workbench/SharedBanner";
+import { useServeLink } from "./workbench/useServeLink";
 import { useSharedView } from "./workbench/useSharedView";
 import { useShortcuts } from "./workbench/useShortcuts";
 import { useWorkspaceApi } from "./workspace/useWorkspace";
@@ -85,6 +95,7 @@ export function Workbench() {
   // A share link's pages show read-only in place of the reader's own, which
   // stay open underneath, untouched, until the shared view closes.
   const sharedView = useSharedView(notify);
+  useServeLink(lib.ready, lib.connectServed, notify);
   const shared = sharedView.view;
   const compare = shared ? shared.pages.length === 2 : layout.compare;
   const target = shared && shared.pages.length === 1 ? "a" : layout.target;
@@ -413,6 +424,19 @@ export function Workbench() {
     importArchive: (file) => void importFile(file),
   };
 
+  const libraryActions: LibraryActions = {
+    switchTo: (kind) => void lib.switchLibrary(kind),
+    connect: async (address, token) => {
+      const connection = servedConnection(address, token);
+      if (!connection) {
+        return "Enter the address a4 serve printed, such as 127.0.0.1:4320, and its 43-character token.";
+      }
+      await lib.connectServed(connection);
+      return null;
+    },
+    disconnect: () => void lib.disconnectServed(),
+  };
+
   const folderActions: FolderActions = {
     pick: () => void lib.openFolder(),
     reconnect: () => void lib.reconnectFolder(),
@@ -514,6 +538,7 @@ export function Workbench() {
             pages={lib.pages}
             trash={lib.trash}
             storage={lib.storage}
+            served={lib.served}
             folder={lib.folder}
             open={{ a: slots.a.ref, b: compare ? slots.b.ref : null }}
             compare={compare}
@@ -521,6 +546,7 @@ export function Workbench() {
             saveRequest={saveRequest}
             onOpen={(ref, slot) => openInSlot(slot, ref)}
             pageActions={pageActions}
+            libraryActions={libraryActions}
             folderActions={folderActions}
           />
         ) : null}

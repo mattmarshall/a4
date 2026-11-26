@@ -64,6 +64,8 @@ export interface WorkspaceSnapshot {
   readonly library: { readonly pages: readonly PageSummary[]; readonly trash: readonly TrashEntry[] };
   readonly slots: Readonly<Record<Slot, SlotSnapshot>>;
   readonly folder: FolderSnapshot;
+  /** The served library this browser connects to, and whether its pages are the ones shown; null when none. */
+  readonly served: { readonly address: string; readonly shown: boolean } | null;
 }
 
 /** What failed, for a `failed` notice. */
@@ -90,6 +92,8 @@ export type WorkspaceNotice =
   | { readonly kind: "folder-copies"; readonly copies: readonly PageName[] }
   | { readonly kind: "saved-to-folder"; readonly name: PageName; readonly path: string }
   | { readonly kind: "still-no-access"; readonly folder: string }
+  /** The served library couldn't be reached (or refused the token), so this browser's library is shown. */
+  | { readonly kind: "served-unreachable"; readonly address: string; readonly error: unknown }
   | {
       readonly kind: "failed";
       readonly action: WorkspaceAction;

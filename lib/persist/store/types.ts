@@ -28,7 +28,7 @@ export type Revision = string & { readonly [revisionBrand]: true };
 /** Identifier of a page in the trash. */
 export type TrashId = string & { readonly [trashIdBrand]: true };
 
-export type StoreKind = "opfs" | "local-storage" | "memory" | "folder";
+export type StoreKind = "opfs" | "local-storage" | "memory" | "folder" | "served";
 
 /**
  * Reads and writes an identifier as a stored string. `parse` returns null for
@@ -196,7 +196,7 @@ export class StoreUnavailableError extends PageStoreError {
 }
 
 /** Text that isn't well-formed Unicode (a lone surrogate) can't be stored exactly. */
-class InvalidTextError extends PageStoreError {
+export class InvalidTextError extends PageStoreError {
   override readonly code = "invalid-text";
   readonly page: string;
   constructor(page: string) {

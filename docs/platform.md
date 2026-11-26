@@ -313,8 +313,23 @@ Each step is its own OpenSpec change, in this order.
    - **Still to come:**
      - share links in the mailroom (MCP);
      - links to a whole stack.
-7. **Later.**
-   - A server-backed desk that passes the store contract tests.
+7. **`add-served-library`, built.** A library can live in a folder on your
+   machine (README, "Served library").
+   - **The server:** `a4 serve <folder>` keeps pages as `pages/<name>.md` with
+     the same store as this browser's library, and serves it on 127.0.0.1,
+     only to A4's origin and only with the library's token.
+   - **The protocol:** `a4.v1.PageStoreService`, one POST per store
+     operation with protobuf bodies. The served store, and the store over
+     HTTP, pass the same `PageStore` contract tests.
+   - **In the app:** a connect link or the Connect form, a switch between
+     this browser's library and the served one (each with its own drafts and
+     open pages), changes on disk shown within 5 seconds, and Disconnect.
+     Nothing new reaches a4.marsh.build.
+   - **Still to come:**
+     - a served library on another machine, which needs TLS and accounts;
+     - copying pages between the two libraries without a zip.
+
+Nothing is left in Later: the roadmap above is built.
 
 ## What A4 still is not
 

@@ -37,6 +37,8 @@ const DOUBLE_CASTS: Record<string, string> = {
   "lib/models/plugins/fit/fit.test.ts": "records the SDK request body as plain data",
   "lib/models/consent.test.ts": "forges a consent token on purpose, to show the host refuses it",
   "lib/persist/store/testing/fake-opfs.ts": "the fake implements only the File System Access methods the stores use",
+  "lib/persist/store/node-handle.ts":
+    "the node:fs adapter implements only the File System Access methods the OPFS store uses",
 };
 
 const ROOTS = ["app", "components", "lib", "scripts", "types"];

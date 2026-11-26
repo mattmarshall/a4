@@ -107,12 +107,17 @@ export class OpfsPageStore implements PageStore {
     this.#clock = clock;
   }
 
-  /** Open (creating if needed) `a4/pages` and `a4/trash` under `root`, the origin's OPFS root. */
+  /**
+   * Open (creating if needed) `a4/pages` and `a4/trash` under `root`, the
+   * origin's OPFS root. With `appDir: null`, `pages/` and `trash/` are kept at
+   * `root` itself: a served library's folder (`a4 serve`).
+   */
   static async open(
     root: FileSystemDirectoryHandle,
-    options: { locks?: Locks | null; clock?: Clock } = {},
+    options: { locks?: Locks | null; clock?: Clock; appDir?: string | null } = {},
   ): Promise<OpfsPageStore> {
-    const app = await root.getDirectoryHandle(OPFS_APP_DIR, { create: true });
+    const appDir = options.appDir === undefined ? OPFS_APP_DIR : options.appDir;
+    const app = appDir === null ? root : await root.getDirectoryHandle(appDir, { create: true });
     const pages = await app.getDirectoryHandle(OPFS_PAGES_DIR, { create: true });
     const trash = await app.getDirectoryHandle(OPFS_TRASH_DIR, { create: true });
     return new OpfsPageStore(pages, trash, options.locks ?? null, options.clock ?? systemClock);

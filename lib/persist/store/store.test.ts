@@ -45,6 +45,9 @@ const opfsTabs = (volume: () => FakeVolume) => async () => {
 pageStoreContract("OPFS (in-memory fake)", async () => opfs(new FakeDirectoryHandle()), {
   tabs: opfsTabs(() => new FakeVolume()),
 });
+pageStoreContract("OPFS with pages at the root (a served library's layout)", async () =>
+  OpfsPageStore.open(asDirectoryHandle(new FakeDirectoryHandle()), { locks: null, appDir: null }),
+);
 pageStoreContract(
   "OPFS (fake listing in reverse, with stale snapshots)",
   async () =>

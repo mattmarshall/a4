@@ -87,6 +87,11 @@ export function describeNotice(notice: WorkspaceNotice): NoticeCopy {
       return { message: `Saved “${notice.name}” to the folder as “${notice.path}”.`, tone: "info" };
     case "still-no-access":
       return { message: `A4 still doesn’t have access to “${notice.folder}”.`, tone: "warn" };
+    case "served-unreachable":
+      return {
+        message: `${describeError(notice.error)} Showing this browser’s library. Run “a4 serve <folder>”, then switch in the Pages panel (or open the link it prints).`,
+        tone: "warn",
+      };
     case "failed":
       return { message: failure(notice), tone: "warn" };
     default:

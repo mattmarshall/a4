@@ -2,7 +2,8 @@
 
 /**
  * The Pages panel: the library (search, open, rename, duplicate, trash), the
- * open folder's files, export and import, and the trash. Pages and files are
+ * switch between this browser's library and a served one, the open folder's
+ * files, export and import, and the trash. Pages and files are
  * both opened by reference; commands arrive grouped as `PageActions` and
  * `FolderActions`.
  */
@@ -16,12 +17,14 @@ import {
   type TrashEntry,
   type TrashId,
 } from "@/lib/persist";
-import type { FolderSnapshot, Slot, StorageInfo } from "@/lib/workspace";
+import type { FolderSnapshot, Slot, StorageInfo, WorkspaceSnapshot } from "@/lib/workspace";
 import { FolderSection, type FolderActions } from "./library/FolderSection";
+import { type LibraryActions, LibrarySwitch } from "./library/LibrarySwitch";
 import { formatSize, type Placement, relativeTime, slotOf, otherSlot } from "./library/shared";
 import styles from "./LibraryPanel.module.css";
 
 export type { FolderActions } from "./library/FolderSection";
+export type { LibraryActions } from "./library/LibrarySwitch";
 
 /** Library commands. Rename returns an error message to show inline, or null. */
 export interface PageActions {
@@ -87,9 +90,11 @@ function persistenceNote(persistent: boolean | null): string {
 }
 
 /** Where pages are kept, for the panel's footer. */
-function storageNote(storage: StorageInfo | null): string {
+function storageNote(storage: StorageInfo | null, served: WorkspaceSnapshot["served"]): string {
   if (!storage) return "Opening storage…";
   switch (storage.kind) {
+    case "served":
+      return `Saved as .md files by a4 serve at ${served?.address ?? "this machine"} (pages/ in its folder). They don’t sync with this browser’s pages.`;
     case "opfs":
       return `Saved as .md files in this browser’s private file system (a4/pages)${persistenceNote(storage.persistent)}`;
     case "local-storage":
@@ -103,6 +108,7 @@ export function LibraryPanel({
   pages,
   trash,
   storage,
+  served,
   folder,
   open,
   compare,
@@ -110,11 +116,14 @@ export function LibraryPanel({
   saveRequest,
   onOpen,
   pageActions,
+  libraryActions,
   folderActions,
 }: {
   pages: readonly PageSummary[];
   trash: readonly TrashEntry[];
   storage: StorageInfo | null;
+  /** The served library this browser connects to, if any. */
+  served: WorkspaceSnapshot["served"];
   folder: FolderSnapshot;
   /** What each shown slot holds (B is null in Single). */
   open: Readonly<Record<Slot, PageRef | null>>;
@@ -125,6 +134,7 @@ export function LibraryPanel({
   saveRequest: { readonly name: string } | null;
   onOpen: (ref: PageRef, slot: Slot) => void;
   pageActions: PageActions;
+  libraryActions: LibraryActions;
   folderActions: FolderActions;
 }) {
   const placement: Placement = { open, compare, activeSlot };
@@ -149,6 +159,8 @@ export function LibraryPanel({
           + New page
         </button>
       </div>
+
+      <LibrarySwitch served={served} actions={libraryActions} />
 
       <input
         className={styles.input}
@@ -311,7 +323,7 @@ export function LibraryPanel({
         ) : null}
       </div>
 
-      <footer className={styles.foot}>{storageNote(storage)}</footer>
+      <footer className={styles.foot}>{storageNote(storage, served)}</footer>
     </aside>
   );
 }

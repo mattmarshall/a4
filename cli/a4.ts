@@ -11,6 +11,7 @@
  *   pnpm a4 plugin keygen <file> | pack --card … | verify <file>
  *   pnpm a4 share <file> [<file>]
  *   pnpm a4 open <link> [--out <folder>]
+ *   pnpm a4 serve <folder> [--port <n>] [--origin <url>]... [--new-token]
  *   node <checkout>/cli/a4.ts <command> ...
  *
  * This file parses the command line and dispatches; each command lives in its
@@ -33,6 +34,7 @@ import { folderArg, type LettersArgs, runLetters } from "./letters.ts";
 import { type LintArgs, runLint } from "./lint.ts";
 import { createMailroom } from "./mailroom.ts";
 import { PACK_OPTIONS, type PluginArgs, pluginArgs, runPlugin } from "./plugin.ts";
+import { DEFAULT_PORT, runServe, type ServeArgs } from "./serve.ts";
 import { type OpenArgs, runOpen, runShare, type ShareArgs } from "./share.ts";
 import { runStack, runStacks, type StackArgs, type StacksArgs } from "./stacks.ts";
 import { UsageError } from "./usage.ts";
@@ -50,6 +52,7 @@ const USAGE = `Usage: a4 lint [path ...] [--strict] [--exclude <glob>]... [--jso
        a4 plugin verify <file>
        a4 share <file> [<file>]
        a4 open <link> [--out <folder>]
+       a4 serve <folder> [--port <n>] [--origin <url>]... [--new-token]
 
 a4 lint checks agent context files, letters, and stack pages against one A4
 page (${DESK_PAGE.cols} × ${DESK_PAGE.rows} cells), or a card or postcard on its own size (a
@@ -111,6 +114,14 @@ a4 open writes a share link's pages to new files in the current folder, or
 --out <folder>, and prints a letter's seal. It never overwrites a file, and it
 never writes a postmark: seal a letter yourself to accept it.
 
+a4 serve keeps a page library as Markdown files in a folder (pages/ and
+trash/) and serves it to A4 on this machine only, at 127.0.0.1. It prints a
+link that connects A4 to it. Only https://a4.marsh.build, and any --origin,
+can use it, and only with the library's token (kept in .a4-serve-token).
+  --port <n>        Listen on this port (default ${DEFAULT_PORT}; 0 picks a free one)
+  --origin <url>    Also allow this origin, such as http://localhost:5173
+  --new-token       Replace the library's token, disconnecting every browser
+
   -h, --help        Show this help
 
 Exit status: 0 when nothing fails, 1 when lint finds a failing file or stack,
@@ -129,7 +140,8 @@ type Command =
   | { readonly kind: "mailroom"; readonly folder: string }
   | { readonly kind: "plugin"; readonly plugin: PluginArgs }
   | ({ readonly kind: "share" } & ShareArgs)
-  | ({ readonly kind: "open" } & OpenArgs);
+  | ({ readonly kind: "open" } & OpenArgs)
+  | ({ readonly kind: "serve" } & ServeArgs);
 
 /** The options each command takes; any other is a usage error. */
 const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonly string[]>> = {
@@ -142,6 +154,7 @@ const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonl
   plugin: PACK_OPTIONS,
   share: [],
   open: ["out"],
+  serve: ["port", "origin", "new-token"],
 };
 
 function parse(argv: readonly string[]): Command {
@@ -162,6 +175,9 @@ function parse(argv: readonly string[]): Command {
       publisher: { type: "string" },
       file: { type: "string", multiple: true, default: [] },
       out: { type: "string" },
+      port: { type: "string" },
+      origin: { type: "string", multiple: true, default: [] },
+      "new-token": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
   });
@@ -176,12 +192,13 @@ function parse(argv: readonly string[]): Command {
     command !== "mailroom" &&
     command !== "plugin" &&
     command !== "share" &&
-    command !== "open"
+    command !== "open" &&
+    command !== "serve"
   ) {
     throw new UsageError(
       command
         ? `Unknown command “${command}”.`
-        : "Name a command: lint, letters, stacks, stack, xray, mailroom, plugin, share, or open.",
+        : "Name a command: lint, letters, stacks, stack, xray, mailroom, plugin, share, open, or serve.",
     );
   }
   const given = Object.entries(values)
@@ -242,6 +259,15 @@ function parse(argv: readonly string[]): Command {
       if (!link || rest.length > 0) throw new UsageError("a4 open takes one link.");
       return { kind: "open", link, out: values.out ?? "." };
     }
+    case "serve": {
+      const [folder, ...rest] = paths;
+      if (!folder || rest.length > 0) throw new UsageError("Name the library’s folder: a4 serve <folder>.");
+      const port = values.port === undefined ? DEFAULT_PORT : Number(values.port);
+      if (!Number.isInteger(port) || port < 0 || port > 65535) {
+        throw new UsageError("--port takes a port from 1 to 65535, or 0 for any free port.");
+      }
+      return { kind: "serve", folder, port, origins: values.origin, newToken: values["new-token"] };
+    }
   }
 }
 
@@ -286,6 +312,8 @@ async function run(args: Exclude<Command, { kind: "help" }>): Promise<number> {
       return runShare(args);
     case "open":
       return runOpen(args);
+    case "serve":
+      return runServe(args);
   }
 }
 

@@ -150,7 +150,7 @@ module.exports = {
       name: "cli-through-index",
       severity: "error",
       comment:
-        "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk and the desk modules the app's first load leaves out (lint, the mailroom, the X-ray), and the plugin package checks.",
+        "The a4 command uses lib/ through each folder's index, plus the Node folder adapter it hands the desk, the desk modules the app's first load leaves out (lint, the mailroom, the X-ray), the plugin package checks, and the served library's Node store and request handler.",
       from: { path: "^cli/", pathNot: NOT_TESTS },
       to: {
         path: "^lib/",
@@ -162,6 +162,8 @@ module.exports = {
           "^lib/desk/xray\\.ts$",
           "^lib/models/package\\.ts$",
           "^lib/models/publishers\\.ts$",
+          "^lib/persist/store/node-handle\\.ts$",
+          "^lib/persist/store/serve\\.ts$",
         ],
       },
     },
