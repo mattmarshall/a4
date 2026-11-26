@@ -16,7 +16,7 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
-import type { PageStore } from "../lib/persist/index.ts";
+import { APP_ORIGIN, connectLink, DEFAULT_SERVE_PORT, isServedToken, type PageStore } from "../lib/persist/index.ts";
 import { openFolderLibrary } from "../lib/persist/store/node-handle.ts";
 import { handleStoreCall, STORE_PATH } from "../lib/persist/store/serve.ts";
 import { UsageError } from "./usage.ts";
@@ -29,11 +29,10 @@ export interface ServeArgs {
   readonly newToken: boolean;
 }
 
-/** The app's production origin, always allowed. */
-export const APP_ORIGIN = "https://a4.marsh.build";
+export { APP_ORIGIN };
 
 /** The port `a4 serve` listens on unless told otherwise. */
-export const DEFAULT_PORT = 4320;
+export const DEFAULT_PORT = DEFAULT_SERVE_PORT;
 
 /** The token file, beside the pages. */
 export const TOKEN_FILE = ".a4-serve-token";
@@ -41,14 +40,12 @@ export const TOKEN_FILE = ".a4-serve-token";
 /** The largest request body accepted: a page and its envelope. */
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 
-const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-
 /** The library's token: the one in the folder, or a new one (32 random bytes) written there, readable only by its owner. */
 async function libraryToken(folder: string, fresh: boolean): Promise<string> {
   const path = join(folder, TOKEN_FILE);
   if (!fresh) {
     const existing = (await readFile(path, "utf8").catch(() => "")).trim();
-    if (TOKEN.test(existing)) {
+    if (isServedToken(existing)) {
       await chmod(path, 0o600);
       return existing;
     }
@@ -126,13 +123,36 @@ function handler(store: PageStore, port: () => number, origins: ReadonlySet<stri
       res.writeHead(413).end();
       return;
     }
+    const method = url.pathname.slice(STORE_PATH.length);
     try {
-      const result = await handleStoreCall(store, url.pathname.slice(STORE_PATH.length), bytes);
+      const result = await handleStoreCall(store, method, bytes);
       res.writeHead(result.status, { "content-type": "application/proto" }).end(Buffer.from(result.body));
-    } catch {
-      // A failure outside the store's typed errors: say only that it failed, never what the page held.
+    } catch (error) {
+      // A failure outside the store's typed errors (the disk is full, a permission changed): log its
+      // code and answer 500, never saying what the page held.
+      process.stderr.write(`a4 serve: ${method} failed (${errorCode(error)}).\n`);
       res.writeHead(500).end();
     }
+  };
+}
+
+/** A failure's code for the log: a Node error's code (ENOSPC, EACCES), else its name. Never its message. */
+function errorCode(error: unknown): string {
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") return error.code;
+  return error instanceof Error ? error.name : "unknown";
+}
+
+/**
+ * Run `handle` for each request so nothing it does can reject unhandled: a
+ * client that goes away mid-request (a tab closed during a save) aborts its
+ * body, and that must end the request, not the server.
+ */
+function guarded(handle: (req: IncomingMessage, res: ServerResponse) => Promise<void>) {
+  return (req: IncomingMessage, res: ServerResponse) => {
+    handle(req, res).catch(() => {
+      if (!res.headersSent) res.writeHead(400).end();
+      else res.destroy();
+    });
   };
 }
 
@@ -157,7 +177,7 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
   const token = await libraryToken(folder, args.newToken);
   const store = await openFolderLibrary(folder);
   let port = args.port;
-  const server = createServer(handler(store, () => port, origins, token));
+  const server = createServer(guarded(handler(store, () => port, origins, token)));
   await new Promise<void>((done, fail) => {
     server.once("error", (error: NodeJS.ErrnoException) =>
       fail(error.code === "EADDRINUSE" ? new Error(`Port ${args.port} is taken. Choose another with --port.`) : error),
@@ -170,7 +190,7 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
   return {
     address,
     token,
-    links: [...origins].map((o) => `${o}/#serve=${address}.${token}`),
+    links: [...origins].map((o) => connectLink(o, { address, token })),
     server,
     close: () =>
       new Promise<void>((done) => {

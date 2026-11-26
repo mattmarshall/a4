@@ -96,8 +96,9 @@ the URL only when the author asks.
 ### Requirement: Installed plugins persist
 Installed plugins SHALL be kept in this browser across reloads, with their
 code, pinned key, source URL, and downloaded files. A4 SHALL check each
-plugin's signature and code digest again every time it starts the plugin. A
-plugin that fails the check SHALL be shown as damaged and SHALL NOT run.
+plugin's signature and code digest again every time a tab loads its installed
+plugins, and SHALL run a plugin only from the copy it checked. A plugin that
+fails the check SHALL be shown as damaged and SHALL NOT run.
 
 #### Scenario: A reload
 - **GIVEN** the author installed Word length

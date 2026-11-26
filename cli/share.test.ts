@@ -134,4 +134,6 @@ test("safe file names", () => {
   assert.equal(safeFileName(".env"), "env.md");
   assert.equal(safeFileName("a/b\\c"), "a-b-c.md");
   assert.equal(safeFileName("   "), "shared-page.md");
+  // A name longer than any file system allows is cut to a page name's 80 characters, so a pair is never half-written.
+  assert.equal(safeFileName(`${"x".repeat(300)}.md`), `${"x".repeat(80)}.md`);
 });

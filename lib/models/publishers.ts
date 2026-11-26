@@ -6,6 +6,8 @@
  * download. It ships empty.
  */
 
+import { toBase64 } from "../platform/bytes.ts";
+
 export interface KnownPublisher {
   readonly name: string;
   /** The raw 32-byte public key, base64. */
@@ -14,13 +16,11 @@ export interface KnownPublisher {
 
 export const KNOWN_PUBLISHERS: readonly KnownPublisher[] = [];
 
-const base64 = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes));
-
 /** The listed publisher that holds `publicKey`, or null. The name a package gives itself is never consulted. */
 export function knownPublisher(
   publicKey: Uint8Array,
   list: readonly KnownPublisher[] = KNOWN_PUBLISHERS,
 ): KnownPublisher | null {
-  const key = base64(publicKey);
+  const key = toBase64(publicKey);
   return list.find((p) => p.publicKey === key) ?? null;
 }

@@ -27,6 +27,7 @@ import { FsError, type FolderFs, isFsError } from "../persist/folder/fs.ts";
 import { isLetterPath, LETTERS_DIR } from "../persist/folder/scan.ts";
 import { decodeStrict, MAX_FILE_BYTES } from "../persist/store/folder.ts";
 import { sha256 } from "../platform/digest.ts";
+import { toHex } from "../platform/bytes.ts";
 import { paperEnum } from "../tensor/record.ts";
 import { judgeFile } from "./judge.ts";
 
@@ -74,7 +75,7 @@ const DIGEST_PREFIX = "urn:a4:letter:sha256:";
 /** SHA-256 of a letter's exact bytes, as `urn:a4:letter:sha256:<64 hex>`. */
 export async function letterDigest(bytes: Uint8Array): Promise<string> {
   const hash = await sha256(bytes);
-  return DIGEST_PREFIX + Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("");
+  return DIGEST_PREFIX + toHex(hash);
 }
 
 /** A letter as read: its listed row, and its text and digest when the file could be read. */
@@ -109,6 +110,24 @@ export function readPostmark(bytes: Uint8Array | null, name: string): Postmark |
   } catch {
     return null;
   }
+}
+
+/**
+ * A letter's exact bytes and its postmark, as a share link carries them:
+ * null when there's no postmark, or the letter or its postmark can't be read
+ * (over its size, or not a postmark for this file). Whether the seal still
+ * holds is the reader's to check, against the digest.
+ */
+export async function readSealedLetter(
+  fs: FolderFs,
+  path: string,
+): Promise<{ bytes: Uint8Array; postmark: Postmark } | null> {
+  if (!(await fs.stat(postmarkPath(path)))) return null;
+  const name = path.slice(path.lastIndexOf("/") + 1);
+  const letter = await fs.readBytes(path, { maxBytes: MAX_FILE_BYTES });
+  const sidecar = await fs.readBytes(postmarkPath(path), { maxBytes: MAX_POSTMARK_BYTES });
+  const postmark = readPostmark(sidecar.bytes, name);
+  return letter.bytes && postmark ? { bytes: letter.bytes, postmark } : null;
 }
 
 async function readOne(fs: FolderFs, name: string): Promise<ReadLetter> {

@@ -9,14 +9,12 @@
 
 import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { describeImport, MAX_IMPORT_FILE_BYTES } from "@/lib/archive";
-import { type LensId, pageSpec, sizeOfName } from "@/lib/page";
+import type { LensId } from "@/lib/page";
 import {
   Operation,
   FIT_TO_PAGE,
   type ModelCard,
-  PenJob,
   type FindingResult,
-  pluginIdOf,
   type TransformResult,
   SEMANTIC_REPETITION,
 } from "@/lib/models";
@@ -24,6 +22,7 @@ import { SAMPLE_PAIRS, TEMPLATES } from "@/lib/content";
 import { isLetterPath, LetterState } from "@/lib/desk";
 import {
   SETTINGS,
+  DEFAULT_SERVE_PORT,
   baseName,
   copyNameFor,
   fileRef,
@@ -38,11 +37,11 @@ import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { ConsentDialog } from "./ConsentDialog";
-import { FitJobChip, FitToPage, type KeyStore } from "./FitToPage";
+import { FitToPage, PenJobChip } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type LibraryActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
-import { type CredentialStoreView, PenControls } from "./PenControls";
+import { PenControls } from "./PenControls";
 import { penSuffix, publisherNote } from "./plugin-copy";
 import { CLIPBOARD_BLOCKED, copiedNotice } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
@@ -51,11 +50,13 @@ import { useSetting } from "./useSetting";
 import { saveFile } from "./workbench/download";
 import { HelpMenu, PageMenu, ViewMenu } from "./workbench/menus";
 import { SheetStage } from "./workbench/SheetStage";
+import { stageOf } from "./workbench/stage";
 import { DocTitle, Topbar } from "./workbench/Topbar";
 import { useAnalysis } from "./workbench/useAnalysis";
 import { useLayout } from "./workbench/useLayout";
 import { lensSources } from "./workbench/model-lens";
 import { useModelLens } from "./workbench/useModelLens";
+import { usePens } from "./workbench/usePens";
 import { SharedBanner } from "./workbench/SharedBanner";
 import { useServeLink } from "./workbench/useServeLink";
 import { useSharedView } from "./workbench/useSharedView";
@@ -92,20 +93,17 @@ export function Workbench() {
   const handles = { a: sheetA, b: sheetB };
 
   const { setMode, setActive } = layout;
-  // A share link's pages show read-only in place of the reader's own, which
-  // stay open underneath, untouched, until the shared view closes.
+  // A share link's pages show read-only in place of the reader's own (see stage.ts).
   const sharedView = useSharedView(notify);
   useServeLink(lib.ready, lib.connectServed, notify);
-  const shared = sharedView.view;
-  const compare = shared ? shared.pages.length === 2 : layout.compare;
-  const target = shared && shared.pages.length === 1 ? "a" : layout.target;
+  const stage = stageOf(lib.slots, layout, presetId, sharedView.view);
+  const { shared, slots, compare, target, editable } = stage;
   const { ready } = lib;
-  const slots = shared ? shared.slots : lib.slots;
-  // Each slot's page on its own size: the preset is the typeface, and the
-  // page's name says its paper (a `.a5` or `.a6` name is a card or a postcard).
-  // A shared page shows on its sender's preset and paper.
-  const specA = shared ? shared.specs.a : pageSpec(presetId, sizeOfName(slots.a.label ?? ""));
-  const specB = shared ? shared.specs.b : pageSpec(presetId, sizeOfName(slots.b.label ?? ""));
+  const { a: specA, b: specB } = stage.specs;
+  /** Leave the shared view before a command that shows the reader's own pages. */
+  const leaveShared = () => {
+    if (shared) sharedView.close();
+  };
   const spec = target === "a" ? specA : specB;
   const page = slots[target];
   const a = useAnalysis(slots.a.text, specA);
@@ -188,33 +186,11 @@ export function Workbench() {
       result.fits ? "info" : "warn",
     );
   }
-  // Fit to page's API key, in the host's credential store (the host loads on first use).
-  const fitKey = useMemo((): KeyStore => {
-    const kind = FIT_TO_PAGE.names.credentials.apiKey;
-    return {
-      has: async () => (await models.host()).credentials.has(FIT_TO_PAGE.id, kind),
-      set: async (value) => (await models.host()).credentials.set(FIT_TO_PAGE.id, kind, value),
-      forget: async () => (await models.host()).credentials.forget(FIT_TO_PAGE.id, kind),
-    };
-  }, [models.host]);
-  const fitDeps = useRef({ spec, openPenResult });
-  useEffect(() => {
-    fitDeps.current = { spec, openPenResult };
-  });
-  const [fitJob] = useState(
-    () =>
-      new PenJob<PageRef>({
-        grant: async (text) =>
-          (await models.host()).consent.request(FIT_TO_PAGE.id, Operation.TRANSFORM, text).approve(),
-        run: async (text, options) =>
-          (await models.host()).transform(FIT_TO_PAGE.id, text, fitDeps.current.spec, {
-            instruction: FIT_TO_PAGE.names.instructions.fit,
-            ...options,
-          }),
-        onResult: (_name, result, ref) => fitDeps.current.openPenResult(FIT_TO_PAGE.card, result, ref),
-        onAuthFailed: () => void fitKey.forget(),
-      }),
+  const installedPens = useMemo(
+    () => models.installed.filter((v) => v.card.operations.includes(Operation.TRANSFORM)).map((v) => v.card),
+    [models.installed],
   );
+  const pens = usePens({ host: models.host, installed: installedPens, spec, onResult: openPenResult });
 
   // --- Share links ---------------------------------------------------------
 
@@ -249,37 +225,6 @@ export function Workbench() {
     }
   }
 
-  // Installed pens: one request each, owned here like Fit to page's, made on first use.
-  const [instructions, setInstructions] = useState<Record<string, string>>({});
-  const instructionsRef = useRef(instructions);
-  useEffect(() => {
-    instructionsRef.current = instructions;
-  });
-  const penJobs = useRef(new Map<string, PenJob<PageRef>>());
-  const penJob = (card: ModelCard): PenJob<PageRef> => {
-    let job = penJobs.current.get(card.id);
-    if (!job) {
-      const id = pluginIdOf(card);
-      const instruction = () => instructionsRef.current[card.id] ?? card.transform?.instructions[0] ?? "";
-      job = new PenJob<PageRef>({
-        grant: async (text) => (await models.host()).consent.request(id, Operation.TRANSFORM, text).approve(),
-        run: async (text, options) =>
-          (await models.host()).transform(id, text, fitDeps.current.spec, { instruction: instruction(), ...options }),
-        onResult: (_name, result, ref) => fitDeps.current.openPenResult(card, result, ref),
-      });
-      penJobs.current.set(card.id, job);
-    }
-    return job;
-  };
-  const penCredentials = (card: ModelCard): CredentialStoreView => {
-    const id = pluginIdOf(card);
-    return {
-      has: async (kind) => (await models.host()).credentials.has(id, kind),
-      set: async (kind, value) => (await models.host()).credentials.set(id, kind, value),
-      forget: async (kind) => (await models.host()).credentials.forget(id, kind),
-    };
-  };
-
   function selectLaterUnit(pair: FindingResult) {
     const later = pair.spans[pair.spans.length - 1];
     if (later) handles[target].current?.select(later.start, later.end);
@@ -303,13 +248,13 @@ export function Workbench() {
   }
 
   async function newPage(desired: string, text: string) {
-    if (shared) sharedView.close();
+    leaveShared();
     const name = await lib.createPage(desired, text, target);
     if (name) notify(`Created “${name}”.`);
   }
 
   async function loadPair(id: string) {
-    if (shared) sharedView.close();
+    leaveShared();
     const pair = SAMPLE_PAIRS.find((x) => x.id === id);
     if (!pair) return;
     setMode("compare");
@@ -318,7 +263,7 @@ export function Workbench() {
   }
 
   function clearPage() {
-    if (!page.label || page.text === "") return;
+    if (!editable || page.readOnly || !page.label || page.text === "") return;
     if (!window.confirm(`Clear all text on “${page.label}”?`)) return;
     lib.edit(target, "");
     handles[target].current?.focus();
@@ -362,7 +307,7 @@ export function Workbench() {
   }
 
   function openInSlot(slot: Slot, ref: PageRef) {
-    if (shared) sharedView.close();
+    leaveShared();
     setActive(slot);
     void lib.openInSlot(slot, ref, `open “${ref.kind === "file" ? ref.path : ref.name}”`).then(() => {
       if (layout.narrow) layout.setLibrary(false);
@@ -372,7 +317,7 @@ export function Workbench() {
   /** Open a letter in B beside the letter before it in A, or on its own when it's the first. */
   async function openLetter(ref: PageRef) {
     if (ref.kind !== "file") return;
-    if (shared) sharedView.close();
+    leaveShared();
     const paths = lib.folder.letters.map((l) => l.path);
     const before = paths[paths.indexOf(ref.path) - 1];
     // The listed file for that path, whose path is already a checked FilePath.
@@ -429,7 +374,7 @@ export function Workbench() {
     connect: async (address, token) => {
       const connection = servedConnection(address, token);
       if (!connection) {
-        return "Enter the address a4 serve printed, such as 127.0.0.1:4320, and its 43-character token.";
+        return `Enter the address a4 serve printed, such as 127.0.0.1:${DEFAULT_SERVE_PORT}, and its 43-character token.`;
       }
       await lib.connectServed(connection);
       return null;
@@ -489,9 +434,9 @@ export function Workbench() {
     <div className="app" data-focus={focus ? "" : undefined} data-print="flow">
       {!focus ? (
         <Topbar
-          layout={shared ? { ...layout, mode: compare ? "compare" : "single", compare, target } : layout}
+          layout={stage.layout}
           title={<DocTitle page={page} folderName={folderName} onRename={lib.renamePage} />}
-          fitJob={fitJob}
+          pens={pens.entries()}
           lens={lens}
           modelLens={modelLens}
           onLens={chooseLens}
@@ -502,7 +447,7 @@ export function Workbench() {
             notify={notify}
             onNewPage={(desired, text) => void newPage(desired, text)}
             onLoadPair={(id) => void loadPair(id)}
-            onClear={clearPage}
+            onClear={editable && !page.readOnly ? clearPage : null}
             saveToFolder={
               folderState.status === "connected" && page.ref?.kind === "library"
                 ? {
@@ -573,7 +518,7 @@ export function Workbench() {
           posePanel={layout.posePanel}
           onPosePanel={layout.setPosePanel}
           onOpen={(slot, ref) => openInSlot(slot, ref)}
-          onEdit={shared ? () => {} : lib.edit}
+          onEdit={editable ? lib.edit : () => {}}
           onActivate={setActive}
           onRender={onSheetRender}
           deskActions={letterActions}
@@ -595,7 +540,9 @@ export function Workbench() {
           ) : null}
           {focus ? (
             <div className="focus-bar" data-print="hide">
-              <FitJobChip job={fitJob} />
+              {pens.entries().map((pen) => (
+                <PenJobChip key={pen.card.id} card={pen.card} job={pen.job} />
+              ))}
               <button type="button" className="btn btn-outline focus-exit" onClick={() => layout.setFocus(false)}>
                 Exit focus (Esc)
               </button>
@@ -622,11 +569,17 @@ export function Workbench() {
                 b={b.analysis}
                 compressA={a.compress}
                 compressB={b.compress}
-                onSwap={() => void lib.swapSlots()}
-                onCopyAToB={() => {
-                  const ref = slots.a.ref;
-                  if (ref) void lib.duplicatePage(ref, "copy page A into B", "b");
-                }}
+                actions={
+                  editable
+                    ? {
+                        swap: () => void lib.swapSlots(),
+                        copyAToB: () => {
+                          const ref = slots.a.ref;
+                          if (ref) void lib.duplicatePage(ref, "copy page A into B", "b");
+                        },
+                      }
+                    : null
+                }
               />
             ) : (
               <MetricsPanel analysis={a.analysis} spec={specA} compress={a.compress} />
@@ -647,15 +600,19 @@ export function Workbench() {
                         card={v.card}
                         publisher={publisherNote(v.knownName, v.publisherName)}
                         page={{ name: page.label, ref: page.ref, text: page.text }}
-                        job={penJob(v.card)}
-                        credentials={penCredentials(v.card)}
-                        instruction={instructions[v.card.id] ?? v.card.transform?.instructions[0] ?? ""}
-                        onInstruction={(value) => setInstructions((i) => ({ ...i, [v.card.id]: value }))}
+                        job={pens.job(v.card)}
+                        credentials={pens.credentials(v.card)}
+                        instruction={pens.instruction(v.card)}
+                        onInstruction={(value) => pens.setInstruction(v.card, value)}
                       />,
                     ]),
                 ),
                 [FIT_TO_PAGE.id]: (
-                  <FitToPage page={{ name: page.label, ref: page.ref, text: page.text }} job={fitJob} apiKey={fitKey} />
+                  <FitToPage
+                    page={{ name: page.label, ref: page.ref, text: page.text }}
+                    job={pens.fit}
+                    apiKey={pens.fitKey}
+                  />
                 ),
                 [SEMANTIC_REPETITION.id]: modelLens.summary ? (
                   <SemanticSummaryView summary={modelLens.summary} onSelectPair={selectLaterUnit} />

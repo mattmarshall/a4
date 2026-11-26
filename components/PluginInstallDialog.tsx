@@ -64,7 +64,7 @@ export function PluginInstallDialog({
     setPhase({ kind: "installing", inspection });
     try {
       await models.install(inspection);
-      onInstalled(inspection.pkg.card.name, inspection.kind === "update");
+      onInstalled(inspection.pkg.card.name, inspection.kind.is === "update");
       onClose();
     } catch (error) {
       setPhase({ kind: "review", inspection, error: message(error) });

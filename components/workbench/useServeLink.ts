@@ -10,15 +10,9 @@
  */
 
 import { useEffect, useState } from "react";
-import { parseServedConnection, type ServedConnection } from "@/lib/persist";
+import { readConnectFragment, type ServedConnection } from "@/lib/persist";
 import type { Notify } from "@/lib/workspace";
-
-const PREFIX = "#serve=";
-
-/** Remove the fragment from the address bar without reloading or adding a history entry. */
-function clearFragment(): void {
-  window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
-}
+import { clearFragment } from "./fragment";
 
 export function useServeLink(
   ready: boolean,
@@ -29,11 +23,10 @@ export function useServeLink(
 
   useEffect(() => {
     const read = () => {
-      const hash = window.location.hash;
-      if (!hash.startsWith(PREFIX)) return;
+      const connection = readConnectFragment(window.location.hash);
+      if (connection === null) return;
       clearFragment();
-      const connection = parseServedConnection(decodeURIComponent(hash.slice(PREFIX.length)));
-      if (connection) setPending(connection);
+      if (connection !== "invalid") setPending(connection);
       else
         notify(
           "This connect link can’t be used: it must name a4 serve on this machine (127.0.0.1 or localhost) and its token.",

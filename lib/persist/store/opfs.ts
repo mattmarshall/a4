@@ -16,6 +16,7 @@ import { byteLength, revisionOf } from "./revision.ts";
 import { makeTrashId, parseTrashId } from "./trash-ids.ts";
 import {
   assertStorableText,
+  FileUnreadableError,
   PageConflictError,
   PageExistsError,
   PageNotFoundError,
@@ -53,11 +54,23 @@ async function* mdFiles(dir: FileSystemDirectoryHandle): AsyncGenerator<[string,
   }
 }
 
-// Blob.text() drops a leading byte-order mark; pages keep it, so decode exactly.
-const exact = new TextDecoder("utf-8", { ignoreBOM: true });
+// Blob.text() drops a leading byte-order mark; pages keep it, so decode exactly. Decoding is strict:
+// a file that isn't UTF-8 (another program wrote it, in a served folder) is refused rather than read
+// with replacement characters, which the next save, rename, or trash would write back over it.
+const exact = new TextDecoder("utf-8", { ignoreBOM: true, fatal: true });
 
-async function readText(file: Blob): Promise<string> {
-  return exact.decode(await file.arrayBuffer());
+async function readText(file: Blob, page: string): Promise<string> {
+  const bytes = await file.arrayBuffer();
+  try {
+    return exact.decode(bytes);
+  } catch {
+    throw new FileUnreadableError(page, "not-utf8");
+  }
+}
+
+/** A file listed a moment ago is gone (another tab, or another program in a served folder). */
+function isGone(error: unknown): boolean {
+  return error instanceof DOMException && error.name === "NotFoundError";
 }
 
 /**
@@ -167,7 +180,13 @@ export class OpfsPageStore implements PageStore {
     for await (const [stem, handle] of mdFiles(this.#pages)) {
       const name = pageNameCodec.parse(stem);
       if (!name) continue;
-      const file = await handle.getFile();
+      let file: File;
+      try {
+        file = await handle.getFile();
+      } catch (error) {
+        if (isGone(error)) continue;
+        throw error;
+      }
       out.push({ name, size: file.size, modifiedAt: file.lastModified });
     }
     return out;
@@ -177,7 +196,7 @@ export class OpfsPageStore implements PageStore {
     const handle = await this.#handle(this.#pages, name);
     if (!handle) throw new PageNotFoundError(name);
     const file = await handle.getFile();
-    const text = await readText(file);
+    const text = await readText(file, name);
     return { name, text, size: file.size, modifiedAt: file.lastModified, revision: revisionOf(text) };
   }
 
@@ -198,7 +217,7 @@ export class OpfsPageStore implements PageStore {
       const handle = await this.#handle(this.#pages, name);
       if (!handle) throw new PageNotFoundError(name);
       if (expected != null) {
-        const actual = revisionOf(await readText(await handle.getFile()));
+        const actual = revisionOf(await readText(await handle.getFile(), name));
         if (actual !== expected) throw new PageConflictError(name, expected, actual);
       }
       const file = await writeFile(handle, text);
@@ -213,7 +232,7 @@ export class OpfsPageStore implements PageStore {
     return lockNames(this.#lock, [from, target], async () => {
       const source = await this.#handle(this.#pages, from);
       if (!source) throw new PageNotFoundError(from);
-      const text = await readText(await source.getFile());
+      const text = await readText(await source.getFile(), from);
       const clash = await this.#find(target);
       if (clash && clash !== from) throw new PageExistsError(target);
       if (target === from) {
@@ -237,7 +256,7 @@ export class OpfsPageStore implements PageStore {
     return this.#locked(from, async () => {
       const source = await this.#handle(this.#pages, from);
       if (!source) throw new PageNotFoundError(from);
-      const text = await readText(await source.getFile());
+      const text = await readText(await source.getFile(), from);
       const temporary = await claimName(`${from} (renaming)`, this.#claims, (name) => this.#createHeld(name, text));
       await this.#pages.removeEntry(fileName(from));
       const file = await createFile(this.#pages, fileName(target), text);
@@ -250,7 +269,7 @@ export class OpfsPageStore implements PageStore {
     return this.#locked(name, async () => {
       const source = await this.#handle(this.#pages, name);
       if (!source) throw new PageNotFoundError(name);
-      const text = await readText(await source.getFile());
+      const text = await readText(await source.getFile(), name);
       const taken = new Set<string>();
       for await (const [stem] of mdFiles(this.#trash)) taken.add(stem);
       const { id, trashedAt } = makeTrashId(name, this.#clock.now(), (candidate) => taken.has(candidate));
@@ -265,7 +284,13 @@ export class OpfsPageStore implements PageStore {
     for await (const [stem, handle] of mdFiles(this.#trash)) {
       const parts = parseTrashId(stem);
       if (!parts) continue;
-      const file = await handle.getFile();
+      let file: File;
+      try {
+        file = await handle.getFile();
+      } catch (error) {
+        if (isGone(error)) continue;
+        throw error;
+      }
       out.push({ ...parts, size: file.size, trashedAt: parts.trashedAt || file.lastModified });
     }
     return out;
@@ -275,7 +300,7 @@ export class OpfsPageStore implements PageStore {
     const source = await this.#handle(this.#trash, id);
     const parts = parseTrashId(id);
     if (!source || !parts) throw new PageNotFoundError(id);
-    const text = await readText(await source.getFile());
+    const text = await readText(await source.getFile(), parts.name);
     return claimName(parts.name, this.#claims, async (target) => {
       const result = await this.#createHeld(target, text);
       await this.#trash.removeEntry(fileName(id));

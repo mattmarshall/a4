@@ -29,7 +29,8 @@ export function PageMenu({
   onNewPage: (desired: string, text: string) => void;
   /** Create a worked sample's two pages and open Compare. */
   onLoadPair: (id: string) => void;
-  onClear: () => void;
+  /** Erase the page's text; null for a page that can't be changed (a shared page, a sealed letter). */
+  onClear: (() => void) | null;
   /** Offered while a folder is open and the page is in the library. */
   saveToFolder: { readonly folder: string; readonly onSelect: () => void } | null;
   /** Copy a share link to this page, or (in Compare) to A and B as a pair; null while there's nothing to share. */
@@ -45,7 +46,9 @@ export function PageMenu({
   }
 
   function downloadText() {
-    const fileName = page.ref?.kind === "file" ? baseName(page.ref.path) : `${slugFromText(page.name ?? "")}.md`;
+    // A shared page has no name of its own here: its label is the name it was shared under.
+    const fileName =
+      page.ref?.kind === "file" ? baseName(page.ref.path) : `${slugFromText(page.name ?? page.label ?? "")}.md`;
     saveFile(new Blob([page.text], { type: "text/markdown;charset=utf-8" }), fileName);
   }
 
@@ -102,11 +105,15 @@ export function PageMenu({
               <span>Write this page to a new file in {saveToFolder.folder}</span>
             </MenuItem>
           ) : null}
-          <div className="menu-sep" />
-          <MenuItem close={close} onSelect={onClear}>
-            <strong>Clear “{page.label ?? "page"}”</strong>
-            <span>Erase this page’s text (autosaved)</span>
-          </MenuItem>
+          {onClear ? (
+            <>
+              <div className="menu-sep" />
+              <MenuItem close={close} onSelect={onClear}>
+                <strong>Clear “{page.label ?? "page"}”</strong>
+                <span>Erase this page’s text (autosaved)</span>
+              </MenuItem>
+            </>
+          ) : null}
         </>
       )}
     </Menu>

@@ -148,8 +148,12 @@ export function useModelLens({ models, notify, sources, texts, specs, compare, t
     setConsent({ source, slot: target, text, spec: specs[target] });
   };
 
-  /** The remote lens's result is for text the page no longer has. */
-  const remoteStale = active !== null && !local && (scored[target]?.planes[0]?.text ?? null) !== texts[target];
+  /** The remote lens's result is for text the page no longer has, or for another spec (its planes are hidden). */
+  const remoteResult = scored[target];
+  const remoteStale =
+    active !== null &&
+    !local &&
+    (remoteResult?.planes[0]?.text !== texts[target] || remoteResult?.spec !== specKey(specs[target]));
 
   return {
     /** The plane shown, or null for the built-in lens. */

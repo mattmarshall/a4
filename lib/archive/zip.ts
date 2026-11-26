@@ -9,6 +9,7 @@
  * stay under 4 GB and 65,535 entries.
  */
 
+import { canCompress, deflateRaw } from "../platform/bytes.ts";
 import { systemClock, type Clock } from "../platform/clock.ts";
 
 export interface ZipEntry {
@@ -57,11 +58,11 @@ export function dosDateTime(ms: number): { date: number; time: number } {
   };
 }
 
-async function deflateRaw(data: Uint8Array): Promise<Uint8Array | null> {
-  if (typeof CompressionStream === "undefined" || data.length === 0) return null;
+/** The entry compressed, or null to store it as it is (nothing to compress, or no CompressionStream). */
+async function deflate(data: Uint8Array): Promise<Uint8Array | null> {
+  if (!canCompress() || data.length === 0) return null;
   try {
-    const stream = new Blob([data as BlobPart]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
+    return await deflateRaw(data);
   } catch {
     return null;
   }
@@ -85,7 +86,7 @@ export async function createZip(entries: readonly ZipEntry[], options: ZipOption
     const name = encoder.encode(entry.name);
     const raw = typeof entry.data === "string" ? encoder.encode(entry.data) : entry.data;
     const crc = crc32(raw);
-    const deflated = compress ? await deflateRaw(raw) : null;
+    const deflated = compress ? await deflate(raw) : null;
     const useDeflate = deflated !== null && deflated.length < raw.length;
     const body = useDeflate ? deflated : raw;
     const method = useDeflate ? 8 : 0;

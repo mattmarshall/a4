@@ -8,7 +8,14 @@
  * can load it under Node without the app's path aliases.
  */
 
-import { type Inspection, type ModelCard, Operation, remoteHost, type UpdateChanges } from "../lib/models/index.ts";
+import {
+  FIT_TO_PAGE,
+  type Inspection,
+  type ModelCard,
+  Operation,
+  remoteHost,
+  type UpdateChanges,
+} from "../lib/models/index.ts";
 
 /** "38.0 MB" (decimal megabytes, as download sizes are usually given), or "12 KB" under a megabyte. */
 export function formatBytes(bytes: number): string {
@@ -56,7 +63,12 @@ export function publisherNote(knownName: string | null, givenName: string): stri
 
 /** What a pen's result page is called after: "<source> (fit)" for Fit to page, "<source> (<pen name>)" otherwise. */
 export function penSuffix(card: ModelCard): string {
-  return card.id === "fit-to-page" ? " (fit)" : ` (${card.name})`;
+  return card.id === FIT_TO_PAGE.card.id ? " (fit)" : ` (${card.name})`;
+}
+
+/** A running rewrite, on the top bar's chip: “Fitting “Brief””, or the pen's name and the page's. */
+export function penProgress(card: ModelCard, pageName: string): string {
+  return card.id === FIT_TO_PAGE.card.id ? `Fitting “${pageName}”` : `${card.name}: “${pageName}”`;
 }
 
 /** One row of the install dialog. */
@@ -109,13 +121,14 @@ export function installDialog(inspection: Inspection): InstallDialogCopy {
         : "It no longer asks for credentials.",
     );
   }
-  const update = inspection.kind === "update" && inspection.previous;
+  const { kind } = inspection;
   return {
-    title: update
-      ? `Update ${card.name} from ${inspection.previous?.version} to ${card.version}?`
-      : `Install ${card.name} ${card.version}?`,
+    title:
+      kind.is === "update"
+        ? `Update ${card.name} from ${kind.previousVersion} to ${card.version}?`
+        : `Install ${card.name} ${card.version}?`,
     rows,
     changes,
-    confirm: update ? "Update" : "Install",
+    confirm: kind.is === "update" ? "Update" : "Install",
   };
 }

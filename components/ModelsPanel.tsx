@@ -227,8 +227,12 @@ export function ModelsPanel({
     ) {
       return;
     }
-    await models.remove(id);
-    notify(`Removed ${name}.`);
+    try {
+      await models.remove(id);
+      notify(`Removed ${name}.`);
+    } catch (error) {
+      notify(`Couldn’t remove ${name}: ${error instanceof Error ? error.message : String(error)}`, "warn");
+    }
   }
 
   return (

@@ -9,15 +9,16 @@
 import Link from "next/link";
 import { useEffect, useState, type KeyboardEvent, type ReactNode } from "react";
 import { LENSES, type VerdictId } from "@/lib/analysis";
-import { type PenJob, remoteHost, SEMANTIC_REPETITION } from "@/lib/models";
+import { remoteHost, SEMANTIC_REPETITION } from "@/lib/models";
 import type { LensId } from "@/lib/page";
-import type { PageName, PageRef } from "@/lib/persist";
+import type { PageName } from "@/lib/persist";
 import type { SlotSnapshot } from "@/lib/workspace";
-import { FitJobChip } from "../FitToPage";
+import { PenJobChip } from "../FitToPage";
 import { VerdictChip } from "../MetricsPanel";
 import { SaveStatusPill } from "./SaveStatusPill";
 import type { Layout } from "./useLayout";
 import { planeKey, type LensSource } from "./model-lens";
+import type { PenEntry } from "./usePens";
 import type { ModelLens } from "./useModelLens";
 
 function PageNameField({
@@ -120,7 +121,7 @@ export function DocTitle({
 export function Topbar({
   layout,
   title,
-  fitJob,
+  pens,
   lens,
   modelLens,
   onLens,
@@ -129,7 +130,8 @@ export function Topbar({
 }: {
   layout: Layout;
   title: ReactNode;
-  fitJob: PenJob<PageRef>;
+  /** Every pen with a request: a running one shows its progress and Cancel. */
+  pens: readonly PenEntry[];
   lens: LensId;
   modelLens: ModelLens;
   onLens: (id: LensId) => void;
@@ -159,7 +161,9 @@ export function Topbar({
 
         {title}
 
-        <FitJobChip job={fitJob} />
+        {pens.map((pen) => (
+          <PenJobChip key={pen.card.id} card={pen.card} job={pen.job} />
+        ))}
 
         <span className="spacer" />
 

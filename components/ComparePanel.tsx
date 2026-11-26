@@ -29,15 +29,14 @@ export function ComparePanel({
   b,
   compressA,
   compressB,
-  onSwap,
-  onCopyAToB,
+  actions,
 }: {
   a: Analysis;
   b: Analysis;
   compressA: number | null;
   compressB: number | null;
-  onSwap: () => void;
-  onCopyAToB: () => void;
+  /** Swap A and B, and Duplicate A into B; null while they can't change the pages (a share link is open). */
+  actions: { readonly swap: () => void; readonly copyAToB: () => void } | null;
 }) {
   const rows: Row[] = [
     {
@@ -153,14 +152,16 @@ export function ComparePanel({
             })}
           </tbody>
         </table>
-        <div className="panel-actions">
-          <button type="button" className="btn btn-outline" onClick={onSwap}>
-            ⇄ Swap A and B
-          </button>
-          <button type="button" className="btn btn-outline" onClick={onCopyAToB}>
-            Duplicate A into B
-          </button>
-        </div>
+        {actions ? (
+          <div className="panel-actions">
+            <button type="button" className="btn btn-outline" onClick={actions.swap}>
+              ⇄ Swap A and B
+            </button>
+            <button type="button" className="btn btn-outline" onClick={actions.copyAToB}>
+              Duplicate A into B
+            </button>
+          </div>
+        ) : null}
         <p className="panel-foot">
           Green marks the better value for metrics with a direction. A common workflow: paste the raw data into A, write
           the narrative in B, and keep B once it is lower on syntax and tokens without losing facts. Pick either page

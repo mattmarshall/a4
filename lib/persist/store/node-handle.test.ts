@@ -7,6 +7,7 @@ import { inProcessLocks } from "../../platform/locks.ts";
 import { parsePageName } from "./names.ts";
 import { nodeDirectory } from "./node-handle.ts";
 import { OpfsPageStore } from "./opfs.ts";
+import { isStoreError } from "./types.ts";
 import { pageStoreContract } from "./testing/contract.ts";
 
 const folders: string[] = [];
@@ -71,4 +72,21 @@ test("in-process locks run one request per name at a time, and a failure doesn't
   });
   await Promise.all([slow, other, failing.catch(() => {}), after]);
   assert.deepEqual(order, ["a1 start", "b", "a1 end", "a2", "a3"]);
+});
+
+test("a file another program wrote that isn't UTF-8 is refused, and never rewritten", async () => {
+  const dir = await folder();
+  const store = await served(dir);
+  await store.create(parsePageName("Brief"), "ok");
+  // "Café" in Latin-1: é is the single byte e9.
+  const latin1 = new Uint8Array([0x43, 0x61, 0x66, 0xe9]);
+  await writeFile(join(dir, "pages", "Cafe.md"), latin1);
+  const cafe = parsePageName("Cafe");
+  // It's listed (a listing reads no text), but it can't be read, saved over, renamed, or trashed.
+  assert.deepEqual((await store.list()).map((p) => p.name).sort(), ["Brief", "Cafe"]);
+  await assert.rejects(store.read(cafe), (e: unknown) => isStoreError(e, "unreadable") && e.reason === "not-utf8");
+  await assert.rejects(store.trash(cafe), (e: unknown) => isStoreError(e, "unreadable"));
+  await assert.rejects(store.rename(cafe, parsePageName("Coffee")), (e: unknown) => isStoreError(e, "unreadable"));
+  assert.deepEqual(new Uint8Array(await readFile(join(dir, "pages", "Cafe.md"))), latin1);
+  assert.deepEqual(await readdir(join(dir, "trash")).catch(() => []), []);
 });

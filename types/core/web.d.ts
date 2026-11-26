@@ -61,3 +61,7 @@ declare class DecompressionStream {
 }
 
 type BufferSource = ArrayBufferView<ArrayBuffer> | ArrayBuffer;
+
+/** Base64 for binary strings (one character per byte), as the platform's byte helpers use it. */
+declare function btoa(data: string): string;
+declare function atob(data: string): string;

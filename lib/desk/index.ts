@@ -30,7 +30,7 @@ export {
   PostmarkSchema,
   type ReadLetter,
   readLetters,
-  readPostmark,
+  readSealedLetter,
   sealLetter,
   type SealOptions,
   SealRefusedError,

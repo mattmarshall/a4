@@ -8,18 +8,19 @@
  */
 
 import { useState } from "react";
+import { DEFAULT_SERVE_PORT, type LibrarySource } from "@/lib/persist";
 import type { WorkspaceSnapshot } from "@/lib/workspace";
 import styles from "../LibraryPanel.module.css";
 
 /** Library switching. Connect returns an error message to show inline, or null. */
 export interface LibraryActions {
-  switchTo(kind: "browser" | "served"): void;
+  switchTo(kind: LibrarySource): void;
   connect(address: string, token: string): Promise<string | null>;
   disconnect(): void;
 }
 
 function ConnectForm({ onConnect, onCancel }: { onConnect: LibraryActions["connect"]; onCancel: () => void }) {
-  const [address, setAddress] = useState("127.0.0.1:4320");
+  const [address, setAddress] = useState(`127.0.0.1:${DEFAULT_SERVE_PORT}`);
   const [token, setToken] = useState("");
   const [error, setError] = useState<string | null>(null);
   return (

@@ -21,6 +21,7 @@
  */
 
 import { sha256 } from "../platform/digest.ts";
+import { toBase64 } from "../platform/bytes.ts";
 import type { PortLike } from "./worker-transport.ts";
 
 /** Where a sandboxed plugin may connect: nowhere, or one HTTPS host. */
@@ -61,7 +62,7 @@ const LOAD_TIMEOUT_MS = 10_000;
 let bootHash: Promise<string> | null = null;
 
 function bootstrapHash(): Promise<string> {
-  bootHash ??= sha256(new TextEncoder().encode(BOOT)).then((d) => btoa(String.fromCharCode(...d)));
+  bootHash ??= sha256(new TextEncoder().encode(BOOT)).then(toBase64);
   return bootHash;
 }
 

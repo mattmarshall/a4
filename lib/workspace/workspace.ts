@@ -35,23 +35,20 @@ import { FolderAccess, type ConnectedFolder } from "../persist/folder/access.ts"
 import type { FolderSource } from "../persist/folder/fs.ts";
 import { FolderRegistry } from "../persist/folder/registry.ts";
 import type { LibraryEvent } from "../persist/library-events.ts";
-import { LIBRARY_CHANNEL } from "../persist/library-events.ts";
 import type { HandleStore } from "../platform/handle-store.ts";
 import type { Platform } from "../platform/index.ts";
-import { readSetting, type Setting, setSettingsStorage, SETTINGS, writeSetting } from "../persist/settings.ts";
+import { type LibrarySource, readSetting, setSettingsStorage, SETTINGS, writeSetting } from "../persist/settings.ts";
 import { pageNameCodec, parsePageName } from "../persist/store/names.ts";
 import { openPageStore, type OpenedStore } from "../persist/store/open.ts";
 import { copyNameFor, fileRef, libraryRef, sameRef, type FilePath, type PageRef } from "../persist/store/refs.ts";
-import { RemotePageStore } from "../persist/store/remote.ts";
 import { sameConnection, type ServedConnection } from "../persist/store/served.ts";
 import {
   isLetterPath,
   letterPathAt,
-  MAX_FILE_BYTES,
   type Postmark,
   PostmarkExistsError,
   postmarkPath,
-  readPostmark,
+  readSealedLetter,
   sealLetter,
   type SealOptions,
 } from "../desk/index.ts";
@@ -66,6 +63,16 @@ import {
 } from "../persist/store/types.ts";
 import { FolderIndex } from "./folder-index.ts";
 import { LibraryIndex } from "./library-index.ts";
+import {
+  BROWSER,
+  channelName,
+  defaultServedStore,
+  forgetServedPages,
+  journalPrefix,
+  type LibraryTarget,
+  openSettings,
+  sameTarget,
+} from "./library-target.ts";
 import { LibraryPoller, type PollerChange } from "./library-poller.ts";
 import { shouldReopen, type PendingFile } from "./pending.ts";
 import { openFolderFile, openLibraryPage, SlotController, type OpenPage } from "./slot-controller.ts";
@@ -101,29 +108,6 @@ export interface WorkspaceOptions<H> {
   openServed?: (connection: ServedConnection) => PageStore;
 }
 
-/** Which library the workspace shows. */
-type LibraryTarget = { readonly kind: "browser" } | { readonly kind: "served"; readonly connection: ServedConnection };
-
-const BROWSER: LibraryTarget = { kind: "browser" };
-
-function sameTarget(a: LibraryTarget | null, b: LibraryTarget): boolean {
-  if (a?.kind !== b.kind) return false;
-  return a.kind === "browser" || (b.kind === "served" && sameConnection(a.connection, b.connection));
-}
-
-/** The served library's own drafts, kept apart from this browser's (whose keys stay `a4:`). */
-function journalPrefix(target: LibraryTarget): string {
-  return target.kind === "browser" ? "a4:" : `a4:served:${target.connection.address}:`;
-}
-
-function channelName(target: LibraryTarget): string {
-  return target.kind === "browser" ? LIBRARY_CHANNEL : `${LIBRARY_CHANNEL}:${target.connection.address}`;
-}
-
-function defaultServedStore(connection: ServedConnection): PageStore {
-  return new RemotePageStore({ base: `http://${connection.address}`, token: connection.token });
-}
-
 const NO_FOLDER: FolderSnapshot = {
   state: { status: "none" },
   files: [],
@@ -132,6 +116,9 @@ const NO_FOLDER: FolderSnapshot = {
   partial: false,
   scanning: false,
 };
+
+/** What showing a library recovered and migrated, for the notices that follow. */
+type Shown = { readonly recoveries: readonly Recovery[]; readonly migrated: number };
 
 class NotReady extends Error {
   constructor() {
@@ -227,15 +214,17 @@ export class Workspace<H> {
     return this.#folder?.folder ?? null;
   }
 
-  /** Where the shown library's open pages are remembered. */
-  #openSettings(): Record<Slot, Setting<PageRef | null>> {
-    return this.#target?.kind === "served"
-      ? { a: SETTINGS.servedOpenA, b: SETTINGS.servedOpenB }
-      : { a: SETTINGS.openA, b: SETTINGS.openB };
+  #remember(slot: Slot, ref: PageRef | null): void {
+    writeSetting(openSettings(this.#target)[slot], ref);
   }
 
-  #remember(slot: Slot, ref: PageRef | null): void {
-    writeSetting(this.#openSettings()[slot], ref);
+  #notifyRecovered(shown: Shown): void {
+    const recovered = shown.recoveries.filter((r) => r.kind !== "discarded");
+    if (recovered.length) this.#notify({ kind: "recovered-library", recoveries: recovered });
+  }
+
+  #unreachable(connection: ServedConnection, error: unknown): WorkspaceNotice {
+    return { kind: "served-unreachable", address: connection.address, error };
   }
 
   #slotOf(ref: PageRef): Slot | undefined {
@@ -276,22 +265,21 @@ export class Workspace<H> {
     // The served library when it was the one in use, else (or when it can't be reached) this browser's.
     const served = readSetting(SETTINGS.servedLibrary);
     let unreachable: WorkspaceNotice | null = null;
-    let used: { recoveries: Recovery[]; migrated: number } | null = null;
+    let shown: Shown | null = null;
     if (served && readSetting(SETTINGS.librarySource) === "served") {
-      const result = await attempt(() => this.#showLibrary({ kind: "served", connection: served }, live));
-      if (result.ok) used = result.value;
-      else if (isStoreError(result.error, "unavailable")) {
-        unreachable = { kind: "served-unreachable", address: served.address, error: result.error };
-      } else throw result.error;
+      const target: LibraryTarget = { kind: "served", connection: served };
+      const result = await attempt(async () => this.#showLibrary(target, await this.#reach(target), live));
+      if (result.ok) shown = result.value;
+      else if (isStoreError(result.error, "unavailable")) unreachable = this.#unreachable(served, result.error);
+      else throw result.error;
     }
-    used ??= await this.#showLibrary(BROWSER, live, { starting: true });
+    shown ??= await this.#showLibrary(BROWSER, store, live, { starting: true });
     if (this.#disposed) return;
 
     this.#status = { kind: "ready" };
     this.#publish();
-    const recovered = used.recoveries.filter((r) => r.kind !== "discarded");
-    if (recovered.length) this.#notify({ kind: "recovered-library", recoveries: recovered });
-    if (used.migrated) this.#notify({ kind: "migrated", count: used.migrated });
+    this.#notifyRecovered(shown);
+    if (shown.migrated) this.#notify({ kind: "migrated", count: shown.migrated });
     if (movedFromFallback) this.#notify({ kind: "moved-from-fallback", count: movedFromFallback });
     if (!store.durable) this.#notify({ kind: "not-durable" });
     if (unreachable) this.#notify(unreachable);
@@ -300,24 +288,35 @@ export class Workspace<H> {
   }
 
   /**
-   * Show `target`'s pages: recover its drafts, list it, and reopen the pages
-   * remembered for it. The served library is listed first, so one that can't
-   * be reached throws StoreUnavailableError before anything changes. On this
-   * browser's library at startup, the old slots are migrated too, and the
-   * Welcome page made when the library is empty.
+   * `target`'s store, once it answers: this browser's as it is, and the
+   * served one after a listing, so one that can't be reached throws
+   * StoreUnavailableError before anything changes.
+   */
+  async #reach(target: LibraryTarget): Promise<PageStore> {
+    if (target.kind === "browser") {
+      if (!this.#browserStore) throw new NotReady();
+      return this.#browserStore;
+    }
+    const store = (this.#options.openServed ?? defaultServedStore)(target.connection);
+    await store.list();
+    return store;
+  }
+
+  /**
+   * Show `target`'s pages from `store` (see `#reach`): recover its drafts,
+   * list it, and reopen the pages remembered for it. On this browser's
+   * library at startup, the old slots are migrated too, and the Welcome page
+   * made when the library is empty.
    */
   async #showLibrary(
     target: LibraryTarget,
+    store: PageStore,
     live: ReadonlySet<string> | null,
     options: { starting?: boolean } = {},
-  ): Promise<{ recoveries: Recovery[]; migrated: number }> {
+  ): Promise<Shown> {
     const platform = this.#platform;
     const tabId = this.#tabId;
-    const browserStore = this.#browserStore;
-    if (!tabId || !browserStore) throw new NotReady();
-    const store =
-      target.kind === "browser" ? browserStore : (this.#options.openServed ?? defaultServedStore)(target.connection);
-    if (target.kind === "served") await store.list();
+    if (!tabId) throw new NotReady();
     const journal = new Journal(platform.keyValue, tabId, pageNameCodec, {
       clock: platform.clock,
       prefix: journalPrefix(target),
@@ -390,7 +389,7 @@ export class Workspace<H> {
       // An empty served folder: start a page, as trashing the last page does.
       fallback = await this.#need().create("Untitled", "");
     }
-    const settings = this.#openSettings();
+    const settings = openSettings(target);
     const savedA = readSetting(settings.a);
     const savedB = readSetting(settings.b);
     const folderReady = this.#connected() !== null;
@@ -747,45 +746,43 @@ export class Workspace<H> {
   }
 
   async #fillSlotB(): Promise<void> {
-    {
-      if (this.#slots.b.open) return;
-      const library = this.#need();
-      const ticket = this.#requests.begin("b");
-      const list = await library.refresh();
-      // Compare was left, or something else opened in B, while the list loaded.
-      if (!ticket.current() || this.#slots.b.open) return;
-      const a = this.#slots.a.open?.ref ?? null;
-      const saved = readSetting(this.#openSettings().b);
-      const pending = this.#pending.b;
-      const wanted = saved ?? pending?.ref ?? null;
-      if (wanted?.kind === "file" && this.#connected() && !sameRef(wanted, a)) {
-        const opened = await attempt(async () => {
-          this.#pending.b = null;
-          await this.#open("b", wanted, { ticket });
-        });
-        if (opened.ok) return;
-        // The file is gone or unreadable: fall back to a library page.
-      }
-      const notA = (p: PageSummary) => !(a?.kind === "library" && a.name === p.name);
-      const pick =
-        (wanted?.kind === "library" ? list.find((p) => p.name === wanted.name && notA(p))?.name : undefined) ??
-        list.find(notA)?.name ??
-        null;
+    if (this.#slots.b.open) return;
+    const library = this.#need();
+    const ticket = this.#requests.begin("b");
+    const list = await library.refresh();
+    // Compare was left, or something else opened in B, while the list loaded.
+    if (!ticket.current() || this.#slots.b.open) return;
+    const a = this.#slots.a.open?.ref ?? null;
+    const saved = readSetting(openSettings(this.#target).b);
+    const pending = this.#pending.b;
+    const wanted = saved ?? pending?.ref ?? null;
+    if (wanted?.kind === "file" && this.#connected() && !sameRef(wanted, a)) {
+      const opened = await attempt(async () => {
+        this.#pending.b = null;
+        await this.#open("b", wanted, { ticket });
+      });
+      if (opened.ok) return;
+      // The file is gone or unreadable: fall back to a library page.
+    }
+    const notA = (p: PageSummary) => !(a?.kind === "library" && a.name === p.name);
+    const pick =
+      (wanted?.kind === "library" ? list.find((p) => p.name === wanted.name && notA(p))?.name : undefined) ??
+      list.find(notA)?.name ??
+      null;
+    if (!ticket.current()) return;
+    // A remembered file whose folder isn't connected yet: show a library page
+    // meanwhile, without forgetting the file, and reopen it on connect.
+    const waiting = wanted?.kind === "file" && !this.#connected() && !sameRef(wanted, a);
+    if (pick) {
+      await this.#open("b", libraryRef(pick), { ticket, remember: !waiting });
+      if (waiting && ticket.current()) this.#pending.b = { ref: wanted, fallback: libraryRef(pick) };
+    } else {
+      // Only one page exists: make an empty one for B, unless Compare was left meanwhile.
       if (!ticket.current()) return;
-      // A remembered file whose folder isn't connected yet: show a library page
-      // meanwhile, without forgetting the file, and reopen it on connect.
-      const waiting = wanted?.kind === "file" && !this.#connected() && !sameRef(wanted, a);
-      if (pick) {
-        await this.#open("b", libraryRef(pick), { ticket, remember: !waiting });
-        if (waiting && ticket.current()) this.#pending.b = { ref: wanted, fallback: libraryRef(pick) };
-      } else {
-        // Only one page exists: make an empty one for B, unless Compare was left meanwhile.
-        if (!ticket.current()) return;
-        const { name } = await library.store.createUnique("Untitled", "");
-        await library.refresh();
-        library.changed();
-        await this.#open("b", libraryRef(name), { ticket });
-      }
+      const { name } = await library.store.createUnique("Untitled", "");
+      await library.refresh();
+      library.changed();
+      await this.#open("b", libraryRef(name), { ticket });
     }
   }
 
@@ -843,33 +840,31 @@ export class Workspace<H> {
     const run = async () => {
       if (this.#disposed || sameTarget(this.#target, target)) return;
       const platform = this.#platform;
-      // Reach the served library before closing anything, so a failure changes nothing.
-      if (target.kind === "served") {
-        try {
-          await (this.#options.openServed ?? defaultServedStore)(target.connection).list();
-        } catch (error) {
-          if (!isStoreError(error, "unavailable")) throw error;
-          this.#notify({ kind: "served-unreachable", address: target.connection.address, error });
-          this.#publish();
-          return;
-        }
+      // Reach the library before closing anything, so a failure changes nothing.
+      let store: PageStore;
+      try {
+        store = await this.#reach(target);
+      } catch (error) {
+        if (target.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
+        this.#notify(this.#unreachable(target.connection, error));
+        this.#publish();
+        return;
       }
       for (const slot of SLOTS) this.#requests.begin(slot);
       await Promise.all(SLOTS.map((slot) => this.#slots[slot].close()));
       for (const slot of SLOTS) this.#folder?.unwatch(slot);
-      let used: { recoveries: Recovery[] };
+      let shown: Shown;
       try {
-        used = await this.#showLibrary(target, await platform.tabs.live());
+        shown = await this.#showLibrary(target, store, await platform.tabs.live());
       } catch (error) {
-        if (!isStoreError(error, "unavailable") || target.kind !== "served") throw error;
-        // It stopped between the check and the switch: back to this browser's library.
-        this.#notify({ kind: "served-unreachable", address: target.connection.address, error });
-        used = await this.#showLibrary(BROWSER, await platform.tabs.live());
+        if (target.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
+        // It stopped after answering: back to this browser's library.
+        this.#notify(this.#unreachable(target.connection, error));
+        shown = await this.#showLibrary(BROWSER, await this.#reach(BROWSER), await platform.tabs.live());
       }
       this.#rewatch();
       this.#publish();
-      const recovered = used.recoveries.filter((r) => r.kind !== "discarded");
-      if (recovered.length) this.#notify({ kind: "recovered-library", recoveries: recovered });
+      this.#notifyRecovered(shown);
     };
     const next = this.#switching.then(run, run);
     this.#switching = next.catch(() => {});
@@ -877,7 +872,7 @@ export class Workspace<H> {
   }
 
   /** Show this browser's library, or the remembered served library. */
-  switchLibrary(kind: "browser" | "served"): Promise<Result<void>> {
+  switchLibrary(kind: LibrarySource): Promise<Result<void>> {
     return attempt(async () => {
       this.#need();
       if (kind === "browser") return this.#switchTo(BROWSER);
@@ -896,10 +891,7 @@ export class Workspace<H> {
     return attempt(async () => {
       this.#need();
       const previous = readSetting(SETTINGS.servedLibrary);
-      if (previous?.address !== connection.address) {
-        writeSetting(SETTINGS.servedOpenA, null);
-        writeSetting(SETTINGS.servedOpenB, null);
-      }
+      if (previous?.address !== connection.address) forgetServedPages();
       writeSetting(SETTINGS.servedLibrary, connection);
       this.#publish();
       await this.#switchTo({ kind: "served", connection });
@@ -912,8 +904,7 @@ export class Workspace<H> {
       this.#need();
       await this.#switchTo(BROWSER);
       writeSetting(SETTINGS.servedLibrary, null);
-      writeSetting(SETTINGS.servedOpenA, null);
-      writeSetting(SETTINGS.servedOpenB, null);
+      forgetServedPages();
       writeSetting(SETTINGS.librarySource, "browser");
       this.#publish();
     });
@@ -1061,13 +1052,7 @@ export class Workspace<H> {
       const open = this.#slots[slot].open;
       const folder = this.#connected();
       if (!folder || open?.kind !== "file" || !open.readOnly || !isLetterPath(open.ref.path)) return null;
-      const { path } = open.ref;
-      const name = path.slice(path.lastIndexOf("/") + 1);
-      const letter = await folder.fs.readBytes(path, { maxBytes: MAX_FILE_BYTES });
-      const sidecar = await folder.fs.readBytes(postmarkPath(path), { maxBytes: 64 * 1024 });
-      const postmark = readPostmark(sidecar.bytes, name);
-      if (!letter.bytes || !postmark) return null;
-      return { bytes: letter.bytes, postmark };
+      return readSealedLetter(folder.fs, open.ref.path);
     });
   }
 

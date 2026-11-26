@@ -10,6 +10,7 @@
  * and methods other than stored (0) and deflate (8) are not supported.
  */
 
+import { canCompress, inflateRaw } from "../platform/bytes.ts";
 import { crc32 } from "./zip.ts";
 
 export type ZipErrorCode =
@@ -85,34 +86,15 @@ function fromDosDateTime(date: number, time: number): number {
   return new Date(year, month, day, time >> 11, (time >> 5) & 0x3f, (time & 0x1f) * 2).getTime();
 }
 
-async function inflateRaw(data: Uint8Array, expected: number, name: string): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") {
-    throw new ZipError("unsupported", "This browser can’t decompress zip entries.");
-  }
-  const reader = new Blob([data as BlobPart]).stream().pipeThrough(new DecompressionStream("deflate-raw")).getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
+async function inflate(data: Uint8Array, expected: number, name: string): Promise<Uint8Array> {
+  if (!canCompress()) throw new ZipError("unsupported", "This browser can’t decompress zip entries.");
+  let out: Uint8Array | null;
   try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.length;
-      if (total > expected) {
-        await reader.cancel().catch(() => {});
-        throw new ZipError("corrupt", `“${name}” inflates past its declared size.`);
-      }
-      chunks.push(value);
-    }
-  } catch (error) {
-    if (error instanceof ZipError) throw error;
+    out = await inflateRaw(data, expected);
+  } catch {
     throw new ZipError("corrupt", `“${name}” is not valid compressed data.`);
   }
-  const out = new Uint8Array(total);
-  let at = 0;
-  for (const c of chunks) {
-    out.set(c, at);
-    at += c.length;
-  }
+  if (!out) throw new ZipError("corrupt", `“${name}” inflates past its declared size.`);
   return out;
 }
 
@@ -208,7 +190,7 @@ export function openZip(bytes: Uint8Array, limits: UnzipLimits = DEFAULT_UNZIP_L
           if (compressedSize !== size) throw new ZipError("corrupt", `“${name}” is damaged.`);
           data = body;
         } else {
-          data = await inflateRaw(body, size, name);
+          data = await inflate(body, size, name);
         }
         if (data.length !== size) throw new ZipError("corrupt", `“${name}” is shorter than declared.`);
         if (crc32(data) !== crc) throw new ZipError("checksum", `“${name}” failed its checksum.`);

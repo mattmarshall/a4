@@ -68,6 +68,104 @@ own. One round paid it down before the "Later" work starts:
 - Third-party pens and overlays are feature work, not debt: the plugin
   manifest only lists bundled plugins, by design.
 
+### Paydown after the Later work (2026-11-25)
+
+The three Later changes (signed plugins, share links, and the served
+library) were each reviewed for the debt they added. The reviewers found
+about 34 items. This round fixed the confirmed bugs and the duplication
+with the clearest payoff, and records the rest below.
+
+**Bugs fixed:**
+- **A shared view could change the reader's own pages.** With a share link
+  open, Page > Clear and Compare's Swap acted on the reader's pages hidden
+  underneath. Now `components/workbench/stage.ts` decides what the stage
+  shows. While a link is open, `editable` is false, Clear isn't offered, and
+  Swap and Duplicate A into B are hidden.
+- **A client that disconnected mid-request crashed `a4 serve`.** Every
+  request now runs behind one guard. A failure is logged by its error code,
+  never its text.
+- **A served file that isn't UTF-8 was silently corrupted.** It was read
+  with replacement characters, and the next save, rename, or trash wrote
+  them back. The store now decodes strictly and refuses such a file as
+  unreadable. A listing no longer reads every page's text, and a file
+  deleted mid-listing no longer fails the listing.
+- **A broken `#serve=` escape threw inside an effect** and took the app down
+  on load. It's now an invalid link, with a warning.
+- **Installed pens:**
+  - a rejected key is now forgotten, as Fit to page's is;
+  - an empty key no longer shows as set;
+  - a job reads the pen's current card, so an updated pen doesn't run as its
+    old version;
+  - a removed pen's job is cancelled;
+  - every pen's progress chip shows in the top bar, not only Fit to page's.
+- **A remote lens after a preset change** offered no "Score again", though
+  its planes were hidden.
+- **`a4 open` could half-write a pair** when a name was too long for the file
+  system. Names now follow the page-name rules (at most 80 characters).
+- **`a4 share`** now reads a seal with the desk's path and size limits.
+- **A failed Remove** now shows a notice instead of rejecting silently.
+- **The bundle check's plugin rules matched nothing,** because their paths
+  predate `lib/models/plugins/`. Each source rule now names a file that must
+  exist. Fixing the check found a leak: the model host and the
+  installed-plugin client and checks were in the first load, through one
+  re-exported message. The first load went from 15 chunks and 834 KiB to
+  13 and 817 KiB.
+
+**Duplication removed:**
+- **Byte helpers.** Capped reads, raw DEFLATE, base64, base64url, hex, and
+  byte equality had copies in the archive, share, models, desk, and
+  platform layers. They now live once, in `lib/platform/bytes.ts`.
+- **Pens.** Fit to page's job and key and the installed pens' jobs and
+  credentials are built by one hook, `components/workbench/usePens.ts`.
+- **A letter and its postmark** are read by one desk function,
+  `readSealedLetter`, for the app's share link and `a4 share`.
+- **The connect link.** Its format, the app's origin, and the default port
+  are defined once (`lib/persist/store/served.ts`, `lib/platform/origin.ts`).
+  The two fragment hooks share `clearFragment`.
+- **The served library's helpers.**
+  - Its target helpers moved to `lib/workspace/library-target.ts`, and a
+    switch now reaches the server once rather than twice.
+  - The Node adapters share hidden temporary files and error codes.
+  - The test fake's locks build on the in-process ones.
+- **`a4`'s command list** comes from its options table, not three copies.
+
+**Types and docs:**
+- An install inspection is a union (install, or update from a version).
+- `LibrarySource` names the browser-or-served choice.
+- The README and the installed-plugins spec now say what the code does: a
+  plugin's signature is checked when a tab loads it, and the plugin runs
+  only from the copy checked.
+- The README says to keep `.a4-serve-token` out of git.
+
+**Left for a later round:**
+- **The store protocol is mirrored by hand.**
+  - `serve.ts` and `remote.ts` each list every method and convert each
+    message.
+  - A typed method table, like `lib/models/client.ts`'s, would make a new
+    RPC fail to compile until both sides handle it.
+  - `StoreFailure` could carry a typed detail instead of a free `reason`.
+- **A served library has no identity.** Drafts and open pages are keyed by
+  address, so another folder served on the same port inherits them. A
+  `GetLibrary` call with an id and a protocol version would fix both.
+- **Pen UI.**
+  - Fit to page's panel, the installed pens' controls, and the consent
+    dialog are near copies.
+  - `PluginId` stops at the registry, where the UI passes plain strings.
+- **Plugin lifecycle.**
+  - Another tab's install or remove isn't heard.
+  - A Remove during a sandbox start can leave its frame.
+  - Model files are hashed again on every status check.
+- **Smaller copies:**
+  - the IndexedDB helpers in the plugin and handle stores;
+  - Ed25519 key handling in the CLI, the example build, and test packages;
+  - the poll loops in `LibraryPoller` and the folder watcher;
+  - copy written inline instead of in `*-copy.ts` (shared views, the
+    served library, the Models panel).
+- **The Connect form closes when the server is down.** The notice explains
+  why, but the form could show the error inline.
+- **A shared page is the empty slot with a label.** A `shared` variant of
+  `SlotSnapshot` would say so in the type.
+
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.
 

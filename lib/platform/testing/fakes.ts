@@ -10,7 +10,7 @@ import type { DeviceStorage } from "../device-storage.ts";
 import { MemoryHandleStore } from "../handle-store.ts";
 import type { Platform } from "../index.ts";
 import { MemoryKeyValue } from "../key-value.ts";
-import type { Locks } from "../locks.ts";
+import { inProcessLocks, type Locks } from "../locks.ts";
 import type { TabRegistry } from "../tabs.ts";
 
 /**
@@ -18,23 +18,17 @@ import type { TabRegistry } from "../tabs.ts";
  * each name has one holder at a time, granted in request order.
  */
 export class FakeLocks implements Locks {
-  readonly #tails = new Map<string, Promise<void>>();
+  readonly #locks = inProcessLocks();
   /** Names held right now, for assertions. */
   readonly held = new Set<string>();
 
   request<T>(name: string, fn: () => Promise<T>): Promise<T> {
-    const previous = this.#tails.get(name) ?? Promise.resolve();
-    let release = () => {};
-    const tail = previous.then(() => new Promise<void>((resolve) => (release = resolve)));
-    this.#tails.set(name, tail);
-    return previous.then(async () => {
+    return this.#locks.request(name, async () => {
       this.held.add(name);
       try {
         return await fn();
       } finally {
         this.held.delete(name);
-        release();
-        if (this.#tails.get(name) === tail) this.#tails.delete(name);
       }
     });
   }

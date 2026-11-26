@@ -19,6 +19,7 @@ import {
   type PluginPackage,
   PluginPackageSchema,
 } from "../gen/a4/v1/plugin_pb.js";
+import { toHex } from "../platform/bytes.ts";
 import { sha256, verifyEd25519 } from "../platform/digest.ts";
 import { checkCard } from "./host.ts";
 import { isModelError } from "./errors.ts";
@@ -61,18 +62,16 @@ export interface VerifiedPackage {
   readonly code: Uint8Array;
 }
 
-const hex = (bytes: Uint8Array) => Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
-
 /** `bytes` as a SHA-256 URN: "urn:sha256:" and 64 lowercase hexadecimal digits. */
 export async function digestUrn(bytes: Uint8Array): Promise<string> {
-  return `urn:sha256:${hex(await sha256(bytes))}`;
+  return `urn:sha256:${toHex(await sha256(bytes))}`;
 }
 
 const DIGEST_URN = /^urn:sha256:[0-9a-f]{64}$/;
 
 /** A publisher's fingerprint: the first 16 bytes of SHA-256 of their key, in 8 groups of 4 hex digits. */
 export async function fingerprint(publicKey: Uint8Array): Promise<string> {
-  const digest = hex((await sha256(publicKey)).slice(0, 16));
+  const digest = toHex((await sha256(publicKey)).slice(0, 16));
   return digest.match(/.{4}/g)?.join(" ") ?? digest;
 }
 

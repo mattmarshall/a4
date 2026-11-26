@@ -14,16 +14,12 @@
  * TypeMismatchError.
  */
 
-import { randomBytes } from "node:crypto";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { inProcessLocks } from "../../platform/locks.ts";
+import { codeOf, tempBeside } from "../folder/fs-node.ts";
 import { OpfsPageStore } from "./opfs.ts";
 import type { PageStore } from "./types.ts";
-
-function codeOf(error: unknown): string | undefined {
-  return typeof error === "object" && error !== null && "code" in error ? String(error.code) : undefined;
-}
 
 const notFound = (path: string) => new DOMException(`“${path}” doesn’t exist.`, "NotFoundError");
 const mismatch = (path: string) => new DOMException(`“${path}” is the wrong kind of entry.`, "TypeMismatchError");
@@ -53,7 +49,7 @@ class NodeWritable {
   async close(): Promise<void> {
     if (this.#done) return;
     this.#done = true;
-    const temporary = `${this.#path}.a4tmp-${randomBytes(6).toString("hex")}`;
+    const temporary = tempBeside(this.#path);
     try {
       await writeFile(temporary, Buffer.concat(this.#chunks));
       await rename(temporary, this.#path);
@@ -78,14 +74,38 @@ class NodeFileHandle {
     this.name = name;
   }
 
+  /**
+   * The file's size and time from `stat`; its bytes are read only when asked
+   * for, so listing a folder another program fills reads no page's text.
+   */
   async getFile(): Promise<File> {
+    const path = this.#path;
+    let info: Awaited<ReturnType<typeof stat>>;
     try {
-      const [bytes, info] = await Promise.all([readFile(this.#path), stat(this.#path)]);
-      return new File([new Uint8Array(bytes)], this.name, { lastModified: Math.round(info.mtimeMs) });
+      info = await stat(path);
     } catch (error) {
-      if (codeOf(error) === "ENOENT") throw notFound(this.#path);
+      if (codeOf(error) === "ENOENT") throw notFound(path);
       throw error;
     }
+    const bytes = async () => {
+      try {
+        return new Uint8Array(await readFile(path));
+      } catch (error) {
+        if (codeOf(error) === "ENOENT") throw notFound(path);
+        throw error;
+      }
+    };
+    const file = {
+      name: this.name,
+      size: Number(info.size),
+      lastModified: Math.round(Number(info.mtimeMs)),
+      arrayBuffer: async () => {
+        const b = await bytes();
+        return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+      },
+      text: async () => new TextDecoder().decode(await bytes()),
+    };
+    return file as unknown as File;
   }
 
   async createWritable(): Promise<NodeWritable> {

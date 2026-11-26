@@ -8,6 +8,13 @@ import { ErrorCode } from "../gen/a4/v1/model_pb.js";
 
 export { ErrorCode };
 
+/**
+ * Why installed plugins don't run in this browser. It's here, beside the
+ * errors, rather than with the installed client, so the UI can show it
+ * without loading the plugin machinery on first load.
+ */
+export const NO_SANDBOX = "This browser can’t sandbox installed plugins, so they don’t run here.";
+
 export class ModelError extends Error {
   readonly code: ErrorCode;
   constructor(code: ErrorCode, message: string, options?: { cause?: unknown }) {

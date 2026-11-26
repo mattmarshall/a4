@@ -15,15 +15,17 @@
  *   node <checkout>/cli/a4.ts <command> ...
  *
  * This file parses the command line and dispatches; each command lives in its
- * own module (lint.ts, letters.ts, stacks.ts, xray.ts, mailroom.ts, plugin.ts).
- * `lint`, `letters`, `stacks`, and `stack` only read files. `mailroom` serves
- * the folder to an agent over MCP on standard input and output and writes only
- * new draft letters. `plugin` makes keys and packages and checks them, and
- * never runs a plugin's code. None makes a network request.
+ * own module (lint.ts, letters.ts, stacks.ts, xray.ts, mailroom.ts,
+ * plugin.ts, share.ts, serve.ts).
+ * - `lint`, `letters`, `stacks`, `stack`, `xray`, and `share` only read files.
+ * - `mailroom` serves the folder to an agent over MCP on standard input and
+ *   output, and writes only new draft letters.
+ * - `plugin` makes keys and packages and checks them, and never runs a
+ *   plugin's code.
+ * - `open` writes a link's pages to new files, never overwriting one.
+ * - `serve` keeps a library in a folder and answers A4 on 127.0.0.1 only.
  *
- * Exit status: 0 when nothing fails, 1 when lint finds a failing file or
- * stack, the X-ray is over its budget, or a plugin package is refused, and 2
- * for a usage error or a path that can't be read.
+ * None makes a network request. The exit statuses are at the end of USAGE.
  */
 
 import { createInterface } from "node:readline";
@@ -127,7 +129,7 @@ can use it, and only with the library's token (kept in .a4-serve-token).
 Exit status: 0 when nothing fails, 1 when lint finds a failing file or stack,
 the X-ray is over its budget, a plugin package is refused, a link would be too
 long, or a link can't be read, 2 for a usage error, a path that doesn't exist,
-or a file a4 open won't overwrite.
+a file a4 open won't overwrite, or a port a4 serve can't use.
 `;
 
 type Command =
@@ -143,8 +145,10 @@ type Command =
   | ({ readonly kind: "open" } & OpenArgs)
   | ({ readonly kind: "serve" } & ServeArgs);
 
-/** The options each command takes; any other is a usage error. */
-const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonly string[]>> = {
+type CommandName = Exclude<Command["kind"], "help">;
+
+/** Each command, and the options it takes; any other is a usage error. */
+const COMMAND_OPTIONS: Readonly<Record<CommandName, readonly string[]>> = {
   lint: ["strict", "exclude", "json"],
   letters: ["latest", "json"],
   stacks: ["json"],
@@ -156,6 +160,19 @@ const COMMAND_OPTIONS: Readonly<Record<Exclude<Command["kind"], "help">, readonl
   open: ["out"],
   serve: ["port", "origin", "new-token"],
 };
+
+const COMMANDS = Object.keys(COMMAND_OPTIONS);
+
+function isCommand(name: string | undefined): name is CommandName {
+  return name !== undefined && COMMANDS.includes(name);
+}
+
+/** `--port`: digits from 0 to 65535 (0 picks a free port), else null. Number("") would be 0. */
+function portArg(given: string | undefined): number | null {
+  if (given === undefined) return DEFAULT_PORT;
+  const port = /^\d{1,5}$/.test(given) ? Number(given) : -1;
+  return port >= 0 && port <= 65535 ? port : null;
+}
 
 function parse(argv: readonly string[]): Command {
   const { values, positionals } = parseArgs({
@@ -183,22 +200,11 @@ function parse(argv: readonly string[]): Command {
   });
   if (values.help) return { kind: "help" };
   const [command, ...paths] = positionals;
-  if (
-    command !== "lint" &&
-    command !== "letters" &&
-    command !== "stacks" &&
-    command !== "stack" &&
-    command !== "xray" &&
-    command !== "mailroom" &&
-    command !== "plugin" &&
-    command !== "share" &&
-    command !== "open" &&
-    command !== "serve"
-  ) {
+  if (!isCommand(command)) {
     throw new UsageError(
       command
         ? `Unknown command “${command}”.`
-        : "Name a command: lint, letters, stacks, stack, xray, mailroom, plugin, share, open, or serve.",
+        : `Name a command: ${COMMANDS.slice(0, -1).join(", ")}, or ${COMMANDS.at(-1)}.`,
     );
   }
   const given = Object.entries(values)
@@ -262,8 +268,8 @@ function parse(argv: readonly string[]): Command {
     case "serve": {
       const [folder, ...rest] = paths;
       if (!folder || rest.length > 0) throw new UsageError("Name the library’s folder: a4 serve <folder>.");
-      const port = values.port === undefined ? DEFAULT_PORT : Number(values.port);
-      if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      const port = portArg(values.port);
+      if (port === null) {
         throw new UsageError("--port takes a port from 1 to 65535, or 0 for any free port.");
       }
       return { kind: "serve", folder, port, origins: values.origin, newToken: values["new-token"] };

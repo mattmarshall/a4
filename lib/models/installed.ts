@@ -16,6 +16,7 @@ import { timestampDate, timestampFromDate } from "@bufbuild/protobuf/wkt";
 import type { ModelCard } from "../gen/a4/v1/model_pb.js";
 import { InstalledPluginSchema, PluginManifestSchema, PluginPackageSchema } from "../gen/a4/v1/plugin_pb.js";
 import type { PluginStore } from "../platform/plugin-store.ts";
+import { readCapped, sameBytes } from "../platform/bytes.ts";
 import { remoteHost } from "./capabilities.ts";
 import { BUNDLED_CARDS } from "./manifest.ts";
 import { compareVersions, PACKAGE_LIMIT, PackageError, type VerifiedPackage, verifyPackage } from "./package.ts";
@@ -47,9 +48,8 @@ export interface Inspection {
   /** The HTTPS URL it came from, or "" for a file. */
   readonly sourceUrl: string;
   readonly known: KnownPublisher | null;
-  readonly kind: "install" | "update";
-  /** The installed version an update replaces. */
-  readonly previous: { readonly version: string } | null;
+  /** A new plugin, or an update with the installed version it replaces. */
+  readonly kind: { readonly is: "install" } | { readonly is: "update"; readonly previousVersion: string };
   readonly changes: UpdateChanges;
 }
 
@@ -69,9 +69,6 @@ export interface DamagedPlugin {
 }
 
 const BUNDLED_IDS: readonly string[] = BUNDLED_CARDS.map((c) => c.id);
-
-const sameKey = (a: Uint8Array, b: Uint8Array) => a.length === b.length && a.every((v, i) => v === b[i]);
-const sameBytes = sameKey;
 
 function changesBetween(before: ModelCard, after: ModelCard): UpdateChanges {
   const kinds = (card: ModelCard) => card.credentials.map((c) => c.label || c.kind).sort();
@@ -119,15 +116,15 @@ export async function inspect(
   }
   const known = knownPublisher(pkg.publisher.publicKey);
   const stored = await store.getRecord(card.id);
-  if (!stored) return { pkg, sourceUrl, known, kind: "install", previous: null, changes: {} };
+  if (!stored) return { pkg, sourceUrl, known, kind: { is: "install" }, changes: {} };
   let current: VerifiedPackage | null = null;
   try {
     current = (await readRecord(stored)).pkg;
   } catch {
     // A damaged record pins nothing: the author can replace it, from any key.
   }
-  if (!current) return { pkg, sourceUrl, known, kind: "install", previous: null, changes: {} };
-  if (!sameKey(current.publisher.publicKey, pkg.publisher.publicKey)) {
+  if (!current) return { pkg, sourceUrl, known, kind: { is: "install" }, changes: {} };
+  if (!sameBytes(current.publisher.publicKey, pkg.publisher.publicKey)) {
     throw new InstallError(
       "other-key",
       `Another publisher’s plugin already uses the id “${card.id}”. Remove it first to install this one.`,
@@ -150,8 +147,7 @@ export async function inspect(
     pkg,
     sourceUrl: sourceUrl || (await readRecord(stored)).sourceUrl,
     known,
-    kind: "update",
-    previous: { version: current.card.version },
+    kind: { is: "update", previousVersion: current.card.version },
     changes: changesBetween(current.card, card),
   };
 }
@@ -263,24 +259,12 @@ export async function fetchPackage(fetchImpl: typeof fetch, url: string, signal?
   if (!response.ok || !response.body) {
     throw new FetchPackageError(`The plugin couldn’t be downloaded from ${parsed.host} (${response.status}).`);
   }
-  const reader = response.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.length;
-    if (size > PACKAGE_LIMIT) {
-      await reader.cancel();
-      throw new PackageError("too-large", "The package is larger than 16 MiB.");
-    }
-    chunks.push(value);
+  let bytes: Uint8Array | null;
+  try {
+    bytes = await readCapped(response.body, PACKAGE_LIMIT);
+  } catch {
+    throw new FetchPackageError(`The plugin’s download from ${parsed.host} broke off. Try again.`);
   }
-  const bytes = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.length;
-  }
+  if (!bytes) throw new PackageError("too-large", "The package is larger than 16 MiB.");
   return bytes;
 }

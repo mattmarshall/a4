@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import type { PageName, PageRef, ServedConnection, TrashId } from "@/lib/persist";
+import type { LibrarySource, PageName, PageRef, ServedConnection, TrashId } from "@/lib/persist";
 import {
   describeError,
   reportResult,
@@ -172,7 +172,7 @@ export function useWorkspaceApi(notify: Notify) {
       createLetter: (text: string, slot: Slot) => inline((w) => w.createLetter(text, slot)),
       sealLetter: (slot: Slot, seal: { verdict: "accepted" | "returned"; reason: string; signer: string }) =>
         inline((w) => w.sealLetter(slot, seal)),
-      switchLibrary: (kind: "browser" | "served") =>
+      switchLibrary: (kind: LibrarySource) =>
         run(kind === "browser" ? "switch to this browser’s library" : "switch to the served library", (w) =>
           w.switchLibrary(kind),
         ),

@@ -85,6 +85,11 @@ const nameCodec: IdCodec<string | null> = {
 // ---------------------------------------------------------------------------
 // The registry
 
+/** Which library the Pages panel shows: this browser's, or the one `a4 serve` serves. */
+export type LibrarySource = "browser" | "served";
+
+const LIBRARY_SOURCES: readonly LibrarySource[] = ["browser", "served"];
+
 export const SETTINGS = {
   preset: defineSetting<PresetId>({ key: "preset", codec: choiceCodec(PRESET_IDS), default: DEFAULT_PRESET }),
   lens: defineSetting<LensId>({ key: "lens", codec: choiceCodec(LENS_IDS), default: "ink" }),
@@ -100,9 +105,9 @@ export const SETTINGS = {
   /** The served library this browser connects to (`a4 serve`); unset after Disconnect. */
   servedLibrary: defineSetting<ServedConnection | null>({ key: "served", codec: servedCodec, default: null }),
   /** Which library the Pages panel shows: this browser's or the served one. */
-  librarySource: defineSetting<"browser" | "served">({
+  librarySource: defineSetting<LibrarySource>({
     key: "library:source",
-    codec: choiceCodec(["browser", "served"]),
+    codec: choiceCodec(LIBRARY_SOURCES),
     default: "browser",
   }),
   /** The pages open in A and B on the served library (openA and openB are this browser's library). */

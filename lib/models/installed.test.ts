@@ -42,7 +42,7 @@ test("a valid package inspects as a new install, and installing stores it under 
   const key = testKey();
   const bytes = await rawPackage({ card: overlayCard(), key });
   const inspection = await inspect(store, bytes, "https://plugins.example.com/w.a4plugin");
-  assert.equal(inspection.kind, "install");
+  assert.deepEqual(inspection.kind, { is: "install" });
   assert.equal(inspection.known, null);
   assert.equal(store.plugins.size, 0, "inspecting stores nothing");
   await install(store, inspection, NOW);
@@ -108,8 +108,7 @@ test("an update that starts sending text away says so, with both versions", asyn
     credentials: [{ kind: "api-key", label: "API key" }],
   });
   const inspection = await inspect(store, await rawPackage({ card: v2, key }), "");
-  assert.equal(inspection.kind, "update");
-  assert.deepEqual(inspection.previous, { version: "1.0.0" });
+  assert.deepEqual(inspection.kind, { is: "update", previousVersion: "1.0.0" });
   assert.deepEqual(inspection.changes.destination, { before: null, after: "api.example.com" });
   assert.deepEqual(inspection.changes.credentials, { before: [], after: ["API key"] });
   assert.equal(inspection.changes.downloadBytes, undefined);
@@ -142,7 +141,7 @@ test("removing deletes the record and its files, and keeps a file another plugin
   assert.notEqual(await store.getFile(await digestUrn(fileB)), null, "the shared file stays");
   // With the pin gone, another key may now use the id.
   const again = await rawPackage({ card: overlayCard(), key: testKey() });
-  assert.equal((await inspect(store, again, "")).kind, "install");
+  assert.deepEqual((await inspect(store, again, "")).kind, { is: "install" });
 });
 
 test("an update drops the old version's files that the new one no longer lists", async () => {

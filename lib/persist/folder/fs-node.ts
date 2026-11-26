@@ -8,10 +8,22 @@ import { link, mkdir, opendir, readFile, realpath, rename, rm, stat, writeFile }
 import { basename, dirname, join } from "node:path";
 import { FsError, type FileStat, type FolderEntry, type FolderFs, type FolderSource, type WriteOptions } from "./fs.ts";
 
-function codeOf(error: unknown): string | undefined {
+/** A Node error's code (ENOENT, EACCES), if it has one. */
+export function codeOf(error: unknown): string | undefined {
   return typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
     ? error.code
     : undefined;
+}
+
+let temps = 0;
+
+/**
+ * A hidden temporary file beside `target` (".Brief.md.a4-<pid>-<n>.tmp"),
+ * written in full and then renamed or linked over it, so a reader never sees
+ * a half-written file and a folder listing doesn't show it as a page.
+ */
+export function tempBeside(target: string): string {
+  return join(dirname(target), `.${basename(target)}.a4-${process.pid}-${++temps}.tmp`);
 }
 
 function toFsError(error: unknown, path: string): FsError {
@@ -42,7 +54,6 @@ async function linkNew(temp: string, target: string, bytes: Uint8Array<ArrayBuff
 
 class NodeFolderFs implements FolderFs {
   readonly #root: string;
-  #temp = 0;
 
   constructor(root: string) {
     this.#root = root;
@@ -95,7 +106,7 @@ class NodeFolderFs implements FolderFs {
     const exclusive = options.exclusive ?? false;
     const create = (options.create ?? false) || exclusive;
     if (!create && !(await this.stat(path))) throw new FsError("not-found", `“${path}” doesn’t exist.`);
-    const temp = join(dirname(target), `.${basename(target)}.a4-${process.pid}-${++this.#temp}.tmp`);
+    const temp = tempBeside(target);
     try {
       if (create) await mkdir(dirname(target), { recursive: true });
       await writeFile(temp, bytes);

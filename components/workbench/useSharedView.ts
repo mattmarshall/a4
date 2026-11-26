@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { PageSpec } from "@/lib/page";
 import { isShareFragment, readLink, type SealOf, ShareError, type SharedPageView, sealOf } from "@/lib/share";
 import type { Notify, Slot, SlotSnapshot } from "@/lib/workspace";
+import { clearFragment } from "./fragment";
 
 export interface SharedView {
   readonly pages: readonly SharedPageView[];
@@ -27,13 +28,6 @@ const EMPTY: SlotSnapshot = { ref: null, name: null, label: null, text: "", stat
 
 function snapshotOf(page: SharedPageView): SlotSnapshot {
   return { ref: null, name: null, label: page.name, text: page.text, status: "saved", readOnly: true };
-}
-
-/** Remove the fragment from the address bar without reloading or adding a history entry. */
-function clearFragment(): void {
-  if (window.location.hash) {
-    window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
-  }
 }
 
 export function useSharedView(notify: Notify) {

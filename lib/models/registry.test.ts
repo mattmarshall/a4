@@ -115,7 +115,7 @@ test("an update replaces the registered plugin", async () => {
   const { registry: r } = registry();
   await r.install(await r.inspect(await wordLengthPackage("1.0.0", key)));
   const update = await r.inspect(await wordLengthPackage("1.1.0", key));
-  assert.equal(update.kind, "update");
+  assert.equal(update.kind.is, "update");
   await r.install(update);
   assert.equal(r.host.card(pluginIdOf(card)).version, "1.1.0");
   assert.equal(r.installed().length, 1);

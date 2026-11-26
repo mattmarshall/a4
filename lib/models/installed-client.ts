@@ -27,7 +27,7 @@ import {
 } from "../gen/a4/v1/model_pb.js";
 import { PluginStartSchema } from "../gen/a4/v1/plugin_pb.js";
 import { type SheetModelClient, setCloser } from "./client.ts";
-import { ErrorCode, ModelError, toModelError } from "./errors.ts";
+import { ErrorCode, ModelError, NO_SANDBOX, toModelError } from "./errors.ts";
 import type { PluginContext } from "./host.ts";
 import { digestUrn, type VerifiedPackage } from "./package.ts";
 import type { SandboxNetwork, SandboxOptions, SandboxPort } from "./sandbox.ts";
@@ -50,7 +50,6 @@ export interface InstalledClientDeps {
 }
 
 /** What the author sees when the browser fails the sandbox self-test. */
-export const NO_SANDBOX = "This browser can’t sandbox installed plugins, so they don’t run here.";
 
 interface Running {
   readonly client: SheetModelClient;

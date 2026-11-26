@@ -14,6 +14,7 @@ import type { Postmark } from "../gen/a4/v1/letter_pb.js";
 import { type SharedPage, SharedPagesSchema } from "../gen/a4/v1/share_pb.js";
 import { PageSpecSchema } from "../gen/a4/v1/sheet_pb.js";
 import { type PageSpec, type PaperId, type PresetId, pageSpec } from "../page/index.ts";
+import { canCompress, deflateRaw, fromBase64Url, inflateRaw, toBase64Url } from "../platform/bytes.ts";
 import { paperEnum, pageSpecOf, presetEnum } from "../tensor/record.ts";
 
 /** The longest link A4 makes: long enough for a full page or a pair, short enough for chat and mail. */
@@ -23,7 +24,7 @@ export const LINK_LIMIT = 16_384;
 const PAYLOAD_LIMIT = 1024 * 1024;
 
 /** The production workbench, where `a4 share` links open. */
-export const SHARE_ORIGIN = "https://a4.marsh.build";
+export { APP_ORIGIN as SHARE_ORIGIN } from "../platform/origin.ts";
 
 const PREFIX = "s1.";
 
@@ -67,60 +68,31 @@ function unsupported(): ShareError {
   return new ShareError("unsupported", "This browser can’t make or open share links.");
 }
 
-function toBase64Url(bytes: Uint8Array): string {
-  let binary = "";
-  for (const b of bytes) binary += String.fromCharCode(b);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+function damaged(): ShareError {
+  return new ShareError("malformed", "This share link is damaged.");
 }
 
-function fromBase64Url(text: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]*$/.test(text)) throw new ShareError("malformed", "This share link is damaged.");
-  const padded = text.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - (text.length % 4)) % 4);
-  let binary: string;
-  try {
-    binary = atob(padded);
-  } catch {
-    throw new ShareError("malformed", "This share link is damaged.");
-  }
-  return Uint8Array.from(binary, (c) => c.charCodeAt(0));
+function decodeBase64Url(text: string): Uint8Array {
+  const bytes = fromBase64Url(text);
+  if (!bytes) throw damaged();
+  return bytes;
 }
 
 async function deflate(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof CompressionStream === "undefined") throw unsupported();
-  const stream = new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream("deflate-raw"));
-  return new Uint8Array(await new Response(stream).arrayBuffer());
+  if (!canCompress()) throw unsupported();
+  return deflateRaw(bytes);
 }
 
 /** Inflate `bytes`, reading at most PAYLOAD_LIMIT bytes before giving up. */
 async function inflate(bytes: Uint8Array): Promise<Uint8Array> {
-  if (typeof DecompressionStream === "undefined") throw unsupported();
-  const reader = new Blob([new Uint8Array(bytes)])
-    .stream()
-    .pipeThrough(new DecompressionStream("deflate-raw"))
-    .getReader();
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  for (;;) {
-    let next: ReadableStreamReadResult<Uint8Array>;
-    try {
-      next = await reader.read();
-    } catch {
-      throw new ShareError("malformed", "This share link is damaged.");
-    }
-    if (next.done) break;
-    size += next.value.length;
-    if (size > PAYLOAD_LIMIT) {
-      await reader.cancel().catch(() => {});
-      throw new ShareError("too-large", "This share link holds more than 1 MiB, so it can’t be opened.");
-    }
-    chunks.push(next.value);
+  if (!canCompress()) throw unsupported();
+  let out: Uint8Array | null;
+  try {
+    out = await inflateRaw(bytes, PAYLOAD_LIMIT);
+  } catch {
+    throw damaged();
   }
-  const out = new Uint8Array(size);
-  let at = 0;
-  for (const chunk of chunks) {
-    out.set(chunk, at);
-    at += chunk.length;
-  }
+  if (!out) throw new ShareError("too-large", "This share link holds more than 1 MiB, so it can’t be opened.");
   return out;
 }
 
@@ -193,7 +165,7 @@ export async function readLink(input: string): Promise<SharedPageView[]> {
     }
     throw new ShareError("malformed", "This isn’t a share link.");
   }
-  const bytes = await inflate(fromBase64Url(fragment.slice(PREFIX.length)));
+  const bytes = await inflate(decodeBase64Url(fragment.slice(PREFIX.length)));
   let pages: SharedPage[];
   try {
     pages = fromBinary(SharedPagesSchema, bytes).pages;

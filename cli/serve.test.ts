@@ -2,12 +2,14 @@ import { after, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { request } from "node:http";
+import { connect } from "node:net";
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { create, toBinary } from "@bufbuild/protobuf";
 import { ReadPageRequestSchema, WritePageRequestSchema } from "../lib/gen/a4/v1/store_pb.js";
+import { parsePageName } from "../lib/persist/store/names.ts";
 import { RemotePageStore } from "../lib/persist/store/remote.ts";
 import { pageStoreContract } from "../lib/persist/store/testing/contract.ts";
 import { APP_ORIGIN, type RunningServer, startServer, TOKEN_FILE } from "./serve.ts";
@@ -182,6 +184,37 @@ test("the token is kept owner-only, reused across runs, and replaced by --new-to
   // The old token no longer opens the library.
   await assert.rejects(client(third, first.token).list(), /refused/);
   assert.deepEqual(await client(third).list(), []);
+});
+
+test("a client that goes away mid-request ends that request, not the server", async () => {
+  const running = await serve();
+  await client(running).create(parsePageName("Brief"), "Ship Friday.");
+  const [host, port] = running.address.split(":");
+  // A save whose body promises 1,000 bytes, and stops after 3 (a tab closed during the save).
+  await new Promise<void>((done, fail) => {
+    const socket = connect(Number(port), host, () => {
+      socket.write(
+        [
+          "POST /a4.v1.PageStoreService/WritePage HTTP/1.1",
+          `Host: ${running.address}`,
+          `Origin: ${APP_ORIGIN}`,
+          `Authorization: Bearer ${running.token}`,
+          "Content-Type: application/proto",
+          "Content-Length: 1000",
+          "",
+          "abc",
+        ].join("\r\n"),
+        () => {
+          socket.destroy();
+          done();
+        },
+      );
+    });
+    socket.on("error", fail);
+  });
+  await new Promise((done) => setTimeout(done, 50));
+  // Still serving, and the page is as it was.
+  assert.equal((await client(running).read(parsePageName("Brief"))).text, "Ship Friday.");
 });
 
 test("a taken port, a file for a folder, and a bad --origin are refused", async () => {

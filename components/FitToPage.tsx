@@ -10,22 +10,23 @@
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { FIT_TO_PAGE, type PenJob, remoteHost } from "@/lib/models";
+import { FIT_TO_PAGE, type ModelCard, type PenJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
 import styles from "./ModelsPanel.module.css";
+import { penProgress } from "./plugin-copy";
 
 function useFitJob(job: PenJob<PageRef>) {
   return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
 }
 
-/** The top-bar chip for a running rewrite: progress and Cancel, wherever the panel is. */
-export function FitJobChip({ job }: { job: PenJob<PageRef> }) {
+/** The top-bar chip for a pen's running rewrite: progress and Cancel, wherever the panel is. */
+export function PenJobChip({ card, job }: { card: ModelCard; job: PenJob<PageRef> }) {
   const phase = useFitJob(job);
   if (phase.kind !== "running") return null;
   return (
     <span className={styles.fitChip} role="status" aria-live="polite">
       <span>
-        Fitting “{phase.name}” · {phase.attempt}
+        {penProgress(card, phase.name)} · {phase.attempt}
         {phase.maxAttempts === null ? "" : `/${phase.maxAttempts}`}
       </span>
       <button type="button" className="btn" onClick={() => job.cancel()}>

@@ -65,7 +65,11 @@ export function PenControls({
     if (!field) return;
     const value = field.value;
     field.value = "";
-    void credentials.set(kind, value).then(() => setSet((s) => ({ ...s, [kind]: true })));
+    // Ask the store again: an empty value forgets the credential rather than setting it.
+    void credentials
+      .set(kind, value)
+      .then(() => credentials.has(kind))
+      .then((has) => setSet((s) => ({ ...s, [kind]: has })));
   }
 
   const missing = card.credentials.some((c) => !set[c.kind]);

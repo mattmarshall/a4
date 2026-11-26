@@ -13,7 +13,7 @@ export { FIT_TO_PAGE } from "./plugins/fit/descriptor.ts";
 export { PenJob } from "./pen-job.ts";
 export type { FindingResult, ModelHost, ScoreResult, TransformResult } from "./host.ts";
 export type { DamagedPlugin, Inspection, UpdateChanges } from "./installed.ts";
-export { NO_SANDBOX } from "./installed-client.ts";
+export { NO_SANDBOX } from "./errors.ts";
 export type { ConsentToken } from "./consent.ts";
 export type { PluginRegistryApi } from "./registry-api.ts";
 export { pluginIdOf, type PluginId } from "./plugin-id.ts";

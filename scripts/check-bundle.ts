@@ -19,10 +19,25 @@ const CHUNKS_REPORT = "dist/client-chunks.json";
 const ASSETS = ".cloudflare/output/v1/workers/default/assets";
 const MANIFEST = join(ASSETS, ".vite/manifest.json");
 
-/** Modules that must stay out of the first load, by what they are. */
-const LAZY: Record<string, RegExp> = {
-  "the Fit to page adapter": /^lib\/models\/fit\/adapter\.ts$/,
-  "the semantic worker": /^lib\/models\/semantic\/worker\.ts$/,
+/**
+ * Source modules that must stay out of the first load, by what they are.
+ * Each must exist (checked below), so a move can't quietly turn a rule off.
+ */
+const LAZY_MODULES: Record<string, readonly string[]> = {
+  "the Fit to page adapter": ["lib/models/plugins/fit/adapter.ts"],
+  "the semantic worker": ["lib/models/plugins/semantic/worker.ts"],
+  "the model host": ["lib/models/host.ts"],
+  "the plugin registry": ["lib/models/registry.ts"],
+  "installed plugins' package checks, client, and sandbox": [
+    "lib/models/installed.ts",
+    "lib/models/installed-client.ts",
+    "lib/models/package.ts",
+    "lib/models/sandbox.ts",
+  ],
+};
+
+/** Libraries that must stay out of the first load. */
+const LAZY_PACKAGES: Record<string, RegExp> = {
   "@anthropic-ai/sdk": /(^|\/)node_modules\/@anthropic-ai\/sdk\//,
   "@huggingface/transformers": /(^|\/)node_modules\/@huggingface\/transformers\//,
   "onnxruntime-web": /(^|\/)node_modules\/onnxruntime-(web|common)\//,
@@ -40,6 +55,12 @@ function fail(message: string): never {
 
 for (const path of [HOME_HTML, CHUNKS_REPORT, MANIFEST]) {
   if (!existsSync(path)) fail(`Missing ${path}. Run \`pnpm build\` first.`);
+}
+const missing = Object.values(LAZY_MODULES)
+  .flat()
+  .filter((path) => !existsSync(path));
+if (missing.length) {
+  fail(`The bundle check names modules that don't exist, so it checks nothing for them:\n  ${missing.join("\n  ")}`);
 }
 
 const manifest = JSON.parse(readFileSync(MANIFEST, "utf8")) as Record<string, ManifestChunk>;
@@ -78,7 +99,11 @@ for (const file of firstLoad) {
     continue;
   }
   bytes += statSync(join(ASSETS, file)).size;
-  for (const [what, pattern] of Object.entries(LAZY)) {
+  for (const [what, paths] of Object.entries(LAZY_MODULES)) {
+    const found = modules.find((id) => paths.includes(id));
+    if (found) problems.push(`${file} contains ${what} (${found})`);
+  }
+  for (const [what, pattern] of Object.entries(LAZY_PACKAGES)) {
     const found = modules.find((id) => pattern.test(id));
     if (found) problems.push(`${file} contains ${what} (${found})`);
   }

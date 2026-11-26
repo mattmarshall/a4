@@ -1133,7 +1133,8 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
     from another origin, or with none, gets 403.
   - Every request carries the library's token, 32 random bytes kept in
     `.a4-serve-token` (readable only by you), and reused across runs so a
-    connected browser stays connected. A wrong token gets 401.
+    connected browser stays connected. A wrong token gets 401. If the folder
+    is a git repository, add `.a4-serve-token` to its `.gitignore`.
   - Page text goes only between this browser and 127.0.0.1. a4.marsh.build
     still stores nothing.
   - It keeps out web pages, not programs: anything running as you can read
@@ -1325,9 +1326,10 @@ pnpm a4 plugin verify dist/word-length.a4plugin
   memory only), and run it. A pen that sends text away asks first. The host
   lays out each attempt, and the result opens as "<page> (<pen name>)" beside
   the source in Compare. The source never changes.
-- **Every start is checked.** A4 checks each installed plugin's signature and
-  code every time it starts the plugin. A stored plugin that fails the check
-  is shown as damaged and doesn't run.
+- **Every load is checked.** When a tab loads its installed plugins, A4
+  checks each one's signature and code, and a plugin runs only from the copy
+  it checked. A stored plugin that fails the check is shown as damaged and
+  doesn't run.
 - **Updates and removal.**
   - **Check for update** fetches a plugin's URL only when you ask, and shows
     both versions and what changes: where text goes, the download size, and

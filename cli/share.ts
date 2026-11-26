@@ -7,10 +7,12 @@
  */
 
 import { readFile, stat, writeFile } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { copiedNotice, SEAL_MEANING, sealLine, specLabel } from "../components/share-copy.ts";
-import { readPostmark } from "../lib/desk/index.ts";
+import { readSealedLetter } from "../lib/desk/index.ts";
 import { sizeOfName } from "../lib/page/index.ts";
+import { nodeFolderSource } from "../lib/persist/folder/fs-node.ts";
+import { sanitizePageName } from "../lib/persist/index.ts";
 import { readLink, SHARE_ORIGIN, ShareError, type SharePageInput, sealOf, shareLink } from "../lib/share/index.ts";
 import { folderArg } from "./letters.ts";
 import { UsageError } from "./usage.ts";
@@ -35,14 +37,14 @@ async function page(path: string): Promise<SharePageInput> {
     throw new ShareError("too-long", `“${path}” is larger than 1 MiB, too large for a link. Share the file instead.`);
   }
   const name = basename(path);
-  const sidecar = await readFile(`${path}.postmark.json`).catch(() => null);
-  const postmark = sidecar ? readPostmark(new Uint8Array(sidecar), name) : null;
+  // A postmark beside the file is its seal, read with the desk's limits; the link carries the bytes it covers.
+  const sealed = await readSealedLetter(nodeFolderSource.open(dirname(resolve(path))), name);
   return {
     name,
     preset: "terminal",
     paper: sizeOfName(name),
-    bytes: new Uint8Array(await readFile(path)),
-    ...(postmark ? { postmark } : {}),
+    bytes: sealed?.bytes ?? new Uint8Array(await readFile(path)),
+    ...(sealed ? { postmark: sealed.postmark } : {}),
   };
 }
 
@@ -68,14 +70,18 @@ export async function runShare(args: ShareArgs): Promise<number> {
   }
 }
 
-/** A shared page's name as a file name: no folders, no control characters, no leading dots, ending in .md. */
+/**
+ * A shared page's name as a file name: a page name's rules (no folders or
+ * control characters, no leading dots, at most 80 characters), ending in .md
+ * (or the .mdc it had).
+ */
 export function safeFileName(name: string): string {
-  const cleaned = name
+  const extension = /\.mdc$/i.test(name) ? ".mdc" : ".md";
+  const stem = name
+    .replace(/\.(md|mdc)$/i, "")
     .replace(/[/\\:*?"<>|\p{Cc}]/gu, "-")
-    .replace(/^[.\s-]+/, "")
-    .trim();
-  const base = cleaned || "shared-page";
-  return /\.(md|mdc)$/i.test(base) ? base : `${base}.md`;
+    .replace(/^[.\s-]+/, "");
+  return `${sanitizePageName(stem, "shared-page")}${extension}`;
 }
 
 /** The file names for `names`, made unique among themselves ("Brief.md", "Brief 2.md"). */
@@ -110,7 +116,12 @@ export async function runOpen(args: OpenArgs): Promise<number> {
   }
   const targets = fileNames(pages.map((p) => p.name)).map((file) => join(folder, file));
   for (const target of targets) {
-    if (await stat(target).catch(() => null)) {
+    // Only a file that isn't there is free: any other failure to look stops before writing anything.
+    const found = await stat(target).catch((error: NodeJS.ErrnoException) => {
+      if (error.code === "ENOENT") return null;
+      throw error;
+    });
+    if (found) {
       // Not a usage error: the command was right, so the usage isn't printed. Still exit 2.
       throw new Error(`“${basename(target)}” already exists; a4 open never overwrites a file.`);
     }
