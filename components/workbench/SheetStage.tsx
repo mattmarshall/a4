@@ -12,7 +12,8 @@ import type { Analysis } from "@/lib/analysis";
 import { type A4Plane, type LensAttr, FLAT, type Pose } from "@/lib/render";
 import type { PageSpec } from "@/lib/page";
 import { decodeRef, encodeRef, libraryRef, type PageRef, type PageSummary } from "@/lib/persist";
-import type { FolderSnapshot, Slot, SlotSnapshot } from "@/lib/workspace";
+import type { FolderSnapshot, Slot } from "@/lib/workspace";
+import type { StageSlot } from "./stage";
 import { A4Sheet, type A4SheetHandle } from "../A4Sheet";
 import { VERDICT_LABEL } from "../analysis-copy";
 import { DEFAULT_VIEW, SheetControls, type SheetView } from "../SheetControls";
@@ -67,7 +68,7 @@ function SlotPicker({
 export interface SheetStageProps {
   /** Handles to the sheets, for focus, selection, and the fold. */
   handles: Readonly<Record<Slot, RefObject<A4SheetHandle | null>>>;
-  slots: Readonly<Record<Slot, SlotSnapshot>>;
+  slots: Readonly<Record<Slot, StageSlot>>;
   analyses: Readonly<Record<Slot, Analysis>>;
   compare: boolean;
   /** The slot the pose panel and the desk tools act on. */
@@ -136,7 +137,7 @@ export function SheetStage(props: SheetStageProps) {
                 {compare ? (
                   <div className="sheet-caption" data-print="hide">
                     <b>{slot.toUpperCase()}</b>
-                    {state.ref === null && state.label !== null ? (
+                    {state.kind === "shared" ? (
                       // A shared page: it isn't one of the reader's, so there's nothing to pick.
                       <span className="slot-shared-name">{state.label}</span>
                     ) : (
@@ -158,8 +159,8 @@ export function SheetStage(props: SheetStageProps) {
                 ) : null}
                 <A4Sheet
                   ref={handles[slot]}
-                  // An empty slot hides its sheet; a shared page has no ref but a label, and shows.
-                  className={!props.ready || (!state.ref && state.label === null) ? "sheet-hidden" : undefined}
+                  // An empty slot hides its sheet; a shared page shows.
+                  className={!props.ready || state.kind === "empty" ? "sheet-hidden" : undefined}
                   value={state.text}
                   onValue={(text) => props.onEdit(slot, text)}
                   onFocus={() => props.onActivate(slot)}

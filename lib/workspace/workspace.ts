@@ -80,10 +80,12 @@ import { LibraryPoller, type PollerChange } from "./library-poller.ts";
 import { shouldReopen, type PendingFile } from "./pending.ts";
 import { openFolderFile, openLibraryPage, SlotController, type OpenPage } from "./slot-controller.ts";
 import { SlotRequests, type Ticket } from "./slot-requests.ts";
+import { describeError } from "./errors.ts";
 import {
   attempt,
   ok,
   SLOTS,
+  type ConnectOutcome,
   type FolderSnapshot,
   type Result,
   type Slot,
@@ -922,16 +924,31 @@ export class Workspace<H> {
   }
 
   /**
-   * Remember `connection` (from a connect link or the Connect form) as the
-   * served library, and show it. Each library keeps its own open pages, by
-   * its id, so nothing is forgotten when the address changes.
+   * Remember `connection` as the served library, and show it. Each library
+   * keeps its own open pages, by its id, so nothing is forgotten when the
+   * address changes.
+   *
+   * - From a connect link, it's remembered even when A4 can't use the server,
+   *   and a `served-unreachable` notice says why.
+   * - From the Connect form, the server is reached first. When A4 can't use
+   *   it, nothing is remembered, published, or notified, and the outcome says
+   *   why, for the form to show.
    */
-  connectServed(connection: ServedConnection): Promise<Result<void>> {
-    return attempt(async () => {
+  connectServed(connection: ServedConnection, from: "link" | "form" = "link"): Promise<Result<ConnectOutcome>> {
+    return attempt(async (): Promise<ConnectOutcome> => {
       this.#need();
+      if (from === "form") {
+        try {
+          await this.#reach({ kind: "served", connection });
+        } catch (error) {
+          if (!isStoreError(error, "unavailable")) throw error;
+          return { connected: false, reason: error.reason, message: describeError(error) };
+        }
+      }
       writeSetting(SETTINGS.servedLibrary, connection);
       this.#publish();
       await this.#switchTo({ kind: "served", connection });
+      return { connected: true };
     });
   }
 

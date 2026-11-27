@@ -12,9 +12,10 @@ import { LENSES, type VerdictId } from "@/lib/analysis";
 import { remoteHost, SEMANTIC_REPETITION } from "@/lib/models";
 import type { LensId } from "@/lib/page";
 import type { PageName } from "@/lib/persist";
-import type { SlotSnapshot } from "@/lib/workspace";
+import type { StageSlot } from "./stage";
 import { PenJobChip } from "../PenPanel";
 import { VerdictChip } from "../MetricsPanel";
+import { SHARED_PILL } from "../share-copy";
 import { SaveStatusPill } from "./SaveStatusPill";
 import type { Layout } from "./useLayout";
 import { planeKey, type LensSource } from "./model-lens";
@@ -86,11 +87,11 @@ export function DocTitle({
   folderName,
   onRename,
 }: {
-  page: SlotSnapshot;
+  page: StageSlot;
   folderName: string;
   onRename: (from: PageName, input: string) => Promise<string | null>;
 }) {
-  if (page.ref === null && page.label !== null) {
+  if (page.kind === "shared") {
     // A shared page: not one of the reader's, so it has no name to edit and no save status.
     return (
       <div className="doc-title">
@@ -98,7 +99,7 @@ export function DocTitle({
           <span className="file-path">{page.label}</span>
         </span>
         <span className="save-pill" data-status="shared">
-          Shared · not saved
+          {SHARED_PILL}
         </span>
       </div>
     );

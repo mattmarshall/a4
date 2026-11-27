@@ -73,7 +73,9 @@ own. One round paid it down before the "Later" work starts:
 The three Later changes (signed plugins, share links, and the served
 library) were each reviewed for the debt they added. The reviewers found
 about 34 items. This round fixed the confirmed bugs and the duplication
-with the clearest payoff, and records the rest below.
+with the clearest payoff, and recorded the rest below. Three later changes,
+`harden-served-protocol`, `harden-pens-and-plugins`, and
+`finish-tech-debt-review`, took up every item left, so none remains.
 
 **Bugs fixed:**
 - **A shared view could change the reader's own pages.** With a share link
@@ -169,17 +171,21 @@ with the clearest payoff, and records the rest below.
   - a model file is hashed when it's downloaded and when its plugin starts,
     and status only looks up a file this tab already checked.
 
-**Left for a later round:**
-- **Smaller copies:**
-  - the IndexedDB helpers in the plugin and handle stores;
-  - Ed25519 key handling in the CLI, the example build, and test packages;
-  - the poll loops in `LibraryPoller` and the folder watcher;
-  - copy written inline instead of in `*-copy.ts` (shared views and the
-    served library).
-- **The Connect form closes when the server is down.** The notice explains
-  why, but the form could show the error inline.
-- **A shared page is the empty slot with a label.** A `shared` variant of
-  `SlotSnapshot` would say so in the type.
+**Taken up by `finish-tech-debt-review`:**
+- **Smaller copies.** Each is written once now:
+  - `lib/platform/idb.ts` opens a database, runs a request, and lists a
+    store, for the plugin and folder-handle stores;
+  - `lib/models/signing-key-node.ts` makes, reads, and signs with Ed25519
+    keys, for the CLI, the example build, and the test packages;
+  - `PollLoop` (`lib/persist/autosave/poll.ts`) runs `LibraryPoller` and
+    the folder watcher;
+  - the shared view's words are in `share-copy.ts`, and the served
+    library's in `served-copy.ts`.
+- **The Connect form closed when the server was down.** Now it checks the
+  server first. If A4 can't use it, the form stays open and says why, and
+  nothing is remembered.
+- **A shared page was the empty slot with a label.** Now it's a
+  `SharedSlot`, and every slot on the stage has a `kind`.
 
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.

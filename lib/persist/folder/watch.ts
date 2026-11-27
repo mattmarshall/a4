@@ -9,6 +9,7 @@
  * library copy instead of overwriting the file.
  */
 
+import { PollLoop } from "../autosave/poll.ts";
 import type { PageSession, Scheduler } from "../autosave/session.ts";
 import type { FilePath } from "../store/refs.ts";
 import type { Page } from "../store/types.ts";
@@ -34,21 +35,20 @@ export interface FileWatcherOptions {
 
 export class FileWatcher {
   readonly #folder: ConnectedFolder;
-  readonly #scheduler: Scheduler;
-  readonly #isVisible: () => boolean;
   readonly #onReloaded: (key: string, page: Page<FilePath>) => void;
-  readonly #intervalMs: number;
   readonly #watched = new Map<string, Watched>();
-  #timer: unknown = null;
-  #ticking = false;
-  #stopped = false;
+  readonly #loop: PollLoop;
 
   constructor(options: FileWatcherOptions) {
     this.#folder = options.folder;
-    this.#scheduler = options.scheduler;
-    this.#isVisible = options.isVisible;
     this.#onReloaded = options.onReloaded;
-    this.#intervalMs = options.intervalMs ?? POLL_MS;
+    this.#loop = new PollLoop({
+      scheduler: options.scheduler,
+      intervalMs: options.intervalMs ?? POLL_MS,
+      isVisible: options.isVisible,
+      poll: () => this.#poll(),
+      active: () => this.#watched.size > 0,
+    });
   }
 
   /** Watch `path` for `key` (a slot), replacing what that key watched. */
@@ -58,7 +58,7 @@ export class FileWatcher {
       const entry = this.#watched.get(key);
       if (entry && entry.session === session && entry.last === null) entry.last = stat;
     });
-    this.#schedule();
+    this.#loop.start();
   }
 
   unwatch(key: string): void {
@@ -66,18 +66,8 @@ export class FileWatcher {
   }
 
   stop(): void {
-    this.#stopped = true;
+    this.#loop.stop();
     this.#watched.clear();
-    if (this.#timer !== null) this.#scheduler.clearTimeout(this.#timer);
-    this.#timer = null;
-  }
-
-  #schedule(): void {
-    if (this.#stopped || this.#timer !== null || this.#watched.size === 0) return;
-    this.#timer = this.#scheduler.setTimeout(() => {
-      this.#timer = null;
-      void this.tick().finally(() => this.#schedule());
-    }, this.#intervalMs);
   }
 
   async #stat(path: FilePath): Promise<FileStat | null> {
@@ -89,34 +79,32 @@ export class FileWatcher {
   }
 
   /** One poll of every watched file. Exposed for tests. */
-  async tick(): Promise<void> {
-    if (this.#ticking || this.#stopped || !this.#isVisible()) return;
-    this.#ticking = true;
-    try {
-      for (const [key, entry] of [...this.#watched]) {
-        if (entry.session.stopped) {
-          this.#watched.delete(key);
-          continue;
-        }
-        const stat = await this.#stat(entry.path);
-        const same = stat && entry.last && stat.modifiedAt === entry.last.modifiedAt && stat.size === entry.last.size;
-        if (same || !stat) {
-          // Unchanged, or gone: a missing file is handled by the next save.
-          if (!stat) entry.last = null;
-          continue;
-        }
-        entry.last = stat;
-        let page: Page<FilePath>;
-        try {
-          page = await this.#folder.sheet.read(entry.path);
-        } catch {
-          continue;
-        }
-        if (this.#watched.get(key) !== entry || page.revision === entry.session.revision) continue;
-        if (entry.session.adoptRemote(page)) this.#onReloaded(key, page);
+  tick(): Promise<void> {
+    return this.#loop.tick();
+  }
+
+  async #poll(): Promise<void> {
+    for (const [key, entry] of [...this.#watched]) {
+      if (entry.session.stopped) {
+        this.#watched.delete(key);
+        continue;
       }
-    } finally {
-      this.#ticking = false;
+      const stat = await this.#stat(entry.path);
+      const same = stat && entry.last && stat.modifiedAt === entry.last.modifiedAt && stat.size === entry.last.size;
+      if (same || !stat) {
+        // Unchanged, or gone: a missing file is handled by the next save.
+        if (!stat) entry.last = null;
+        continue;
+      }
+      entry.last = stat;
+      let page: Page<FilePath>;
+      try {
+        page = await this.#folder.sheet.read(entry.path);
+      } catch {
+        continue;
+      }
+      if (this.#watched.get(key) !== entry || page.revision === entry.session.revision) continue;
+      if (entry.session.adoptRemote(page)) this.#onReloaded(key, page);
     }
   }
 }

@@ -3,7 +3,17 @@ import assert from "node:assert/strict";
 import { create } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { LetterVerdict, PostmarkSchema } from "../lib/desk/index.ts";
-import { CLIPBOARD_BLOCKED, copiedNotice, SEAL_MEANING, sealLine, sharedBanner, specLabel } from "./share-copy.ts";
+import {
+  CLIPBOARD_BLOCKED,
+  copiedNotice,
+  SEAL_MEANING,
+  SHARED_PILL,
+  sealLine,
+  sharedBanner,
+  sharedSealFor,
+  sharedShownOn,
+  specLabel,
+} from "./share-copy.ts";
 
 const postmark = (init: Parameters<typeof create<typeof PostmarkSchema>>[1]) =>
   create(PostmarkSchema, { signer: "Matt", sealedAt: timestampFromDate(new Date("2026-11-25T10:00:00Z")), ...init });
@@ -48,4 +58,13 @@ test("what a link's seal means", () => {
   assert.match(SEAL_MEANING, /doesn’t prove who sealed it/);
   assert.match(SEAL_MEANING, /make the letter true/);
   assert.match(SEAL_MEANING, /anyone can make a link/);
+});
+
+test("the banner's note names each page's preset and paper, for one page and a pair", () => {
+  const terminal = { name: "Terminal", paper: "a4" } as const;
+  const pica = { name: "Pica", paper: "a5" } as const;
+  assert.equal(sharedShownOn([terminal]), "Shown on Terminal, A4, as the sender saw it.");
+  assert.equal(sharedShownOn([terminal, pica]), "Shown on Terminal, A4 and Pica, A5, as the sender saw them.");
+  assert.equal(sharedSealFor("Brief"), "“Brief”: ");
+  assert.equal(SHARED_PILL, "Shared · not saved");
 });

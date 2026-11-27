@@ -37,6 +37,7 @@ export interface SlotLibrary {
 }
 
 const EMPTY_SLOT: SlotSnapshot = {
+  kind: "empty",
   ref: null,
   name: null,
   label: null,
@@ -76,8 +77,8 @@ export class SlotController {
     const base = { text: this.#text, status: this.#status, readOnly: open?.kind === "file" && open.readOnly === true };
     if (!open) this.#snapshot = { ...EMPTY_SLOT, ...base };
     else if (open.kind === "library") {
-      this.#snapshot = { ref: open.ref, name: open.ref.name, label: refLabel(open.ref), ...base };
-    } else this.#snapshot = { ref: open.ref, name: null, label: refLabel(open.ref), ...base };
+      this.#snapshot = { kind: "library", ref: open.ref, name: open.ref.name, label: refLabel(open.ref), ...base };
+    } else this.#snapshot = { kind: "file", ref: open.ref, name: null, label: refLabel(open.ref), ...base };
     this.#onChange();
   }
 

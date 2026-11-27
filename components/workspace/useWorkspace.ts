@@ -29,8 +29,8 @@ const STARTING: WorkspaceSnapshot = {
   storage: null,
   library: { pages: [], trash: [] },
   slots: {
-    a: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
-    b: { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
+    a: { kind: "empty", ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
+    b: { kind: "empty", ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
   },
   folder: { state: { status: "none" }, files: [], letters: [], stacks: [], partial: false, scanning: false },
   served: null,
@@ -176,7 +176,9 @@ export function useWorkspaceApi(notify: Notify) {
         run(kind === "browser" ? "switch to this browser’s library" : "switch to the served library", (w) =>
           w.switchLibrary(kind),
         ),
-      connectServed: (connection: ServedConnection) => run("connect to a4 serve", (w) => w.connectServed(connection)),
+      /** From a connect link, or (`"form"`) the Connect form, which checks the server before it remembers it. */
+      connectServed: (connection: ServedConnection, from: "link" | "form" = "link") =>
+        run("connect to a4 serve", (w) => w.connectServed(connection, from)),
       disconnectServed: () => run("disconnect from a4 serve", (w) => w.disconnectServed()),
       /** A sealed letter's exact bytes and postmark, for a share link; null for any other page. */
       letterForShare: async (slot: Slot) => {

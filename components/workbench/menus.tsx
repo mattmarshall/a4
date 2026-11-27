@@ -7,7 +7,8 @@ import { slugFromText } from "@/lib/archive";
 import { PRESET_IDS, PRESETS, PX_PER_MM_ACTUAL } from "@/lib/page";
 import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/content";
 import { SETTINGS, baseName } from "@/lib/persist";
-import type { Notify, SlotSnapshot } from "@/lib/workspace";
+import type { Notify } from "@/lib/workspace";
+import type { StageSlot } from "./stage";
 import { Menu, MenuItem } from "../Menu";
 import { CLIPBOARD_BLOCKED } from "../share-copy";
 import { useSetting } from "../useSetting";
@@ -24,7 +25,7 @@ export function PageMenu({
   onShare,
 }: {
   /** The page the menu acts on (the active slot's). */
-  page: SlotSnapshot;
+  page: StageSlot;
   notify: Notify;
   onNewPage: (desired: string, text: string) => void;
   /** Create a worked sample's two pages and open Compare. */

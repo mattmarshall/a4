@@ -7,6 +7,8 @@
  * models layer checks them every time it uses them.
  */
 
+import { IdbDatabase } from "./idb.ts";
+
 /**
  * The BroadcastChannel a tab posts an `a4.v1.PluginEvent` on after it
  * installs, updates, or removes a plugin, so other tabs read that record
@@ -58,79 +60,42 @@ export class MemoryPluginStore implements PluginStore {
   }
 }
 
-type StoreName = "plugins" | "files";
-
 /** IndexedDB database `a4-plugins`: `plugins` (id → record bytes) and `files` (digest → file bytes). */
 export class IdbPluginStore implements PluginStore {
-  readonly #name: string;
-  #db: Promise<IDBDatabase> | null = null;
+  readonly #db: IdbDatabase;
 
   /** `name` is for tests; the app uses `a4-plugins`. */
   constructor(name = "a4-plugins") {
-    this.#name = name;
+    this.#db = new IdbDatabase(name, 1, ["plugins", "files"]);
   }
 
-  #open(): Promise<IDBDatabase> {
-    this.#db ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.#name, 1);
-      request.onupgradeneeded = () => {
-        const db = request.result;
-        for (const store of ["plugins", "files"]) {
-          if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    return this.#db;
-  }
-
-  async #run<T>(name: StoreName, mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-    const db = await this.#open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(name, mode);
-      const request = fn(tx.objectStore(name));
-      tx.oncomplete = () => resolve(request.result);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
-  }
-
-  async #get(name: StoreName, key: string): Promise<Uint8Array | null> {
-    const value = (await this.#run(name, "readonly", (s) => s.get(key))) as Uint8Array | undefined;
+  async #get(store: "plugins" | "files", key: string): Promise<Uint8Array | null> {
+    const value = (await this.#db.run(store, "readonly", (s) => s.get(key))) as Uint8Array | undefined;
     return value ? new Uint8Array(value) : null;
   }
 
   async records(): Promise<[string, Uint8Array][]> {
-    const db = await this.#open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("plugins", "readonly");
-      const store = tx.objectStore("plugins");
-      const keys = store.getAllKeys();
-      const values = store.getAll();
-      tx.oncomplete = () => resolve(keys.result.map((k, i) => [String(k), new Uint8Array(values.result[i])]));
-      tx.onerror = () => reject(tx.error);
-    });
+    return (await this.#db.entries<Uint8Array>("plugins")).map(([id, record]) => [id, new Uint8Array(record)]);
   }
   getRecord(id: string) {
     return this.#get("plugins", id);
   }
   async putRecord(id: string, record: Uint8Array) {
-    await this.#run("plugins", "readwrite", (s) => s.put(record.slice(), id));
+    await this.#db.run("plugins", "readwrite", (s) => s.put(record.slice(), id));
   }
   async deleteRecord(id: string) {
-    await this.#run("plugins", "readwrite", (s) => s.delete(id));
+    await this.#db.run("plugins", "readwrite", (s) => s.delete(id));
   }
   getFile(digest: string) {
     return this.#get("files", digest);
   }
   async hasFile(digest: string) {
-    return (await this.#run("files", "readonly", (s) => s.count(digest))) > 0;
+    return (await this.#db.run("files", "readonly", (s) => s.count(digest))) > 0;
   }
   async putFile(digest: string, data: Uint8Array) {
-    await this.#run("files", "readwrite", (s) => s.put(data.slice(), digest));
+    await this.#db.run("files", "readwrite", (s) => s.put(data.slice(), digest));
   }
   async deleteFile(digest: string) {
-    await this.#run("files", "readwrite", (s) => s.delete(digest));
+    await this.#db.run("files", "readwrite", (s) => s.delete(digest));
   }
 }

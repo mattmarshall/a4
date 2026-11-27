@@ -12,25 +12,26 @@
  * Run it with `pnpm build:examples`.
  */
 
-import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto";
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build, type Rollup } from "vite";
 import { cardFromJson, packPackage } from "../lib/models/package.ts";
+import { newSigningKey, type SigningKey, signingKeyFromPem } from "../lib/models/signing-key-node.ts";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const EXAMPLES = join(ROOT, "examples/plugins");
 const OUT = join(ROOT, "dist/example-plugins");
 const KEY = join(OUT, "example.key");
 
-async function signingKey(): Promise<KeyObject> {
+/** The throwaway example key, made on first build and kept beside the packages. */
+async function signingKey(): Promise<SigningKey> {
   try {
-    return createPrivateKey(await readFile(KEY, "utf8"));
+    return signingKeyFromPem(await readFile(KEY, "utf8"));
   } catch {
-    const { privateKey } = generateKeyPairSync("ed25519");
-    await writeFile(KEY, privateKey.export({ format: "pem", type: "pkcs8" }), { mode: 0o600, flag: "wx" });
-    return privateKey;
+    const { key, pem } = newSigningKey();
+    await writeFile(KEY, pem, { mode: 0o600, flag: "wx" });
+    return key;
   }
 }
 
@@ -56,7 +57,6 @@ async function bundle(dir: string): Promise<Uint8Array> {
 async function main(): Promise<void> {
   await mkdir(OUT, { recursive: true });
   const key = await signingKey();
-  const publicKey = new Uint8Array(Buffer.from(createPublicKey(key).export({ format: "jwk" }).x ?? "", "base64url"));
   const names = (await readdir(EXAMPLES, { withFileTypes: true })).filter((e) => e.isDirectory()).map((e) => e.name);
   for (const name of names.sort()) {
     const dir = join(EXAMPLES, name);
@@ -66,11 +66,11 @@ async function main(): Promise<void> {
     const bytes = await packPackage({
       card,
       publisherName: "A4 examples",
-      publicKey,
+      publicKey: key.publicKey,
       code,
       files: [],
       signedAt: new Date(),
-      sign: (data) => new Uint8Array(sign(null, data, key)),
+      sign: key.sign,
     });
     const out = join(OUT, `${card.id}-${card.version}.a4plugin`);
     await writeFile(out, bytes);

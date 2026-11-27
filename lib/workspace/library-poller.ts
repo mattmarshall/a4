@@ -9,6 +9,7 @@
  * against the last that succeeded.
  */
 
+import { PollLoop } from "../persist/autosave/poll.ts";
 import type { Scheduler } from "../persist/autosave/session.ts";
 import type { PageName, PageStore, PageSummary } from "../persist/store/types.ts";
 
@@ -23,13 +24,9 @@ export interface PollerChange {
 
 export class LibraryPoller {
   readonly #store: PageStore;
-  readonly #scheduler: Scheduler;
-  readonly #isVisible: () => boolean;
   readonly #onChange: (change: PollerChange) => Promise<void>;
+  readonly #loop: PollLoop;
   #last: ReadonlyMap<PageName, PageSummary> | null = null;
-  #timer: unknown = null;
-  #ticking = false;
-  #stopped = false;
 
   constructor(options: {
     store: PageStore;
@@ -40,52 +37,44 @@ export class LibraryPoller {
     onChange: (change: PollerChange) => Promise<void>;
   }) {
     this.#store = options.store;
-    this.#scheduler = options.scheduler;
-    this.#isVisible = options.isVisible;
     this.#onChange = options.onChange;
     this.#last = new Map(options.initial.map((p) => [p.name, p]));
-    this.#schedule();
+    this.#loop = new PollLoop({
+      scheduler: options.scheduler,
+      intervalMs: SERVED_POLL_MS,
+      isVisible: options.isVisible,
+      poll: () => this.#poll(),
+    });
+    this.#loop.start();
   }
 
   stop(): void {
-    this.#stopped = true;
-    if (this.#timer !== null) this.#scheduler.clearTimeout(this.#timer);
-    this.#timer = null;
-  }
-
-  #schedule(): void {
-    if (this.#stopped) return;
-    this.#timer = this.#scheduler.setTimeout(() => {
-      this.#timer = null;
-      void this.tick().finally(() => this.#schedule());
-    }, SERVED_POLL_MS);
+    this.#loop.stop();
   }
 
   /** List the pages once and report what changed (skipped while hidden, stopped, or already listing). */
-  async tick(): Promise<void> {
-    if (this.#ticking || this.#stopped || !this.#isVisible()) return;
-    this.#ticking = true;
+  tick(): Promise<void> {
+    return this.#loop.tick();
+  }
+
+  async #poll(): Promise<void> {
+    let list: PageSummary[];
     try {
-      let list: PageSummary[];
-      try {
-        list = await this.#store.list();
-      } catch {
-        return;
-      }
-      if (this.#stopped) return;
-      const last = this.#last ?? new Map<PageName, PageSummary>();
-      const next = new Map(list.map((p) => [p.name, p]));
-      const changed = list
-        .filter((p) => {
-          const before = last.get(p.name);
-          return !before || before.size !== p.size || before.modifiedAt !== p.modifiedAt;
-        })
-        .map((p) => p.name);
-      const listChanged = next.size !== last.size || [...last.keys()].some((name) => !next.has(name));
-      this.#last = next;
-      if (changed.length > 0 || listChanged) await this.#onChange({ changed, listChanged });
-    } finally {
-      this.#ticking = false;
+      list = await this.#store.list();
+    } catch {
+      return;
     }
+    if (this.#loop.stopped) return;
+    const last = this.#last ?? new Map<PageName, PageSummary>();
+    const next = new Map(list.map((p) => [p.name, p]));
+    const changed = list
+      .filter((p) => {
+        const before = last.get(p.name);
+        return !before || before.size !== p.size || before.modifiedAt !== p.modifiedAt;
+      })
+      .map((p) => p.name);
+    const listChanged = next.size !== last.size || [...last.keys()].some((name) => !next.has(name));
+    this.#last = next;
+    if (changed.length > 0 || listChanged) await this.#onChange({ changed, listChanged });
   }
 }

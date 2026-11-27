@@ -2,13 +2,18 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { pageSpec } from "../../lib/page/index.ts";
 import type { SharedPageView } from "../../lib/share/index.ts";
+import { libraryRef } from "../../lib/persist/index.ts";
+import { parsePageName } from "../../lib/persist/store/names.ts";
 import type { SlotSnapshot } from "../../lib/workspace/index.ts";
+import { sharedSlots } from "./shared-slots.ts";
 import { stageOf } from "./stage.ts";
 import type { Layout } from "./useLayout";
 import type { SharedView } from "./useSharedView";
 
-function slot(label: string | null, text = ""): SlotSnapshot {
-  return { ref: null, name: null, label, text, status: "saved", readOnly: false };
+/** One of the reader's library pages. */
+function slot(label: string, text = ""): SlotSnapshot {
+  const name = parsePageName(label);
+  return { kind: "library", ref: libraryRef(name), name, label, text, status: "saved", readOnly: false };
 }
 
 const own = { a: slot("Notes", "mine"), b: slot("Brief.a5", "also mine") };
@@ -26,11 +31,12 @@ function sharedOf(names: readonly string[]): SharedView {
     text: "shared",
     postmark: null,
   }));
-  const shown = (name: string | undefined) => ({ ...slot(null, "shared"), label: name ?? null, readOnly: true });
+  const [a, b] = pages;
+  if (!a) throw new Error("a share link has at least one page");
   return {
     pages,
     seals: pages.map(() => ({ kind: "none" })),
-    slots: { a: shown(names[0]), b: shown(names[1]) },
+    slots: sharedSlots(a, b),
     specs: { a: spec, b: spec },
   };
 }
@@ -64,4 +70,16 @@ test("a shared pair shows as Compare, keeping the reader's active side", () => {
   assert.equal(stage.layout.mode, "compare");
   assert.equal(stage.layout.compare, true);
   assert.equal(stage.target, "b");
+});
+
+test("a shared page's slot is shared, and a single shared page leaves B empty", () => {
+  const single = stageOf(own, layoutOf("single", "a"), "terminal", sharedOf(["Brief"]));
+  assert.equal(single.slots.a.kind, "shared");
+  assert.equal(single.slots.b.kind, "empty");
+  assert.equal(single.slots.b.label, null);
+  const pair = stageOf(own, layoutOf("single", "a"), "terminal", sharedOf(["A", "B"]));
+  assert.equal(pair.slots.a.kind, "shared");
+  assert.equal(pair.slots.b.kind, "shared");
+  assert.equal(pair.slots.b.label, "B");
+  assert.equal(stageOf(own, layoutOf("single", "a"), "terminal", null).slots.a.kind, "library");
 });

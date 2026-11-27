@@ -11,6 +11,7 @@ import { useState } from "react";
 import { DEFAULT_SERVE_PORT, type LibrarySource } from "@/lib/persist";
 import type { WorkspaceSnapshot } from "@/lib/workspace";
 import styles from "../LibraryPanel.module.css";
+import { connectForm, servedSwitch } from "../served-copy";
 
 /** Library switching. Connect returns an error message to show inline, or null. */
 export interface LibraryActions {
@@ -32,12 +33,13 @@ function ConnectForm({ onConnect, onCancel }: { onConnect: LibraryActions["conne
       }}
     >
       <p className={styles.connectHint}>
-        Run <code>a4 serve &lt;folder&gt;</code> and open the link it prints, or enter its address and token here. The
-        token is the end of the link, after the last dot.
+        {connectForm.hint.before}
+        <code>{connectForm.hint.command}</code>
+        {connectForm.hint.after}
       </p>
       <input
         className={styles.input}
-        aria-label="a4 serve address"
+        aria-label={connectForm.addressLabel}
         value={address}
         onChange={(e) => {
           setAddress(e.target.value);
@@ -48,8 +50,8 @@ function ConnectForm({ onConnect, onCancel }: { onConnect: LibraryActions["conne
         className={styles.input}
         type="password"
         autoComplete="off"
-        aria-label="Token"
-        placeholder="Token"
+        aria-label={connectForm.tokenLabel}
+        placeholder={connectForm.tokenLabel}
         value={token}
         onChange={(e) => {
           setToken(e.target.value);
@@ -59,10 +61,10 @@ function ConnectForm({ onConnect, onCancel }: { onConnect: LibraryActions["conne
       {error ? <span className={styles.error}>{error}</span> : null}
       <div className={styles.connectActions}>
         <button type="submit" className="btn btn-outline">
-          Connect
+          {connectForm.connect}
         </button>
         <button type="button" className="btn btn-outline" onClick={onCancel}>
-          Cancel
+          {connectForm.cancel}
         </button>
       </div>
     </form>
@@ -74,21 +76,21 @@ export function LibrarySwitch({ served, actions }: { served: WorkspaceSnapshot["
   if (served) {
     return (
       <section className={styles.libraries} aria-label="Library">
-        <fieldset className="seg" aria-label="Show pages from">
+        <fieldset className="seg" aria-label={servedSwitch.label}>
           <button type="button" aria-pressed={!served.shown} onClick={() => actions.switchTo("browser")}>
-            This browser
+            {servedSwitch.browser}
           </button>
           <button
             type="button"
             aria-pressed={served.shown}
-            title={`The library a4 serve serves at ${served.address}`}
+            title={servedSwitch.servedTitle(served.address)}
             onClick={() => actions.switchTo("served")}
           >
-            a4 serve
+            {servedSwitch.served}
           </button>
         </fieldset>
         <button type="button" className={styles.libraryLink} onClick={actions.disconnect}>
-          Disconnect
+          {servedSwitch.disconnect}
         </button>
       </section>
     );
@@ -109,9 +111,9 @@ export function LibrarySwitch({ served, actions }: { served: WorkspaceSnapshot["
           type="button"
           className={styles.libraryLink}
           onClick={() => setConnecting(true)}
-          title="Show a library of Markdown files served by a4 serve on this machine"
+          title={servedSwitch.connectTitle}
         >
-          Connect a4 serve…
+          {servedSwitch.connect}
         </button>
       )}
     </section>

@@ -34,6 +34,22 @@ export function specLabel(spec: Pick<PageSpec, "name" | "paper">): string {
   return `${spec.name}, ${spec.paper.toUpperCase()}`;
 }
 
+/** The banner's note: what the shared pages are shown on, as their sender saw them. */
+export function sharedShownOn(specs: readonly Pick<PageSpec, "name" | "paper">[]): string {
+  return `Shown on ${specs.map(specLabel).join(" and ")}, as the sender saw ${specs.length === 1 ? "it" : "them"}.`;
+}
+
+/** Before a seal line in a shared pair: which page the seal is on. */
+export function sharedSealFor(name: string): string {
+  return `“${name}”: `;
+}
+
+/** The top bar's pill for a shared page, in place of its save status. */
+export const SHARED_PILL = "Shared · not saved";
+
+/** When a share link can't be read, and the error doesn't say why. */
+export const SHARE_LINK_UNREADABLE = "This share link can’t be opened.";
+
 /** What a seal in a link means, and doesn't. */
 export const SEAL_MEANING =
   "A seal records that the named person accepted or returned this letter. It doesn’t prove who sealed it or make the letter true, and anyone can make a link.";

@@ -1173,10 +1173,16 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
 - **Connecting.** Open the link it prints:
   `https://a4.marsh.build/#serve=127.0.0.1:4320.<token>`. A4 connects,
   shows the served pages, remembers the connection in this browser, and
-  removes the token from the address bar. When the link can't be clicked,
-  choose **Connect a4 serve…** in the Pages panel and enter the address and
-  the token (the end of the link, after the last dot). A4 connects only to
-  127.0.0.1 or localhost.
+  removes the token from the address bar. A4 connects only to 127.0.0.1 or
+  localhost.
+  - **When the link can't be clicked,** choose **Connect a4 serve…** in the
+    Pages panel and enter the address and the token (the end of the link,
+    after the last dot).
+  - **The Connect form checks the server first.** If A4 can't use it, the
+    form stays open and says why, with what to do (see below), and nothing
+    is remembered. The address and token stay filled in to correct.
+  - **The link is remembered even then,** and a notice says why A4 can't use
+    the server, so switching works once it runs.
 - **Switching.** The Pages panel switches between **This browser** and
   **a4 serve**. Every library action works on the one shown. Each library
   keeps its own open pages, unsaved edits, and other-tab updates, a served
@@ -1188,9 +1194,9 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   shows up within 5 seconds. An open page with no unsaved edits shows the
   new text; one with unsaved edits keeps both versions when it saves, as a
   conflict with another tab does.
-- **When A4 can't use the server.** Starting on, or switching to, the
-  served library then shows this browser's library, changes nothing, and
-  says why, with what to do:
+- **When A4 can't use the server.** Starting on, switching to, or
+  connecting to the served library then shows this browser's library,
+  changes nothing, and says why, with what to do:
   - **not running:** start `a4 serve` and switch again;
   - **refused this browser's token** (it was restarted with
     `--new-token`): open the link it printed;

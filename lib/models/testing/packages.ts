@@ -1,30 +1,22 @@
 /**
- * Signed plugin packages for tests: a throwaway Ed25519 key from node:crypto,
- * cards for an overlay and a pen, and `rawPackage`, which signs whatever it's
- * given without checking it, so tests can build packages A4 must refuse.
+ * Signed plugin packages for tests: a throwaway Ed25519 key (from
+ * signing-key-node.ts), cards for an overlay and a pen, and `rawPackage`,
+ * which signs whatever it's given without checking it, so tests can build
+ * packages A4 must refuse.
  */
 
-import { generateKeyPairSync, sign as nodeSign } from "node:crypto";
 import { create, toBinary, type MessageInitShape } from "@bufbuild/protobuf";
 import { timestampFromDate } from "@bufbuild/protobuf/wkt";
 import { type ModelCard, ModelCardSchema, Operation, View } from "../../gen/a4/v1/model_pb.js";
 import { PluginManifestSchema, PluginPackageSchema } from "../../gen/a4/v1/plugin_pb.js";
 import { digestUrn, signingBytes } from "../package.ts";
+import { newSigningKey, type SigningKey } from "../signing-key-node.ts";
 
-export interface TestKey {
-  /** The raw 32-byte public key. */
-  readonly publicKey: Uint8Array;
-  readonly sign: (bytes: Uint8Array) => Uint8Array;
-}
+export type TestKey = SigningKey;
 
-/** A fresh Ed25519 key pair, in memory only. */
+/** A fresh Ed25519 key, in memory only. */
 export function testKey(): TestKey {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const jwk = publicKey.export({ format: "jwk" });
-  return {
-    publicKey: new Uint8Array(Buffer.from(jwk.x ?? "", "base64url")),
-    sign: (bytes) => new Uint8Array(nodeSign(null, bytes, privateKey)),
-  };
+  return newSigningKey().key;
 }
 
 type CardInit = Exclude<MessageInitShape<typeof ModelCardSchema>, ModelCard>;

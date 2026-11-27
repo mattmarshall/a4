@@ -4,6 +4,8 @@
  * (database `a4`, object store `folders`: folder id → handle).
  */
 
+import { IdbDatabase } from "./idb.ts";
+
 /** Where picked folder handles are kept. */
 export interface HandleStore<H = FileSystemDirectoryHandle> {
   get(id: string): Promise<H | null>;
@@ -31,50 +33,25 @@ export class MemoryHandleStore<H = FileSystemDirectoryHandle> implements HandleS
 
 /** IndexedDB database `a4`, object store `folders`: id → directory handle. */
 export class IdbHandleStore implements HandleStore {
-  #db: Promise<IDBDatabase> | null = null;
+  readonly #db: IdbDatabase;
 
-  #open(): Promise<IDBDatabase> {
-    this.#db ??= new Promise((resolve, reject) => {
-      const request = indexedDB.open("a4", 1);
-      request.onupgradeneeded = () => {
-        if (!request.result.objectStoreNames.contains("folders")) request.result.createObjectStore("folders");
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    return this.#db;
-  }
-
-  async #run<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-    const db = await this.#open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("folders", mode);
-      const request = fn(tx.objectStore("folders"));
-      tx.oncomplete = () => resolve(request.result);
-      tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
-    });
+  /** `name` is for tests; the app uses `a4`. */
+  constructor(name = "a4") {
+    this.#db = new IdbDatabase(name, 1, ["folders"]);
   }
 
   async get(id: string): Promise<FileSystemDirectoryHandle | null> {
-    return ((await this.#run("readonly", (s) => s.get(id))) as FileSystemDirectoryHandle | undefined) ?? null;
+    return (
+      ((await this.#db.run("folders", "readonly", (s) => s.get(id))) as FileSystemDirectoryHandle | undefined) ?? null
+    );
   }
   async set(id: string, handle: FileSystemDirectoryHandle): Promise<void> {
-    await this.#run("readwrite", (s) => s.put(handle, id));
+    await this.#db.run("folders", "readwrite", (s) => s.put(handle, id));
   }
   async delete(id: string): Promise<void> {
-    await this.#run("readwrite", (s) => s.delete(id));
+    await this.#db.run("folders", "readwrite", (s) => s.delete(id));
   }
-  async entries(): Promise<[string, FileSystemDirectoryHandle][]> {
-    const db = await this.#open();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction("folders", "readonly");
-      const store = tx.objectStore("folders");
-      const keys = store.getAllKeys();
-      const values = store.getAll();
-      tx.oncomplete = () =>
-        resolve(keys.result.map((k, i) => [String(k), values.result[i] as FileSystemDirectoryHandle]));
-      tx.onerror = () => reject(tx.error);
-    });
+  entries(): Promise<[string, FileSystemDirectoryHandle][]> {
+    return this.#db.entries<FileSystemDirectoryHandle>("folders");
   }
 }

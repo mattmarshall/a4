@@ -12,6 +12,7 @@
 import { useEffect, useState } from "react";
 import { readConnectFragment, type ServedConnection } from "@/lib/persist";
 import type { Notify } from "@/lib/workspace";
+import { BAD_CONNECT_LINK } from "../served-copy";
 import { clearFragment } from "./fragment";
 
 export function useServeLink(
@@ -27,11 +28,7 @@ export function useServeLink(
       if (connection === null) return;
       clearFragment();
       if (connection !== "invalid") setPending(connection);
-      else
-        notify(
-          "This connect link can’t be used: it must name a4 serve on this machine (127.0.0.1 or localhost) and its token.",
-          "warn",
-        );
+      else notify(BAD_CONNECT_LINK, "warn");
     };
     read();
     window.addEventListener("hashchange", read);

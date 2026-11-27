@@ -5,7 +5,6 @@
  * it. None of them runs a plugin's code or makes a network request.
  */
 
-import { createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename } from "node:path";
 import { timestampDate } from "@bufbuild/protobuf/wkt";
@@ -19,6 +18,7 @@ import {
   verifyPackage,
 } from "../lib/models/package.ts";
 import { knownPublisher } from "../lib/models/publishers.ts";
+import { KeyFormatError, newSigningKey, type SigningKey, signingKeyFromPem } from "../lib/models/signing-key-node.ts";
 import { UsageError } from "./usage.ts";
 
 export type PluginArgs =
@@ -81,18 +81,10 @@ export function pluginArgs(
   );
 }
 
-/** A raw 32-byte Ed25519 public key from a Node key object. */
-function rawPublicKey(key: KeyObject): Uint8Array {
-  const x = key.export({ format: "jwk" }).x;
-  if (!x) throw new UsageError("The key isn’t an Ed25519 key.");
-  return new Uint8Array(Buffer.from(x, "base64url"));
-}
-
 const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
 
 async function keygen(keyFile: string): Promise<number> {
-  const { publicKey, privateKey } = generateKeyPairSync("ed25519");
-  const pem = privateKey.export({ format: "pem", type: "pkcs8" });
+  const { key, pem } = newSigningKey();
   try {
     // "wx" fails when the file exists, so a key is never overwritten.
     await writeFile(keyFile, pem, { mode: 0o600, flag: "wx" });
@@ -103,7 +95,7 @@ async function keygen(keyFile: string): Promise<number> {
     }
     throw error;
   }
-  const raw = rawPublicKey(publicKey);
+  const raw = key.publicKey;
   process.stdout.write(
     `Wrote a new Ed25519 signing key to ${keyFile}, readable only by you. Keep it private: it isn’t printed.\n` +
       `Public key:  ${base64(raw)}\n` +
@@ -128,14 +120,16 @@ async function pack(args: Extract<PluginArgs, { action: "pack" }>): Promise<numb
   } catch (error) {
     throw new UsageError(`“${args.card}”: ${(error as Error).message}`);
   }
-  let privateKey: KeyObject;
+  let key: SigningKey;
   try {
-    privateKey = createPrivateKey(new TextDecoder().decode(await readInput(args.key, "key")));
+    key = signingKeyFromPem(new TextDecoder().decode(await readInput(args.key, "key")));
   } catch (error) {
     if (error instanceof UsageError) throw error;
+    if (error instanceof KeyFormatError && error.problem === "not-ed25519") {
+      throw new UsageError(`“${args.key}” isn’t an Ed25519 key.`);
+    }
     throw new UsageError(`“${args.key}” isn’t a private key.`);
   }
-  if (privateKey.asymmetricKeyType !== "ed25519") throw new UsageError(`“${args.key}” isn’t an Ed25519 key.`);
   const files = await Promise.all(
     args.files.map(async (pair) => {
       const at = pair.indexOf("=");
@@ -148,11 +142,11 @@ async function pack(args: Extract<PluginArgs, { action: "pack" }>): Promise<numb
     bytes = await packPackage({
       card,
       publisherName: args.publisher,
-      publicKey: rawPublicKey(createPublicKey(privateKey)),
+      publicKey: key.publicKey,
       code: await readInput(args.code, "code"),
       files,
       signedAt: new Date(),
-      sign: (data) => new Uint8Array(sign(null, data, privateKey)),
+      sign: key.sign,
     });
   } catch (error) {
     if (error instanceof PackageError) {

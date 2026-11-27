@@ -42,6 +42,7 @@ import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { PenJobChip, PenPanel } from "./PenPanel";
 import { penSuffix, publisherNote } from "./plugin-copy";
+import { badConnection, connectFailed } from "./served-copy";
 import { CLIPBOARD_BLOCKED, copiedNotice } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
@@ -389,10 +390,10 @@ export function Workbench() {
     switchTo: (kind) => void lib.switchLibrary(kind),
     connect: async (address, token) => {
       const connection = servedConnection(address, token);
-      if (!connection) {
-        return `Enter the address a4 serve printed, such as 127.0.0.1:${DEFAULT_SERVE_PORT}, and its 43-character token.`;
-      }
-      await lib.connectServed(connection);
+      if (!connection) return badConnection(DEFAULT_SERVE_PORT);
+      // The form checks the server first: if A4 can't use it, the form stays open and says why.
+      const outcome = await lib.connectServed(connection, "form");
+      if (outcome && !outcome.connected) return connectFailed(outcome.reason, connection.address, outcome.message);
       return null;
     },
     disconnect: () => void lib.disconnectServed(),

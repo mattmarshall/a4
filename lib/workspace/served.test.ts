@@ -465,3 +465,66 @@ test("what was kept by address is adopted once by the first library reached ther
   assert.equal(notices.filter((x) => x.kind === "recovered-library").length, recovered);
   await workspace.dispose();
 });
+
+test("the Connect form remembers nothing when a4 serve isn't running, and says why without a notice", async () => {
+  const s = setup();
+  s.served.down = true;
+  const { workspace, notices } = s.open();
+  await workspace.start();
+  workspace.edit("a", "Welcome, edited");
+  const result = await workspace.connectServed(SERVED, "form");
+  assert.ok(result.ok);
+  assert.deepEqual(result.value, {
+    connected: false,
+    reason: "not-running",
+    message: "a4 serve isn’t running at 127.0.0.1:4320.",
+  });
+  const snapshot = workspace.getSnapshot();
+  assert.equal(snapshot.served, null, "the switch isn't offered");
+  assert.equal(snapshot.storage?.kind, "memory", "this browser's library is still shown");
+  assert.equal(snapshot.slots.a.text, "Welcome, edited", "nothing was closed");
+  assert.equal(
+    notices.some((x) => x.kind === "served-unreachable"),
+    false,
+  );
+  assert.equal(s.served.operations, 0);
+  await workspace.dispose();
+  // After a reload, Connect is still what the Pages panel offers.
+  const reloaded = s.open();
+  await reloaded.workspace.start();
+  assert.equal(reloaded.workspace.getSnapshot().served, null);
+  await reloaded.workspace.dispose();
+});
+
+test("the Connect form remembers nothing when a4 serve refuses the token", async () => {
+  const s = setup();
+  s.served.refusal = "refused";
+  const { workspace } = s.open();
+  await workspace.start();
+  const result = await workspace.connectServed(SERVED, "form");
+  assert.ok(result.ok && !result.value.connected && result.value.reason === "refused");
+  assert.equal(workspace.getSnapshot().served, null);
+  assert.equal(s.served.operations, 0);
+  await workspace.dispose();
+});
+
+test("the Connect form connects to a running a4 serve, remembers it, and shows its pages", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "served brief");
+  const { workspace, notices } = s.open();
+  await workspace.start();
+  const result = await workspace.connectServed(SERVED, "form");
+  assert.ok(result.ok);
+  assert.deepEqual(result.value, { connected: true });
+  assert.deepEqual(workspace.getSnapshot().served, { address: "127.0.0.1:4320", shown: true });
+  assert.ok(names(workspace).includes(n("Brief")));
+  assert.equal(
+    notices.some((x) => x.kind === "served-unreachable"),
+    false,
+  );
+  await workspace.dispose();
+  const reloaded = s.open();
+  await reloaded.workspace.start();
+  assert.equal(reloaded.workspace.getSnapshot().served?.shown, true, "a reload connects to it again");
+  await reloaded.workspace.dispose();
+});

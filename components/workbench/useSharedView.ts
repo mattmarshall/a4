@@ -11,23 +11,19 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PageSpec } from "@/lib/page";
 import { isShareFragment, readLink, type SealOf, ShareError, type SharedPageView, sealOf } from "@/lib/share";
-import type { Notify, Slot, SlotSnapshot } from "@/lib/workspace";
+import type { Notify, Slot } from "@/lib/workspace";
+import { SHARE_LINK_UNREADABLE } from "../share-copy";
 import { clearFragment } from "./fragment";
+import { type StageSlot, sharedSlots } from "./shared-slots";
 
 export interface SharedView {
   readonly pages: readonly SharedPageView[];
   /** Each page's seal, in the same order. */
   readonly seals: readonly SealOf[];
-  /** Read-only snapshots for the stage: A, and B for a pair. */
-  readonly slots: Readonly<Record<Slot, SlotSnapshot>>;
+  /** The slots for the stage: A shared, and B shared for a pair, else empty. */
+  readonly slots: Readonly<Record<Slot, StageSlot>>;
   /** Each page on its sender's preset and paper. */
   readonly specs: Readonly<Record<Slot, PageSpec>>;
-}
-
-const EMPTY: SlotSnapshot = { ref: null, name: null, label: null, text: "", status: "saved", readOnly: false };
-
-function snapshotOf(page: SharedPageView): SlotSnapshot {
-  return { ref: null, name: null, label: page.name, text: page.text, status: "saved", readOnly: true };
 }
 
 export function useSharedView(notify: Notify) {
@@ -51,12 +47,12 @@ export function useSharedView(notify: Notify) {
         setView({
           pages,
           seals,
-          slots: { a: snapshotOf(a), b: b ? snapshotOf(b) : EMPTY },
+          slots: sharedSlots(a, b),
           specs: { a: a.spec, b: (b ?? a).spec },
         });
       } catch (error) {
         if (run !== current) return;
-        notify(error instanceof ShareError ? error.message : "This share link can’t be opened.", "warn");
+        notify(error instanceof ShareError ? error.message : SHARE_LINK_UNREADABLE, "warn");
         clearFragment();
         setView(null);
       }

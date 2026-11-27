@@ -11,13 +11,16 @@
 
 import { type PageSpec, pageSpec, type PresetId, sizeOfName } from "../../lib/page/index.ts";
 import type { Slot, SlotSnapshot } from "@/lib/workspace";
+import type { StageSlot } from "./shared-slots";
 import type { Layout } from "./useLayout";
 import type { SharedView } from "./useSharedView";
+
+export type { StageSlot } from "./shared-slots";
 
 export interface Stage {
   /** The share link shown, if any. */
   readonly shared: SharedView | null;
-  readonly slots: Readonly<Record<Slot, SlotSnapshot>>;
+  readonly slots: Readonly<Record<Slot, StageSlot>>;
   /** Each slot's page on its own size: the preset is the typeface, and the name says the paper. */
   readonly specs: Readonly<Record<Slot, PageSpec>>;
   readonly compare: boolean;
