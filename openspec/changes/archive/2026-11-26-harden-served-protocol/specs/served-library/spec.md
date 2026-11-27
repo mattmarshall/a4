@@ -4,14 +4,10 @@
 Each library operation (list, read, create, create unique, write, rename,
 trash, list trash, restore, purge) SHALL be a POST to
 `/a4.v1.PageStoreService/<Method>` with an `a4.v1` protobuf request and
-response, and so SHALL `GetLibrary`, which returns the library's id and the
-protocol version the server speaks.
-
-A store error SHALL come back as an `a4.v1.StoreFailure` with the same code
-and a typed detail, so the app sees the same errors as from the browser's
-store:
-- a conflict carries the revision the write expected and the stored one;
-- an unreadable file carries its reason, too large or not UTF-8.
+response, and so SHALL `GetLibrary`, which returns the library's id and
+protocol version. A store error SHALL come back as an `a4.v1.StoreFailure`
+with the code the browser's store would give and a typed detail: a
+conflict's two revisions, or an unreadable file's reason.
 
 #### Scenario: A stale write
 - **GIVEN** a served page was changed on disk after the app read it
