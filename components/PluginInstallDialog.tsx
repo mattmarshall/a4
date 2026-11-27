@@ -94,7 +94,7 @@ export function PluginInstallDialog({
             />
           </label>
           <form
-            className={styles.fitKey}
+            className={styles.penKey}
             onSubmit={(e) => {
               e.preventDefault();
               if (url.trim()) void check(() => models.inspectUrl(url.trim()));
@@ -105,7 +105,7 @@ export function PluginInstallDialog({
             </label>
             <input
               id="install-url"
-              className={styles.fitKeyInput}
+              className={styles.penKeyInput}
               type="url"
               inputMode="url"
               placeholder="https://example.com/plugin.a4plugin"

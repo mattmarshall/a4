@@ -58,6 +58,17 @@ export const PLUGIN_STORE_CONTRACT: readonly [string, (store: PluginStore) => Pr
       check((await store.getFile("urn:sha256:aa")) === null, "file wasn't deleted");
     },
   ],
+  [
+    "hasFile is true once a file is put, and false once it's deleted",
+    async (store) => {
+      check(!(await store.hasFile("urn:sha256:bb")), "hasFile is true before the file is put");
+      await store.putFile("urn:sha256:bb", bytes(4, 5));
+      check(await store.hasFile("urn:sha256:bb"), "hasFile is false after putFile");
+      check(!(await store.hasFile("urn:sha256:cc")), "hasFile is true for another digest");
+      await store.deleteFile("urn:sha256:bb");
+      check(!(await store.hasFile("urn:sha256:bb")), "hasFile is true after deleteFile");
+    },
+  ],
 ];
 
 /**

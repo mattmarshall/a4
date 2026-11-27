@@ -4,7 +4,7 @@ import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { type ModelCard, ModelCardSchema } from "../gen/a4/v1/model_pb.js";
 import { InstalledPluginSchema, PluginPackageSchema } from "../gen/a4/v1/plugin_pb.js";
 import { MemoryPluginStore } from "../platform/plugin-store.ts";
-import { InstallError, type InstallProblem, inspect, install, loadInstalled, remove } from "./installed.ts";
+import { InstallError, type InstallProblem, inspect, install, loadInstalled, loadOne, remove } from "./installed.ts";
 import { digestUrn, PackageError } from "./package.ts";
 import { overlayCard, penCard, rawPackage, type TestKey, testKey } from "./testing/packages.ts";
 
@@ -151,4 +151,18 @@ test("an update drops the old version's files that the new one no longer lists",
   await store.putFile(await digestUrn(fileA), fileA);
   await installed(store, await withFiles(overlayCard({ version: "1.1.0" }), key, [fileB]));
   assert.equal(await store.getFile(await digestUrn(fileA)), null);
+});
+
+test("loadOne reads one record again: absent, damaged, or installed", async () => {
+  const store = new MemoryPluginStore();
+  assert.deepEqual(await loadOne(store, "example.word-length"), { is: "absent" });
+  await installed(store, await rawPackage({ card: overlayCard(), key: testKey() }));
+  const loaded = await loadOne(store, "example.word-length");
+  assert.equal(loaded.is, "installed");
+  assert.equal(loaded.is === "installed" && loaded.plugin.pkg.card.version, "1.0.0");
+  const record = store.plugins.get("example.word-length") ?? new Uint8Array();
+  store.plugins.set("example.other", record);
+  const misfiled = await loadOne(store, "example.other");
+  assert.equal(misfiled.is, "damaged");
+  assert.match(misfiled.is === "damaged" ? misfiled.damaged.reason : "", /stored as “example.other”/);
 });

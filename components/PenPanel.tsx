@@ -1,49 +1,62 @@
 "use client";
 
 /**
- * An installed pen's controls in the Models section: its instruction, any
- * credentials its card asks for (kept in this tab's memory, like Fit to
- * page's key), Run, progress with Cancel, and the outcome. A pen that keeps
- * text on the device runs at once; one that sends text away asks for consent
- * first, for the exact text shown. The request lives in a PenJob owned by
- * the Workbench, so it outlives this panel.
+ * A pen's panel in the Models section, the same for every pen, Fit to page
+ * and installed ones alike: a field for each credential its card declares,
+ * the instruction when its card offers more than one, Run, a cost line when
+ * there is one, progress with Cancel, and the outcome. Its words come from
+ * `penPanel(card)`.
+ *
+ * - A pen that sends text away asks for consent first, in the Workbench's
+ *   one consent dialog, for the exact text shown. One that keeps text on the
+ *   device runs at once.
+ * - Credentials stay in this tab's memory: a field is uncontrolled, and is
+ *   cleared as soon as its value is handed to the host's credential store.
+ * - The request lives in the pen's PenJob, owned above the inspector, so it
+ *   outlives this panel.
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { type ModelCard, type PenJob, remoteHost } from "@/lib/models";
 import type { PageRef } from "@/lib/persist";
-import { ConsentDialog } from "./ConsentDialog";
 import styles from "./ModelsPanel.module.css";
+import { penPanel, penProgress } from "./plugin-copy";
+import type { Pen } from "./workbench/usePens";
 
-/** An installed pen's credentials, as the host's credential store holds them. */
-export interface CredentialStoreView {
-  has(kind: string): Promise<boolean>;
-  set(kind: string, value: string): Promise<void>;
-  forget(kind: string): Promise<void>;
+function usePhase(job: PenJob<PageRef>) {
+  return useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
 }
 
-export function PenControls({
-  card,
-  publisher,
+/** The top-bar chip for a pen's running rewrite: progress and Cancel, wherever the panel is. */
+export function PenJobChip({ card, job }: { card: ModelCard; job: PenJob<PageRef> }) {
+  const phase = usePhase(job);
+  if (phase.kind !== "running") return null;
+  return (
+    <span className={styles.penChip} role="status" aria-live="polite">
+      <span>
+        {penProgress(card, phase.name)} · {phase.attempt}
+        {phase.maxAttempts === null ? "" : `/${phase.maxAttempts}`}
+      </span>
+      <button type="button" className="btn" onClick={() => job.cancel()}>
+        Cancel
+      </button>
+    </span>
+  );
+}
+
+export function PenPanel({
+  pen,
   page,
-  job,
-  credentials,
-  instruction,
-  onInstruction,
 }: {
-  card: ModelCard;
-  publisher: string | null;
+  pen: Pen;
   /** The page the pen would rewrite (the active sheet). */
   page: { name: string | null; ref: PageRef | null; text: string };
-  job: PenJob<PageRef>;
-  credentials: CredentialStoreView;
-  instruction: string;
-  onInstruction: (instruction: string) => void;
 }) {
-  const phase = useSyncExternalStore(job.subscribe, job.getSnapshot, job.getSnapshot);
-  const [set, setSet] = useState<Record<string, boolean>>({});
-  const fields = useRef<Record<string, HTMLInputElement | null>>({});
-  const remote = remoteHost(card) !== null;
+  const { card, job, credentials } = pen;
+  const copy = penPanel(card);
+  const phase = usePhase(job);
+  const [set, setSet] = useState<Readonly<Record<string, boolean>>>({});
+  const fields = useRef(new Map<string, HTMLInputElement>());
   const instructions = card.transform?.instructions ?? [];
 
   // Re-read the credential store when the job changes phase (a rejected key is forgotten).
@@ -61,7 +74,7 @@ export function PenControls({
   }, [card, credentials, phase.kind]);
 
   function apply(kind: string) {
-    const field = fields.current[kind];
+    const field = fields.current.get(kind);
     if (!field) return;
     const value = field.value;
     field.value = "";
@@ -72,6 +85,11 @@ export function PenControls({
       .then((has) => setSet((s) => ({ ...s, [kind]: has })));
   }
 
+  function forget(kind: string) {
+    void credentials.forget(kind);
+    setSet((s) => ({ ...s, [kind]: false }));
+  }
+
   const missing = card.credentials.some((c) => !set[c.kind]);
   const ready = Boolean(page.name && page.ref && page.text.trim());
   const disabled = missing || !ready || phase.kind === "running";
@@ -79,52 +97,46 @@ export function PenControls({
   function run() {
     if (!page.name || !page.ref) return;
     const request = { name: page.name, ref: page.ref, text: page.text };
-    if (remote) job.ask(request);
+    if (remoteHost(card) !== null) job.ask(request);
     else void job.run(request);
   }
 
   return (
-    <div className={styles.fitControls}>
+    <div className={styles.penControls}>
       {card.credentials.map((c) =>
         set[c.kind] ? (
-          <div key={c.kind} className={styles.fitKey}>
-            <span className={styles.status}>Your {c.label || c.kind} is set for this tab only.</span>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => {
-                void credentials.forget(c.kind);
-                setSet((s) => ({ ...s, [c.kind]: false }));
-              }}
-            >
-              Forget
+          <div key={c.kind} className={styles.penKey}>
+            <span className={styles.status}>{copy.credentialSet(c)}</span>
+            <button type="button" className="btn" onClick={() => forget(c.kind)}>
+              {copy.forgetKey}
             </button>
           </div>
         ) : (
           <form
             key={c.kind}
-            className={styles.fitKey}
+            className={styles.penKey}
             onSubmit={(e) => {
               e.preventDefault();
               apply(c.kind);
             }}
           >
             <label className={styles.status} htmlFor={`pen-${card.id}-${c.kind}`}>
-              Your {c.label || c.kind}. It’s kept in this tab’s memory only, never saved, and forgotten when you reload.
-              It goes only to {remoteHost(card) ?? "this plugin"}.
+              {copy.credentialPrompt(c)}
             </label>
             <input
               id={`pen-${card.id}-${c.kind}`}
               ref={(el) => {
-                fields.current[c.kind] = el;
+                if (el) fields.current.set(c.kind, el);
+                else fields.current.delete(c.kind);
               }}
-              className={styles.fitKeyInput}
+              className={styles.penKeyInput}
               type="password"
               autoComplete="off"
               spellCheck={false}
+              placeholder={copy.placeholder ?? undefined}
             />
             <button type="submit" className="btn btn-outline">
-              Use
+              {copy.useKey}
             </button>
           </form>
         ),
@@ -133,7 +145,7 @@ export function PenControls({
       {instructions.length > 1 ? (
         <label className={styles.status}>
           Instruction{" "}
-          <select value={instruction} onChange={(e) => onInstruction(e.target.value)}>
+          <select value={pen.instruction} onChange={(e) => pen.setInstruction(e.target.value)}>
             {instructions.map((i) => (
               <option key={i} value={i}>
                 {i}
@@ -145,17 +157,14 @@ export function PenControls({
 
       <div className="panel-actions">
         <button type="button" className="btn btn-outline" disabled={disabled} onClick={run}>
-          {instruction || card.name}: “{page.name ?? "page"}”
+          {copy.run(page.name ?? "page", pen.instruction)}
         </button>
       </div>
+      {copy.cost ? <span className={styles.status}>{copy.cost}</span> : null}
 
       {phase.kind === "running" ? (
-        <div className={styles.fitProgress} aria-live="polite">
-          <span className={styles.status}>
-            {card.name} is writing “{phase.name}” · attempt {phase.attempt}
-            {phase.maxAttempts === null ? "" : ` of ${phase.maxAttempts}`} · {phase.characters.toLocaleString("en-US")}{" "}
-            characters
-          </span>
+        <div className={styles.penProgress} aria-live="polite">
+          <span className={styles.status}>{copy.progress(phase)}</span>
           {phase.note ? <span className={styles.status}>{phase.note}</span> : null}
           <button type="button" className="btn" onClick={() => job.cancel()}>
             Cancel
@@ -167,16 +176,6 @@ export function PenControls({
           {phase.message}
         </span>
       ) : null}
-
-      <ConsentDialog
-        request={
-          phase.kind === "confirm"
-            ? { card, publisher, pageName: phase.name, characters: phase.text.length, action: "rewrite" }
-            : null
-        }
-        onSend={() => void job.send()}
-        onCancel={() => job.dismiss()}
-      />
     </div>
   );
 }

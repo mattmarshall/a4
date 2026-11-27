@@ -6,6 +6,11 @@
  * (and each plugin's code) loads lazily; listing bundled cards loads nothing,
  * and the registry loads at start only when this browser has installed
  * plugins to list.
+ *
+ * The installed plugins are refreshed whenever the registry says they
+ * changed, in this tab or another. A tab that hasn't loaded the registry
+ * listens on PLUGIN_CHANNEL instead, and loads it when another tab installs a
+ * plugin (design: harden-pens-and-plugins, decision 5).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -25,7 +30,7 @@ import {
   type ScoreResult,
 } from "@/lib/models";
 import type { PageSpec } from "@/lib/page";
-import { IdbPluginStore } from "@/lib/platform";
+import { browserChannel, IdbPluginStore, PLUGIN_CHANNEL } from "@/lib/platform";
 
 type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
 
@@ -44,9 +49,9 @@ export interface InstalledView {
 type SandboxState = "unknown" | "checking" | "ok" | "unavailable";
 
 export interface ModelsState {
-  status: Record<string, ModelStatus>;
-  progress: Record<string, { loaded: number; total: number }>;
-  errors: Record<string, string>;
+  status: ReadonlyMap<PluginId, ModelStatus>;
+  progress: ReadonlyMap<PluginId, { loaded: number; total: number }>;
+  errors: ReadonlyMap<PluginId, string>;
   installed: readonly InstalledView[];
   damaged: readonly DamagedPlugin[];
   sandbox: SandboxState;
@@ -58,11 +63,33 @@ export interface ModelsState {
   approve: (id: PluginId, operation: Operation, text: string) => Promise<ConsentToken>;
   inspectFile: (file: File) => Promise<Inspection>;
   inspectUrl: (url: string) => Promise<Inspection>;
-  checkForUpdate: (id: string) => Promise<Inspection>;
+  checkForUpdate: (id: PluginId) => Promise<Inspection>;
   install: (inspection: Inspection) => Promise<void>;
-  remove: (id: string) => Promise<void>;
+  remove: (id: PluginId) => Promise<void>;
+  /** Remove a stored plugin that failed its checks, by the id it's stored under. */
+  removeDamaged: (id: string) => Promise<void>;
   host: () => Promise<ModelHost>;
 }
+
+/** `map` with `id` set to `value`. */
+function withEntry<V>(map: ReadonlyMap<PluginId, V>, id: PluginId, value: V): ReadonlyMap<PluginId, V> {
+  return new Map(map).set(id, value);
+}
+
+/** `map` without `id`. */
+function without<V>(map: ReadonlyMap<PluginId, V>, id: PluginId): ReadonlyMap<PluginId, V> {
+  if (!map.has(id)) return map;
+  const next = new Map(map);
+  next.delete(id);
+  return next;
+}
+
+/** `map` with only the ids in `keep`. */
+function onlyKeys<V>(map: ReadonlyMap<PluginId, V>, keep: ReadonlySet<PluginId>): ReadonlyMap<PluginId, V> {
+  return [...map.keys()].every((id) => keep.has(id)) ? map : new Map([...map].filter(([id]) => keep.has(id)));
+}
+
+const BUNDLED_IDS: readonly PluginId[] = BUNDLED_CARDS.map(pluginIdOf);
 
 const viewOf = (registry: PluginRegistry): InstalledView[] =>
   registry.installed().map((p) => ({
@@ -74,12 +101,14 @@ const viewOf = (registry: PluginRegistry): InstalledView[] =>
   }));
 
 export function useModels(): ModelsState {
-  const [status, setStatus] = useState<Record<string, ModelStatus>>({});
-  const [progress, setProgress] = useState<Record<string, { loaded: number; total: number }>>({});
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [status, setStatus] = useState<ReadonlyMap<PluginId, ModelStatus>>(new Map());
+  const [progress, setProgress] = useState<ReadonlyMap<PluginId, { loaded: number; total: number }>>(new Map());
+  const [errors, setErrors] = useState<ReadonlyMap<PluginId, string>>(new Map());
   const [installed, setInstalled] = useState<readonly InstalledView[]>([]);
   const [damaged, setDamaged] = useState<readonly DamagedPlugin[]>([]);
   const [sandbox, setSandbox] = useState<SandboxState>("unknown");
+  /** The registry, once it has loaded. */
+  const [loaded, setLoaded] = useState<PluginRegistry | null>(null);
   const registryPromise = useRef<Promise<PluginRegistry> | null>(null);
 
   const registry = useCallback(() => {
@@ -89,6 +118,7 @@ export function useModels(): ModelsState {
     registryPromise.current ??= import("@/lib/models/registry").then(async (m) => {
       const r = m.pluginRegistry();
       await r.load();
+      setLoaded(r);
       return r;
     });
     return registryPromise.current;
@@ -99,29 +129,37 @@ export function useModels(): ModelsState {
   /** Check a plugin's download status: ready when nothing downloads or its files are stored. */
   const checkStatus = useCallback(
     async (card: ModelCard, downloaded: () => Promise<boolean>) => {
+      const id = pluginIdOf(card);
       if (!needsDownload(card)) {
-        setStatus((s) => ({ ...s, [card.id]: "ready" }));
+        setStatus((s) => withEntry(s, id, "ready"));
         return;
       }
-      setStatus((s) => ({ ...s, [card.id]: "checking" }));
+      setStatus((s) => withEntry(s, id, "checking"));
       try {
         // Start the plugin only if its model is already downloaded.
-        const ready = (await downloaded()) && (await (await host()).status(pluginIdOf(card)));
-        setStatus((s) => ({ ...s, [card.id]: ready ? "ready" : "not-downloaded" }));
+        const ready = (await downloaded()) && (await (await host()).status(id));
+        setStatus((s) => withEntry(s, id, ready ? "ready" : "not-downloaded"));
       } catch (error) {
-        setStatus((s) => ({ ...s, [card.id]: "error" }));
-        setErrors((e) => ({ ...e, [card.id]: error instanceof Error ? error.message : String(error) }));
+        setStatus((s) => withEntry(s, id, "error"));
+        setErrors((e) => withEntry(e, id, error instanceof Error ? error.message : String(error)));
       }
     },
     [host],
   );
 
-  /** Show the registry's installed plugins, and check the sandbox once there are any. */
+  /**
+   * Show the registry's installed plugins, drop what's known about removed
+   * ones, and check the sandbox once there are any.
+   */
   const refresh = useCallback(
     async (r: PluginRegistry) => {
       const views = viewOf(r);
+      const keep = new Set([...BUNDLED_IDS, ...views.map((v) => pluginIdOf(v.card))]);
       setInstalled(views);
       setDamaged([...r.damaged()]);
+      setStatus((s) => onlyKeys(s, keep));
+      setProgress((p) => onlyKeys(p, keep));
+      setErrors((e) => onlyKeys(e, keep));
       for (const view of views) void checkStatus(view.card, async () => true);
       if (views.length > 0) {
         setSandbox((s) => (s === "unknown" ? "checking" : s));
@@ -143,8 +181,7 @@ export function useModels(): ModelsState {
       // Installed plugins: load the registry only when this browser has some.
       try {
         if ((await new IdbPluginStore().records()).length === 0 || cancelled) return;
-        const r = await registry();
-        if (!cancelled) await refresh(r);
+        await registry();
       } catch {
         // No IndexedDB here: nothing is installed.
       }
@@ -152,21 +189,38 @@ export function useModels(): ModelsState {
     return () => {
       cancelled = true;
     };
-  }, [checkStatus, registry, refresh]);
+  }, [checkStatus, registry]);
+
+  // Once the registry has loaded: show its plugins, and again each time they
+  // change, in this tab or another.
+  useEffect(() => {
+    if (!loaded) return;
+    void refresh(loaded);
+    return loaded.subscribe(() => void refresh(loaded));
+  }, [loaded, refresh]);
+
+  // Until then, another tab's install wakes this one: the registry loads, and
+  // reads the store as it is now. Its own subscription takes over from there.
+  useEffect(() => {
+    if (loaded) return;
+    const channel = browserChannel(PLUGIN_CHANNEL);
+    if (!channel) return;
+    channel.subscribe(() => void registry().catch(() => {}));
+    return () => channel.close();
+  }, [loaded, registry]);
 
   const prepare = useCallback(
     async (id: PluginId) => {
-      setStatus((s) => ({ ...s, [id]: "downloading" }));
-      setErrors((e) => {
-        const { [id]: _, ...rest } = e;
-        return rest;
-      });
+      setStatus((s) => withEntry(s, id, "downloading"));
+      setErrors((e) => without(e, id));
       try {
-        await (await host()).prepare(id, (loaded, total) => setProgress((p) => ({ ...p, [id]: { loaded, total } })));
-        setStatus((s) => ({ ...s, [id]: "ready" }));
+        await (await host()).prepare(id, (done, total) =>
+          setProgress((p) => withEntry(p, id, { loaded: done, total })),
+        );
+        setStatus((s) => withEntry(s, id, "ready"));
       } catch (error) {
-        setStatus((s) => ({ ...s, [id]: "not-downloaded" }));
-        setErrors((e) => ({ ...e, [id]: error instanceof Error ? error.message : String(error) }));
+        setStatus((s) => withEntry(s, id, "not-downloaded"));
+        setErrors((e) => withEntry(e, id, error instanceof Error ? error.message : String(error)));
       }
     },
     [host],
@@ -189,26 +243,17 @@ export function useModels(): ModelsState {
     [registry],
   );
   const inspectUrl = useCallback(async (url: string) => (await registry()).inspectUrl(url), [registry]);
-  const checkForUpdate = useCallback(async (id: string) => (await registry()).checkForUpdate(id), [registry]);
+  const checkForUpdate = useCallback(async (id: PluginId) => (await registry()).checkForUpdate(id), [registry]);
 
+  // The registry tells its subscribers after each of these, so the list refreshes from there.
   const install = useCallback(
     async (inspection: Inspection) => {
-      const r = await registry();
-      await r.install(inspection);
-      await refresh(r);
+      await (await registry()).install(inspection);
     },
-    [registry, refresh],
+    [registry],
   );
-
-  const remove = useCallback(
-    async (id: string) => {
-      const r = await registry();
-      await r.remove(id);
-      setStatus(({ [id]: _, ...rest }) => rest);
-      await refresh(r);
-    },
-    [registry, refresh],
-  );
+  const remove = useCallback(async (id: PluginId) => (await registry()).remove(id), [registry]);
+  const removeDamaged = useCallback(async (id: string) => (await registry()).removeDamaged(id), [registry]);
 
   return {
     status,
@@ -225,6 +270,7 @@ export function useModels(): ModelsState {
     checkForUpdate,
     install,
     remove,
+    removeDamaged,
     host,
   };
 }

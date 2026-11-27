@@ -1,25 +1,17 @@
 "use client";
 
 /**
- * The per-call consent dialog for a plugin that sends page text off the
- * device: an installed pen's rewrite, or a remote overlay's score. It names
- * the destination host, the plugin and its publisher, the model, the page,
- * and the characters sent. Only Send approves the call; Cancel sends nothing.
- * (Fit to page has its own dialog in FitToPage.tsx.)
+ * The one per-call consent dialog, for every call that sends page text off
+ * the device: Fit to page, an installed pen's rewrite, or a remote overlay's
+ * score. The Workbench mounts it once, for the call `pendingConsent` picks.
+ * Its words come from `consentDialog(request)`: the destination host, the
+ * plugin, the model, the page, the characters sent, and what stays out of
+ * A4's server. Only Send approves the call; Cancel sends nothing.
  */
 
 import { useEffect, useRef } from "react";
-import { type ModelCard, remoteHost } from "@/lib/models";
 import styles from "./ModelsPanel.module.css";
-
-export interface ConsentRequest {
-  readonly card: ModelCard;
-  /** Who published the plugin, for an installed one. */
-  readonly publisher: string | null;
-  readonly pageName: string;
-  readonly characters: number;
-  readonly action: "score" | "rewrite";
-}
+import { type ConsentRequest, consentDialog } from "./plugin-copy";
 
 export function ConsentDialog({
   request,
@@ -38,10 +30,10 @@ export function ConsentDialog({
     if (!request && d.open) d.close();
   }, [request]);
 
-  const host = request ? remoteHost(request.card) : null;
+  const copy = request ? consentDialog(request) : null;
   return (
     <dialog ref={dialog} className={styles.consent} aria-labelledby="plugin-consent-title" onCancel={onCancel}>
-      {request ? (
+      {copy ? (
         <form
           method="dialog"
           onSubmit={(e) => {
@@ -49,35 +41,19 @@ export function ConsentDialog({
             onSend();
           }}
         >
-          <h2 id="plugin-consent-title">Send this page to {host}?</h2>
+          <h2 id="plugin-consent-title">{copy.title}</h2>
           <dl>
-            <dt>Destination</dt>
-            <dd>
-              <code>{host}</code>, directly from this browser. A4’s server never sees the page.
-            </dd>
-            <dt>Plugin</dt>
-            <dd>
-              {request.card.name} {request.card.version}
-              {request.publisher ? ` · ${request.publisher}` : ""}
-            </dd>
-            {request.card.model ? (
-              <>
-                <dt>Model</dt>
+            {copy.rows.map((row) => (
+              <div key={row.label} className={styles.row}>
+                <dt>{row.label}</dt>
                 <dd>
-                  <code>{request.card.model}</code>
+                  {row.code ? <code>{row.code}</code> : null}
+                  {row.value}
                 </dd>
-              </>
-            ) : null}
-            <dt>Page</dt>
-            <dd>
-              “{request.pageName}”, {request.characters.toLocaleString("en-US")} characters
-            </dd>
+              </div>
+            ))}
           </dl>
-          <p className={styles.status}>
-            {request.action === "rewrite"
-              ? "The rewrite opens as a new page in Compare. This page doesn’t change. You’ll be asked again next time."
-              : "The scores tint this page as a lens. You’ll be asked again before it scores the page again."}
-          </p>
+          <p className={styles.status}>{copy.note}</p>
           <div className="panel-actions">
             <button type="button" className="btn" onClick={onCancel}>
               Cancel

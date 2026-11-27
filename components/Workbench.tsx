@@ -11,10 +11,10 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import { describeImport, MAX_IMPORT_FILE_BYTES } from "@/lib/archive";
 import type { LensId } from "@/lib/page";
 import {
-  Operation,
-  FIT_TO_PAGE,
   type ModelCard,
   type FindingResult,
+  type PluginId,
+  pluginIdOf,
   type TransformResult,
   SEMANTIC_REPETITION,
 } from "@/lib/models";
@@ -37,11 +37,10 @@ import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { ConsentDialog } from "./ConsentDialog";
-import { FitToPage, PenJobChip } from "./FitToPage";
 import { LibraryPanel, type FolderActions, type LibraryActions, type PageActions } from "./LibraryPanel";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
-import { PenControls } from "./PenControls";
+import { PenJobChip, PenPanel } from "./PenPanel";
 import { penSuffix, publisherNote } from "./plugin-copy";
 import { CLIPBOARD_BLOCKED, copiedNotice } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
@@ -56,6 +55,7 @@ import { useAnalysis } from "./workbench/useAnalysis";
 import { useLayout } from "./workbench/useLayout";
 import { lensSources } from "./workbench/model-lens";
 import { useModelLens } from "./workbench/useModelLens";
+import { usePendingConsent } from "./workbench/usePendingConsent";
 import { usePens } from "./workbench/usePens";
 import { SharedBanner } from "./workbench/SharedBanner";
 import { useServeLink } from "./workbench/useServeLink";
@@ -131,16 +131,19 @@ export function Workbench() {
 
   // --- Models --------------------------------------------------------------
   const models = useModels();
+  // The installed plugins with their publisher notes, for the lenses, the pens, and their dialogs.
+  const installedPlugins = useMemo(
+    () => models.installed.map((v) => ({ card: v.card, publisher: publisherNote(v.knownName, v.publisherName) })),
+    [models.installed],
+  );
   const lensCards = useMemo(() => {
-    const ready = (card: ModelCard) => models.status[card.id] === "ready";
+    const ready = (card: ModelCard) => models.status.get(pluginIdOf(card)) === "ready";
     const runnable = models.sandbox !== "unavailable";
     return [
       ...(ready(SEMANTIC_REPETITION.card) ? [{ card: SEMANTIC_REPETITION.card, publisher: null }] : []),
-      ...models.installed
-        .filter((v) => runnable && ready(v.card))
-        .map((v) => ({ card: v.card, publisher: publisherNote(v.knownName, v.publisherName) })),
+      ...installedPlugins.filter((p) => runnable && ready(p.card)),
     ];
-  }, [models.status, models.installed, models.sandbox]);
+  }, [models.status, installedPlugins, models.sandbox]);
   const sources = useMemo(() => lensSources(lensCards), [lensCards]);
   const modelLens = useModelLens({
     models,
@@ -159,14 +162,14 @@ export function Workbench() {
   }
 
   /** A card's "Show on the page": its first plane's lens. */
-  function showPlugin(id: string) {
+  function showPlugin(id: PluginId) {
     const source = sources.find((s) => s.pluginId === id);
     if (source) modelLens.show(source);
   }
 
-  // Fit to page: one request at a time, owned here so it outlives the Models
-  // panel (collapsing it, hiding the inspector, or focus mode don't stop it).
-  // The result opens as B, beside its source as A.
+  // The pens: one request each, owned here so it outlives the Models panel
+  // (collapsing it, hiding the inspector, or focus mode don't stop it). A
+  // result opens as B, beside its source as A.
   async function openPenResult(card: ModelCard, result: TransformResult, ref: PageRef | null) {
     // The dialog only opens for an open page, so a reference is always present.
     if (!ref) return;
@@ -186,11 +189,24 @@ export function Workbench() {
       result.fits ? "info" : "warn",
     );
   }
-  const installedPens = useMemo(
-    () => models.installed.filter((v) => v.card.operations.includes(Operation.TRANSFORM)).map((v) => v.card),
-    [models.installed],
+  const pens = usePens({ host: models.host, installed: installedPlugins, spec, onResult: openPenResult });
+  // The one consent dialog: the lens's pending score, else a pen's request.
+  const consent = usePendingConsent(
+    modelLens.consent
+      ? {
+          request: {
+            card: modelLens.consent.source.card,
+            publisher: modelLens.consent.source.publisher,
+            pageName: slots[modelLens.consent.slot].label ?? "page",
+            characters: modelLens.consent.text.length,
+            action: "score",
+          },
+          send: () => void modelLens.send(),
+          dismiss: modelLens.cancel,
+        }
+      : null,
+    pens,
   );
-  const pens = usePens({ host: models.host, installed: installedPens, spec, onResult: openPenResult });
 
   // --- Share links ---------------------------------------------------------
 
@@ -436,7 +452,7 @@ export function Workbench() {
         <Topbar
           layout={stage.layout}
           title={<DocTitle page={page} folderName={folderName} onRename={lib.renamePage} />}
-          pens={pens.entries()}
+          pens={pens}
           lens={lens}
           modelLens={modelLens}
           onLens={chooseLens}
@@ -540,8 +556,8 @@ export function Workbench() {
           ) : null}
           {focus ? (
             <div className="focus-bar" data-print="hide">
-              {pens.entries().map((pen) => (
-                <PenJobChip key={pen.card.id} card={pen.card} job={pen.job} />
+              {pens.map((pen) => (
+                <PenJobChip key={pen.id} card={pen.card} job={pen.job} />
               ))}
               <button type="button" className="btn btn-outline focus-exit" onClick={() => layout.setFocus(false)}>
                 Exit focus (Esc)
@@ -589,54 +605,32 @@ export function Workbench() {
               activeLens={modelLens.active?.pluginId ?? null}
               onScore={showPlugin}
               notify={notify}
-              slots={{
-                ...Object.fromEntries(
-                  models.installed
-                    .filter((v) => v.card.operations.includes(Operation.TRANSFORM))
-                    .map((v) => [
-                      v.card.id,
-                      <PenControls
-                        key={v.card.id}
-                        card={v.card}
-                        publisher={publisherNote(v.knownName, v.publisherName)}
-                        page={{ name: page.label, ref: page.ref, text: page.text }}
-                        job={pens.job(v.card)}
-                        credentials={pens.credentials(v.card)}
-                        instruction={pens.instruction(v.card)}
-                        onInstruction={(value) => pens.setInstruction(v.card, value)}
-                      />,
-                    ]),
-                ),
-                [FIT_TO_PAGE.id]: (
-                  <FitToPage
-                    page={{ name: page.label, ref: page.ref, text: page.text }}
-                    job={pens.fit}
-                    apiKey={pens.fitKey}
-                  />
-                ),
-                [SEMANTIC_REPETITION.id]: modelLens.summary ? (
-                  <SemanticSummaryView summary={modelLens.summary} onSelectPair={selectLaterUnit} />
-                ) : null,
-              }}
+              slots={
+                new Map<PluginId, ReactNode>([
+                  ...pens.map(
+                    (pen) =>
+                      [
+                        pen.id,
+                        <PenPanel key={pen.id} pen={pen} page={{ name: page.label, ref: page.ref, text: page.text }} />,
+                      ] as const,
+                  ),
+                  [
+                    SEMANTIC_REPETITION.id,
+                    modelLens.summary ? (
+                      <SemanticSummaryView summary={modelLens.summary} onSelectPair={selectLaterUnit} />
+                    ) : null,
+                  ],
+                ])
+              }
             />
           </aside>
         ) : null}
       </div>
 
       <ConsentDialog
-        request={
-          modelLens.consent
-            ? {
-                card: modelLens.consent.source.card,
-                publisher: modelLens.consent.source.publisher,
-                pageName: slots[modelLens.consent.slot].label ?? "page",
-                characters: modelLens.consent.text.length,
-                action: "score",
-              }
-            : null
-        }
-        onSend={() => void modelLens.send()}
-        onCancel={modelLens.cancel}
+        request={consent?.request ?? null}
+        onSend={() => consent?.send()}
+        onCancel={() => consent?.dismiss()}
       />
 
       <SealDialog

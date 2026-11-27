@@ -30,8 +30,14 @@ after(() => {
 
 class MemoryFiles implements PluginFiles {
   readonly map = new Map<string, Uint8Array>();
+  /** How many times a file's bytes were read. */
+  reads = 0;
   async getFile(digest: string) {
+    this.reads += 1;
     return this.map.get(digest) ?? null;
+  }
+  async hasFile(digest: string) {
+    return this.map.has(digest);
   }
   async putFile(digest: string, data: Uint8Array) {
     this.map.set(digest, data);
@@ -207,4 +213,93 @@ test("describe answers from the verified card without starting the sandbox", asy
   const { client: c, sandbox } = client(pkg);
   assert.equal((await c.describe(create(ScoreRequestSchema) as never)).card?.id, "example.word-length");
   assert.equal(sandbox.opened.length, 0);
+});
+
+test("a Remove while the sandbox starts closes its port once it opens, and the call fails as removed", async () => {
+  const pkg = await verified(overlayCard(), false);
+  const sandbox = fakeSandbox(pkg.card, () => ({ score: () => ({}) }));
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let entered = () => {};
+  const opening = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  let closes = 0;
+  const c = installedClient({
+    pkg,
+    files: new MemoryFiles(),
+    context: { credential: () => null },
+    fetch: fakeFetch(MODEL).fetch,
+    open: async (options) => {
+      entered();
+      await gate;
+      const port = await sandbox.open(options);
+      return {
+        ...port,
+        close: () => {
+          closes += 1;
+          port.close();
+        },
+      };
+    },
+    sandboxWorks: async () => true,
+  });
+  made.push(c);
+  const scoring = c.score(scoreRequest());
+  await opening;
+  closeClient(c);
+  release();
+  await assert.rejects(
+    scoring,
+    (e: unknown) => isModelError(e, ErrorCode.NOT_FOUND) && e.message === "Word length was removed.",
+  );
+  assert.equal(closes, 1, "the port that opened after the Remove is closed once");
+  assert.equal(sandbox.opened[0]?.closed, true);
+  await assert.rejects(c.score(scoreRequest()), (e: unknown) => isModelError(e, ErrorCode.NOT_FOUND));
+  assert.equal(sandbox.opened.length, 1, "a closed client starts nothing");
+});
+
+test("a status after prepare reads no file bytes: a file checked in this tab is only looked up", async () => {
+  const pkg = await verified(overlayCard(), true);
+  const { client: c, files } = client(pkg);
+  await drain(c.prepare(create(PrepareRequestSchema)));
+  files.reads = 0;
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, true);
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, true);
+  await drain(c.prepare(create(PrepareRequestSchema)));
+  assert.equal(files.reads, 0);
+});
+
+test("a stored file is read and checked once by a new client, then only looked up", async () => {
+  const pkg = await verified(overlayCard(), true);
+  const files = new MemoryFiles();
+  await files.putFile(await digestUrn(MODEL), MODEL);
+  const { client: c } = client(pkg, { files });
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, true);
+  assert.equal(files.reads, 1);
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, true);
+  assert.equal(files.reads, 1);
+});
+
+test("a file changed after it was checked stops the start, and the next status asks for the download again", async () => {
+  const pkg = await verified(overlayCard(), true);
+  const sandbox = fakeSandbox(pkg.card, () => ({ score: () => ({}) }));
+  const { client: c, files } = client(pkg, { sandbox });
+  await drain(c.prepare(create(PrepareRequestSchema)));
+  const stored = files.map.get(await digestUrn(MODEL));
+  assert.ok(stored);
+  stored[0] = (stored[0] ?? 0) ^ 1;
+  await assert.rejects(c.score(scoreRequest()), (e: unknown) => isModelError(e, ErrorCode.NOT_READY));
+  assert.equal(sandbox.opened.length, 0);
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, false);
+});
+
+test("a checked file that's deleted from the store is no longer ready", async () => {
+  const pkg = await verified(overlayCard(), true);
+  const { client: c, files } = client(pkg);
+  await drain(c.prepare(create(PrepareRequestSchema)));
+  files.map.clear();
+  assert.equal((await c.status(create(StatusRequestSchema))).ready, false);
 });

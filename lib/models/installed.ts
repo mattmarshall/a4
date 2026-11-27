@@ -20,6 +20,7 @@ import { readCapped, sameBytes } from "../platform/bytes.ts";
 import { remoteHost } from "./capabilities.ts";
 import { BUNDLED_CARDS } from "./manifest.ts";
 import { compareVersions, PACKAGE_LIMIT, PackageError, type VerifiedPackage, verifyPackage } from "./package.ts";
+import { type PluginId, pluginIdOf } from "./plugin-id.ts";
 import { type KnownPublisher, knownPublisher } from "./publishers.ts";
 
 export type InstallProblem = "bundled-id" | "other-key" | "older" | "same-version" | "already-installed";
@@ -53,16 +54,19 @@ export interface Inspection {
   readonly changes: UpdateChanges;
 }
 
-/** An installed plugin, checked. */
+/** An installed plugin, checked. Its id is minted from its verified card. */
 export interface InstalledPlugin {
-  readonly id: string;
+  readonly id: PluginId;
   readonly pkg: VerifiedPackage;
   readonly sourceUrl: string;
   readonly installedAt: Date | null;
   readonly known: KnownPublisher | null;
 }
 
-/** A stored plugin that failed its check, and why. It isn't run. */
+/**
+ * A stored plugin that failed its check, and why. It isn't run. Its id is the
+ * key it's stored under: there's no verified card to mint a `PluginId` from.
+ */
 export interface DamagedPlugin {
   readonly id: string;
   readonly reason: string;
@@ -190,7 +194,7 @@ export async function install(store: PluginStore, inspection: Inspection, now: D
   await store.putRecord(id, toBinary(InstalledPluginSchema, record));
   const keep = new Set([...pkg.manifest.files.map((f) => f.digest), ...(await filesInUse(store, id))]);
   for (const digest of before) if (!keep.has(digest)) await store.deleteFile(digest);
-  return { id, pkg, sourceUrl: inspection.sourceUrl, installedAt: now, known: inspection.known };
+  return { id: pluginIdOf(pkg.card), pkg, sourceUrl: inspection.sourceUrl, installedAt: now, known: inspection.known };
 }
 
 /** Remove a plugin: its record (code, pinned key, and source URL) and the files no other plugin lists. */
@@ -201,7 +205,43 @@ export async function remove(store: PluginStore, id: string): Promise<void> {
   for (const digest of files) if (!inUse.has(digest)) await store.deleteFile(digest);
 }
 
-/** Every installed plugin, each checked again, and the ones that failed. */
+/** One stored plugin, read again: gone, damaged, or installed and checked. */
+export type LoadedPlugin =
+  | { readonly is: "absent" }
+  | { readonly is: "damaged"; readonly damaged: DamagedPlugin }
+  | { readonly is: "installed"; readonly plugin: InstalledPlugin };
+
+/** Check the record stored under `id`: its signature, that its card names `id`, and that `id` isn't bundled. */
+async function checkRecord(id: string, bytes: Uint8Array, bundledIds: readonly string[]): Promise<LoadedPlugin> {
+  try {
+    const { pkg, sourceUrl, installedAt } = await readRecord(bytes);
+    if (pkg.card.id !== id)
+      throw new PackageError("card", `It’s stored as “${id}” but its card says “${pkg.card.id}”.`);
+    if (bundledIds.includes(id)) throw new PackageError("card", `The id “${id}” belongs to a built-in plugin.`);
+    const plugin = {
+      id: pluginIdOf(pkg.card),
+      pkg,
+      sourceUrl,
+      installedAt,
+      known: knownPublisher(pkg.publisher.publicKey),
+    };
+    return { is: "installed", plugin };
+  } catch (error) {
+    return { is: "damaged", damaged: { id, reason: error instanceof Error ? error.message : String(error) } };
+  }
+}
+
+/** The plugin stored under `id`, checked again; another tab may have installed, updated, or removed it. */
+export async function loadOne(
+  store: PluginStore,
+  id: string,
+  bundledIds: readonly string[] = BUNDLED_IDS,
+): Promise<LoadedPlugin> {
+  const bytes = await store.getRecord(id);
+  return bytes ? checkRecord(id, bytes, bundledIds) : { is: "absent" };
+}
+
+/** Every installed plugin, each checked again as `loadOne` checks it, and the ones that failed. */
 export async function loadInstalled(
   store: PluginStore,
   bundledIds: readonly string[] = BUNDLED_IDS,
@@ -209,15 +249,9 @@ export async function loadInstalled(
   const installed: InstalledPlugin[] = [];
   const damaged: DamagedPlugin[] = [];
   for (const [id, bytes] of await store.records()) {
-    try {
-      const { pkg, sourceUrl, installedAt } = await readRecord(bytes);
-      if (pkg.card.id !== id)
-        throw new PackageError("card", `It’s stored as “${id}” but its card says “${pkg.card.id}”.`);
-      if (bundledIds.includes(id)) throw new PackageError("card", `The id “${id}” belongs to a built-in plugin.`);
-      installed.push({ id, pkg, sourceUrl, installedAt, known: knownPublisher(pkg.publisher.publicKey) });
-    } catch (error) {
-      damaged.push({ id, reason: error instanceof Error ? error.message : String(error) });
-    }
+    const loaded = await checkRecord(id, bytes, bundledIds);
+    if (loaded.is === "installed") installed.push(loaded.plugin);
+    else if (loaded.is === "damaged") damaged.push(loaded.damaged);
   }
   installed.sort((a, b) => a.pkg.card.name.localeCompare(b.pkg.card.name));
   return { installed, damaged };

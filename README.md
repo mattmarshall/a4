@@ -522,8 +522,10 @@ narrative data. The result opens beside the original, which never changes.
   to page card. It stays in this tab's memory only: it is never written to
   localStorage, page files, exports, or logs, and it's forgotten on reload or
   when you choose **Forget key**. A rejected key is forgotten right away.
-- **Confirm every request.** Each run first shows what will be sent:
+- **Confirm every request.** Each run first shows what will be sent, in the
+  same dialog that confirms every plugin that sends page text away:
   - the destination, `api.anthropic.com` (Anthropic);
+  - the plugin: Fit to page, built into A4;
   - the model, `claude-opus-5-5`;
   - the page and its character count.
 
@@ -1354,11 +1356,19 @@ pnpm a4 plugin verify dist/word-length.a4plugin
     Semantic repetition.
   - A remote overlay scores only when you turn its lens on or choose Score
     again, with consent each time.
-- **Pens.** An installed pen runs from its card in the Models section. You
-  choose an instruction, enter any credential it asks for (kept in this tab's
-  memory only), and run it. A pen that sends text away asks first. The host
-  lays out each attempt, and the result opens as "<page> (<pen name>)" beside
-  the source in Compare. The source never changes.
+- **Pens.** An installed pen runs from its card in the Models section, in the
+  same panel as Fit to page. You choose an instruction, enter any credential
+  it asks for with **Use key** (kept in this tab's memory only, until **Forget
+  key** or a reload), and run it. A pen that sends text away asks first, in
+  the dialog Fit to page uses: it names the host, the pen with its version and
+  publisher, its model, the page, and the characters sent. The host lays out
+  each attempt, and the result opens as "<page> (<pen name>)" beside the
+  source in Compare. The source never changes.
+- **Model files.** A4 checks a model file against its digest when it
+  downloads the file and each time the plugin starts. Between starts, the
+  Models section only asks whether a file it already checked is still
+  stored, so listing plugins doesn't reread a large model. If a stored file
+  changed, the plugin doesn't start, and its card offers the download again.
 - **Every load is checked.** When a tab loads its installed plugins, A4
   checks each one's signature and code, and a plugin runs only from the copy
   it checked. A stored plugin that fails the check is shown as damaged and
@@ -1368,7 +1378,14 @@ pnpm a4 plugin verify dist/word-length.a4plugin
     both versions and what changes: where text goes, the download size, and
     the credentials.
   - **Remove** deletes the plugin's code, its files, its pinned key, and its
-    URL. Pages a pen made stay.
+    URL, and stops it, closing its sandbox even if it's still starting. Pages
+    a pen made stay.
+- **Every tab agrees.** An install, update, or removal reaches A4's other
+  open tabs in this browser within 2 seconds, without a reload. They list the
+  new plugin, run the new version, or stop the removed one: its lens turns
+  off, its running pen stops, and its credentials and consent are forgotten.
+  An update forgets the pen's credentials in every tab. A tab with no
+  plugins doesn't load the plugin code until another tab installs one.
 - **Not yet:** installed plugins run only in the app, not in the `a4`
   command, the headless desk, or the mailroom. Generate and Encode aren't
   offered to them.

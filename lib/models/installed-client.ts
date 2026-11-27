@@ -4,8 +4,11 @@
  * on the device, so it can't download its own files:
  *
  * - Describe answers from the verified card, without starting anything.
- * - Status is ready when every file in the manifest is stored and still
- *   matches its digest.
+ * - Status is ready when every file in the manifest is stored and matches
+ *   its digest. A file is read and hashed when it's downloaded, the first
+ *   time this tab looks at it, and each time the sandbox starts; otherwise
+ *   status only asks whether it's still stored (design: harden-pens-and-plugins,
+ *   decision 7).
  * - Prepare downloads the manifest's files from the page (no credentials, no
  *   referrer), checks each one's size and digest, and stores it. A file that
  *   doesn't match is discarded.
@@ -14,6 +17,9 @@
  *   files and the credentials the card declares. The plugin's own Describe
  *   must match the card. When a declared credential changes, the sandbox
  *   restarts, so keys live only in memory.
+ * - Closing the client (`closeClient`, when the plugin is removed) is for
+ *   good: later calls fail as removed, and a sandbox still starting closes as
+ *   soon as it opens (design: harden-pens-and-plugins, decision 6).
  */
 
 import { create, toBinary } from "@bufbuild/protobuf";
@@ -36,6 +42,8 @@ import { connectPort, isClosed } from "./worker-transport.ts";
 /** Where an installed plugin's downloaded files are kept, by digest. */
 export interface PluginFiles {
   getFile(digest: string): Promise<Uint8Array | null>;
+  /** Whether a file is stored under `digest`, without reading its bytes. */
+  hasFile(digest: string): Promise<boolean>;
   putFile(digest: string, data: Uint8Array): Promise<void>;
 }
 
@@ -76,26 +84,57 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
     return out;
   };
 
-  /** A stored file's bytes, or null when it's missing or no longer matches its digest. */
-  const storedFile = async (file: (typeof manifestFiles)[number]): Promise<Uint8Array | null> => {
+  type ManifestFile = (typeof manifestFiles)[number];
+
+  /**
+   * The digests this tab has read and checked. A client lives until its plugin
+   * is unregistered, so this is per tab and per installed version.
+   */
+  const checked = new Set<string>();
+
+  /** A stored file's bytes, read and checked; null when it's missing or no longer matches its digest. */
+  const checkedFile = async (file: ManifestFile): Promise<Uint8Array | null> => {
     const data = await deps.files.getFile(file.digest);
-    if (!data || BigInt(data.length) !== file.size || (await digestUrn(data)) !== file.digest) return null;
+    if (!data || BigInt(data.length) !== file.size || (await digestUrn(data)) !== file.digest) {
+      checked.delete(file.digest);
+      return null;
+    }
+    checked.add(file.digest);
     return data;
+  };
+
+  /** Whether a file is stored and matches. A file this tab already checked is only looked up, not read. */
+  const isStored = async (file: ManifestFile): Promise<boolean> => {
+    if (!checked.has(file.digest)) return (await checkedFile(file)) !== null;
+    if (await deps.files.hasFile(file.digest)) return true;
+    checked.delete(file.digest);
+    return false;
   };
 
   let running: Running | null = null;
   let starting: Promise<Running> | null = null;
+  /** Set when the plugin is removed: the client refuses calls, and a start in flight closes its port. */
+  let closed = false;
+  const removed = () => new ModelError(ErrorCode.NOT_FOUND, `${who} was removed.`);
 
-  const stop = () => {
+  /** Stop the running sandbox, so the next call starts a new one. */
+  const restart = () => {
     running?.port.close();
     running = null;
+  };
+
+  /** Close for good, when the plugin is removed. */
+  const close = () => {
+    closed = true;
+    restart();
   };
 
   const start = async (current: Record<string, string>): Promise<Running> => {
     if (!(await deps.sandboxWorks())) throw new ModelError(ErrorCode.UNAVAILABLE, NO_SANDBOX);
     const files = [];
     for (const file of manifestFiles) {
-      const data = await storedFile(file);
+      // Always read and check: these are the bytes the sandbox gets.
+      const data = await checkedFile(file);
       if (!data) throw new ModelError(ErrorCode.NOT_READY, `Download ${who}’s model files first.`);
       files.push({ url: file.url, data });
     }
@@ -116,21 +155,39 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
     return { client, port, credentials: JSON.stringify(current) };
   };
 
-  /** The running sandbox's client, started or restarted as needed. */
+  /**
+   * The running sandbox's client, started or restarted as needed. A start
+   * that finishes after `close` closes its own port, so a Remove during a
+   * start leaves no frame running.
+   */
   const ensure = async (): Promise<SheetModelClient> => {
+    if (closed) throw removed();
     const current = credentials();
     const key = JSON.stringify(current);
     if (running && !isClosed(running.client) && running.credentials === key) return running.client;
-    stop();
-    starting ??= start(current).finally(() => {
-      starting = null;
-    });
-    running = await starting;
-    return running.client;
+    restart();
+    starting ??= start(current)
+      .then(
+        (started) => {
+          if (closed) {
+            started.port.close();
+            throw removed();
+          }
+          running = started;
+          return started;
+        },
+        (error: unknown) => {
+          throw closed ? removed() : error;
+        },
+      )
+      .finally(() => {
+        starting = null;
+      });
+    return (await starting).client;
   };
 
   const stored = async (): Promise<boolean> => {
-    for (const file of manifestFiles) if (!(await storedFile(file))) return false;
+    for (const file of manifestFiles) if (!(await isStored(file))) return false;
     return true;
   };
 
@@ -140,7 +197,7 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
     const progress = (ready = false) =>
       create(PrepareResponseSchema, { loadedBytes: loaded, totalBytes: total, ready });
     for (const file of manifestFiles) {
-      if (await storedFile(file)) {
+      if (await isStored(file)) {
         loaded += file.size;
         yield progress();
         continue;
@@ -185,7 +242,9 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
       if (BigInt(size) !== file.size || (await digestUrn(data)) !== file.digest) {
         throw new ModelError(ErrorCode.INVALID_RESULT, `${file.url} didn’t match its manifest, so it was discarded.`);
       }
+      if (closed) throw removed();
       await deps.files.putFile(file.digest, data);
+      checked.add(file.digest);
       loaded += file.size;
       yield progress();
     }
@@ -205,6 +264,6 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
       yield* (await ensure()).generate(request, signal);
     },
   };
-  setCloser(client, stop);
+  setCloser(client, close);
   return client;
 }

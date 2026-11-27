@@ -1,4 +1,4 @@
-/* The models panel and Fit to page: model cards, the semantic summary, the API key, consent, and the running-rewrite chip. */
+/* The models panel and the pens: model cards, the semantic summary, a pen’s keys, consent, and the running-rewrite chip. */
 
 /* The layer order, again: whichever stylesheet loads first sets it. */
 @layer theme, tokens, base, components, utilities, layout, print;
@@ -82,18 +82,18 @@
     font-weight: 600;
   }
 
-  .fitControls {
+  .penControls {
     display: grid;
     gap: 6px;
     margin-top: 6px;
   }
 
-  .fitKey {
+  .penKey {
     display: grid;
     gap: 6px;
   }
 
-  .fitKeyInput {
+  .penKeyInput {
     width: 100%;
     padding: 6px 8px;
     border: 1px solid var(--border);
@@ -104,7 +104,7 @@
     font-size: var(--text-12);
   }
 
-  .fitProgress {
+  .penProgress {
     display: grid;
     gap: 4px;
   }
@@ -172,7 +172,7 @@
     display: contents;
   }
 
-  .fitChip {
+  .penChip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
@@ -184,7 +184,7 @@
     background: var(--accent-soft);
   }
 
-  .fitChip :global(.btn) {
+  .penChip :global(.btn) {
     height: 22px;
     padding: 0 8px;
     font-size: var(--text-12);

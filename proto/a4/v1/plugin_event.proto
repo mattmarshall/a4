@@ -1,0 +1,19 @@
+// Cross-tab plugin events: what one tab tells the others on the "a4-plugins"
+// BroadcastChannel, posted as the binary encoding of PluginEvent.
+
+syntax = "proto3";
+
+package a4.v1;
+
+message PluginEvent {
+  oneof event {
+    // A plugin was installed, updated, or removed. Other tabs read its record
+    // again.
+    PluginChanged plugin_changed = 1;
+  }
+}
+
+message PluginChanged {
+  // The plugin's id, as its card names it.
+  string id = 1;
+}

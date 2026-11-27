@@ -6,7 +6,7 @@
  * exported here imports a plugin's implementation.
  */
 
-export { Operation, type ModelCard } from "../gen/a4/v1/model_pb.js";
+export { Operation, type CredentialRequirement, type ModelCard } from "../gen/a4/v1/model_pb.js";
 export { planeLevel, remoteHost, type PlaneInfo } from "./capabilities.ts";
 export { BUNDLED_CARDS, isDownloaded, needsDownload } from "./manifest.ts";
 export { FIT_TO_PAGE } from "./plugins/fit/descriptor.ts";

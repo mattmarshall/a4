@@ -150,6 +150,7 @@ test("an installed pen that crashes mid-run ends the run within 1 second, and no
     fetch: globalThis.fetch,
     open: sandbox.open,
     sandboxWorks: async () => true,
+    channel: null,
   });
   const key = testKey();
   const bytes = await packPackage({

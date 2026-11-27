@@ -4,10 +4,15 @@
  * (README, "Third-party plugins"). The UI imports this module dynamically, so
  * the host, its transports, the sandbox, and the plugin store load only when
  * models are used.
+ *
+ * Every tab keeps its own registry. After an install, update, or removal, a
+ * tab posts an `a4.v1.PluginEvent` on PLUGIN_CHANNEL, and the other tabs read
+ * that plugin's record again (design: harden-pens-and-plugins, decision 5).
  */
 
-import type { PluginStore } from "../platform/plugin-store.ts";
-import { IdbPluginStore } from "../platform/plugin-store.ts";
+import { sameBytes } from "../platform/bytes.ts";
+import { browserChannel, type Channel } from "../platform/channel.ts";
+import { IdbPluginStore, PLUGIN_CHANNEL, type PluginStore } from "../platform/plugin-store.ts";
 import { ModelHost } from "./host.ts";
 import { installedClient } from "./installed-client.ts";
 import {
@@ -18,10 +23,12 @@ import {
   inspect,
   install,
   loadInstalled,
+  loadOne,
   remove,
 } from "./installed.ts";
 import { MANIFEST, type PluginDefinition } from "./manifest.ts";
-import { pluginIdOf, type PluginId } from "./plugin-id.ts";
+import type { PluginId } from "./plugin-id.ts";
+import { changedPluginId, encodePluginEvent, pluginChanged } from "./plugin-events.ts";
 import type { PluginRegistryApi } from "./registry-api.ts";
 import {
   openSandbox,
@@ -45,6 +52,8 @@ export interface RegistryDeps {
   readonly open: (options: SandboxOptions) => Promise<SandboxPort>;
   /** Whether this browser enforces the sandbox; asked once, before the first installed plugin starts. */
   readonly sandboxWorks: () => Promise<boolean>;
+  /** Where this tab tells other tabs about installs, updates, and removals, and hears theirs; null for nowhere. */
+  readonly channel: Channel | null;
   readonly now?: () => Date;
 }
 
@@ -52,18 +61,25 @@ export interface RegistryDeps {
 export class PluginRegistry implements PluginRegistryApi {
   readonly host: ModelHost;
   readonly #deps: RegistryDeps;
-  readonly #installed = new Map<string, InstalledPlugin>();
+  readonly #installed = new Map<PluginId, InstalledPlugin>();
   #damaged: DamagedPlugin[] = [];
   #loaded: Promise<void> | null = null;
+  readonly #listeners = new Set<() => void>();
+  /** Changes to the installed plugins, this tab's and those heard from others, applied one at a time. */
+  #queue: Promise<unknown> = Promise.resolve();
 
   constructor(deps: RegistryDeps) {
     this.#deps = deps;
     this.host = createHost(deps.manifest);
   }
 
-  /** Load and register the installed plugins, once; bundled plugins are already registered. */
+  /**
+   * Load and register the installed plugins, once; bundled plugins are already
+   * registered. From then on, this registry hears other tabs' changes.
+   */
   load(): Promise<void> {
     this.#loaded ??= (async () => {
+      this.#deps.channel?.subscribe((data) => this.#hear(data));
       const { installed, damaged } = await loadInstalled(this.#deps.store);
       for (const plugin of installed) this.#register(plugin);
       this.#damaged = damaged;
@@ -79,6 +95,16 @@ export class PluginRegistry implements PluginRegistryApi {
   /** The stored plugins that failed their checks and don't run. */
   damaged(): readonly DamagedPlugin[] {
     return this.#damaged;
+  }
+
+  /**
+   * Call `listener` after the installed or damaged plugins change: after this
+   * tab's own install or removal, and after another tab's is heard. Returns
+   * the unsubscribe.
+   */
+  subscribe(listener: () => void): () => void {
+    this.#listeners.add(listener);
+    return () => this.#listeners.delete(listener);
   }
 
   /** Whether this browser can run installed plugins at all. */
@@ -99,7 +125,7 @@ export class PluginRegistry implements PluginRegistryApi {
   }
 
   /** Fetch an installed plugin's URL again, and inspect what's there; only when the author asks. */
-  async checkForUpdate(id: string, signal?: AbortSignal): Promise<Inspection> {
+  async checkForUpdate(id: PluginId, signal?: AbortSignal): Promise<Inspection> {
     const plugin = this.#installed.get(id);
     if (!plugin?.sourceUrl) throw new Error("This plugin wasn’t installed from a URL.");
     return this.inspectUrl(plugin.sourceUrl, signal);
@@ -108,20 +134,91 @@ export class PluginRegistry implements PluginRegistryApi {
   /** Install an inspected package, replacing the version it updates. */
   async install(inspection: Inspection): Promise<InstalledPlugin> {
     await this.load();
-    const plugin = await install(this.#deps.store, inspection, (this.#deps.now ?? (() => new Date()))());
-    this.host.unregister(pluginIdOf(plugin.pkg.card));
-    this.#register(plugin);
-    this.#damaged = this.#damaged.filter((d) => d.id !== plugin.id);
-    return plugin;
+    return this.#serially(async () => {
+      const plugin = await install(this.#deps.store, inspection, (this.#deps.now ?? (() => new Date()))());
+      this.#post(plugin.id);
+      this.#forget(plugin.id);
+      this.#register(plugin);
+      this.#notify();
+      return plugin;
+    });
   }
 
-  /** Remove an installed or damaged plugin: its code, files, pinned key, and source URL. */
-  async remove(id: string): Promise<void> {
+  /** Remove an installed plugin: its code, files, pinned key, and source URL. */
+  async remove(id: PluginId): Promise<void> {
     await this.load();
-    await remove(this.#deps.store, id);
-    const plugin = this.#installed.get(id);
-    if (plugin) this.host.unregister(pluginIdOf(plugin.pkg.card));
-    this.#installed.delete(id);
+    await this.#serially(async () => {
+      await remove(this.#deps.store, id);
+      this.#post(id);
+      this.#forget(id);
+      this.#notify();
+    });
+  }
+
+  /** Remove a damaged plugin, by the id it's stored under. */
+  async removeDamaged(id: string): Promise<void> {
+    await this.load();
+    await this.#serially(async () => {
+      await remove(this.#deps.store, id);
+      this.#post(id);
+      this.#forget(id);
+      this.#notify();
+    });
+  }
+
+  /** Run `change` after every change before it, so changes to one plugin apply in order. */
+  #serially<T>(change: () => Promise<T>): Promise<T> {
+    const run = this.#queue.then(change);
+    this.#queue = run.catch(() => {});
+    return run;
+  }
+
+  /** Tell other tabs that `id` changed; called after the store write finishes. */
+  #post(id: string): void {
+    this.#deps.channel?.post(encodePluginEvent(pluginChanged(id)));
+  }
+
+  #notify(): void {
+    for (const listener of [...this.#listeners]) listener();
+  }
+
+  /** Another tab's message: read the plugin it names again. Anything else is ignored. */
+  #hear(data: unknown): void {
+    const id = changedPluginId(data);
+    if (id === null) return;
+    void this.#serially(() => this.#reconcile(id)).catch(() => {});
+  }
+
+  /**
+   * Bring this tab's registry in line with the record stored under `id`: gone,
+   * damaged, or installed. A plugin whose package bytes didn't change is left
+   * running; any other is unregistered (closing its client and forgetting its
+   * credentials and consent) and registered again, as this tab's own update
+   * does.
+   */
+  async #reconcile(id: string): Promise<void> {
+    const loaded = await loadOne(this.#deps.store, id);
+    const current = this.#find(id);
+    if (loaded.is === "installed" && current && sameBytes(current.pkg.bytes, loaded.plugin.pkg.bytes)) return;
+    this.#forget(id);
+    if (loaded.is === "installed") this.#register(loaded.plugin);
+    else if (loaded.is === "damaged") this.#damaged = [...this.#damaged, loaded.damaged];
+    this.#notify();
+  }
+
+  /** The installed plugin stored under `id`, if it's registered. */
+  #find(id: string): InstalledPlugin | undefined {
+    for (const plugin of this.#installed.values()) if (plugin.id === id) return plugin;
+    return undefined;
+  }
+
+  /** Unregister the plugin stored under `id`, if it's registered, and drop it from the installed and damaged lists. */
+  #forget(id: string): void {
+    const plugin = this.#find(id);
+    if (plugin) {
+      this.host.unregister(plugin.id);
+      this.#installed.delete(plugin.id);
+    }
     this.#damaged = this.#damaged.filter((d) => d.id !== id);
   }
 
@@ -172,6 +269,7 @@ export function pluginRegistry(): PluginRegistry {
     fetch: (input, init) => globalThis.fetch(input, init),
     open: openSandbox,
     sandboxWorks,
+    channel: browserChannel(PLUGIN_CHANNEL),
   });
   return registry;
 }

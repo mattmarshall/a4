@@ -150,21 +150,32 @@ with the clearest payoff, and records the rest below.
   - drafts, tab messages, and open pages are kept by that id;
   - a server of another version is refused, saying what to do.
 
+**Taken up by `harden-pens-and-plugins`:**
+- **The pen UI was written three times.** Now:
+  - `components/PenPanel.tsx` renders every pen, Fit to page included, with
+    its words from `penPanel(card)`;
+  - one consent dialog, mounted once, confirms every remote call in
+    `consentDialog()`'s words, and names the plugin;
+  - `usePens` builds every pen the same way and returns them as a list.
+- **`PluginId` stopped at the registry.** Now the registry, `useModels`, the
+  Models panel, and the Workbench take `PluginId`, and a damaged plugin is
+  removed by `removeDamaged`. A compile-time test refuses a plain string.
+- **The Models panel's copy was inline.** It's in `modelsPanel`.
+- **The plugin lifecycle.** Now:
+  - an install, update, or removal posts an `a4.v1.PluginEvent` on
+    `a4-plugins`, and other tabs reconcile that one plugin;
+  - Remove closes an installed plugin's client for good, so a sandbox still
+    starting closes as soon as it opens;
+  - a model file is hashed when it's downloaded and when its plugin starts,
+    and status only looks up a file this tab already checked.
+
 **Left for a later round:**
-- **Pen UI.**
-  - Fit to page's panel, the installed pens' controls, and the consent
-    dialog are near copies.
-  - `PluginId` stops at the registry, where the UI passes plain strings.
-- **Plugin lifecycle.**
-  - Another tab's install or remove isn't heard.
-  - A Remove during a sandbox start can leave its frame.
-  - Model files are hashed again on every status check.
 - **Smaller copies:**
   - the IndexedDB helpers in the plugin and handle stores;
   - Ed25519 key handling in the CLI, the example build, and test packages;
   - the poll loops in `LibraryPoller` and the folder watcher;
-  - copy written inline instead of in `*-copy.ts` (shared views, the
-    served library, the Models panel).
+  - copy written inline instead of in `*-copy.ts` (shared views and the
+    served library).
 - **The Connect form closes when the server is down.** The notice explains
   why, but the form could show the error inline.
 - **A shared page is the empty slot with a label.** A `shared` variant of

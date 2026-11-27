@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * The models list: every bundled plugin, what it does, where it runs, and
- * whether page text leaves the device, rendered from its card. A plugin's own
- * controls or summary go in its slot.
+ * The models list: every bundled and installed plugin, what it does, where it
+ * runs, and whether page text leaves the device, rendered from its card. A
+ * plugin's own controls or summary go in its slot. Its words come from
+ * plugin-copy.ts (`modelsPanel`).
  */
 
 import { type ReactNode, useState } from "react";
@@ -15,6 +16,7 @@ import {
   NO_SANDBOX,
   type PlaneInfo,
   planeLevel,
+  type PluginId,
   pluginIdOf,
   SEMANTIC_REPETITION,
 } from "@/lib/models";
@@ -22,7 +24,7 @@ import { heatFill } from "@/lib/render";
 import { InspectorSection } from "./InspectorSection";
 import styles from "./ModelsPanel.module.css";
 import { PluginInstallDialog } from "./PluginInstallDialog";
-import { formatBytes, publisherNote, whereItRuns } from "./plugin-copy";
+import { modelsPanel, publisherNote, whereItRuns } from "./plugin-copy";
 import type { InstalledView, ModelsState } from "./useModels";
 
 /** A swatch showing the exact tint a value gets on the plane's sheet. */
@@ -114,15 +116,16 @@ function PluginCard({
   card: ModelCard;
   models: ModelsState;
   scoreActive: boolean;
-  onScore: (id: string) => void;
+  onScore: (id: PluginId) => void;
   installed: InstalledView | null;
-  onCheckForUpdate: (id: string) => void;
-  onRemove: (id: string) => void;
+  onCheckForUpdate: (id: PluginId) => void;
+  onRemove: (id: PluginId) => void;
   children: ReactNode;
 }) {
-  const status = models.status[card.id];
-  const progress = models.progress[card.id];
-  const error = models.errors[card.id];
+  const id = pluginIdOf(card);
+  const status = models.status.get(id);
+  const progress = models.progress.get(id);
+  const error = models.errors.get(id);
   const size = Number(card.downloadBytes);
   const blocked = installed !== null && models.sandbox === "unavailable";
   return (
@@ -133,47 +136,45 @@ function PluginCard({
       </strong>
       <span>{card.description}</span>
       <span className={styles.where}>{whereItRuns(card)}</span>
-      {card.model ? <span className={styles.where}>Model: {card.model}</span> : null}
+      {card.model ? <span className={styles.where}>{modelsPanel.model(card.model)}</span> : null}
       {installed ? (
         <>
           <span className={styles.where}>
-            {installed.knownName ? <span className={styles.badge}>Known publisher</span> : null}{" "}
+            {installed.knownName ? <span className={styles.badge}>{modelsPanel.knownPublisher}</span> : null}{" "}
             {publisherNote(installed.knownName, installed.publisherName)}
           </span>
           <span className={styles.where}>
-            Fingerprint <code>{installed.fingerprint}</code>
+            {modelsPanel.fingerprint} <code>{installed.fingerprint}</code>
           </span>
         </>
       ) : null}
       {blocked ? <span className={styles.status}>{NO_SANDBOX}</span> : null}
 
-      {!blocked && status === "checking" ? <span className={styles.status}>Checking…</span> : null}
+      {!blocked && status === "checking" ? <span className={styles.status}>{modelsPanel.checking}</span> : null}
       {!blocked && status === "not-downloaded" ? (
         <>
-          <span className={styles.status}>
-            Needs a one-time download of {formatBytes(size)}. It’s kept in this browser for later visits.
-          </span>
+          <span className={styles.status}>{modelsPanel.downloadNote(size)}</span>
           <div className="panel-actions">
-            <button type="button" className="btn btn-outline" onClick={() => void models.prepare(pluginIdOf(card))}>
-              Download ({formatBytes(size)})
+            <button type="button" className="btn btn-outline" onClick={() => void models.prepare(id)}>
+              {modelsPanel.download(size)}
             </button>
           </div>
         </>
       ) : null}
       {!blocked && status === "downloading" ? (
         <span className={styles.status} aria-live="polite">
-          Downloading… {formatBytes(progress?.loaded ?? 0)} of {formatBytes(progress?.total || size)}
+          {modelsPanel.downloading(progress?.loaded ?? 0, progress?.total || size)}
           <progress max={progress?.total || size} value={progress?.loaded ?? 0} />
         </span>
       ) : null}
       {!blocked && status === "ready" && card.score?.planes.length ? (
         <div className="panel-actions">
-          <button type="button" className="btn btn-outline" aria-pressed={scoreActive} onClick={() => onScore(card.id)}>
-            {scoreActive ? "Rescore page" : "Show on the page"}
+          <button type="button" className="btn btn-outline" aria-pressed={scoreActive} onClick={() => onScore(id)}>
+            {scoreActive ? modelsPanel.rescore : modelsPanel.showLens}
           </button>
         </div>
       ) : null}
-      {status === "error" ? <span className={styles.status}>Couldn’t start this model.</span> : null}
+      {status === "error" ? <span className={styles.status}>{modelsPanel.startFailed}</span> : null}
       {error ? (
         <span className={styles.status} role="alert">
           {error}
@@ -183,12 +184,12 @@ function PluginCard({
       {installed ? (
         <div className="panel-actions">
           {installed.sourceUrl ? (
-            <button type="button" className="btn" onClick={() => onCheckForUpdate(card.id)}>
-              Check for update
+            <button type="button" className="btn" onClick={() => onCheckForUpdate(id)}>
+              {modelsPanel.checkForUpdate}
             </button>
           ) : null}
-          <button type="button" className="btn" onClick={() => onRemove(card.id)}>
-            Remove
+          <button type="button" className="btn" onClick={() => onRemove(id)}>
+            {modelsPanel.remove}
           </button>
         </div>
       ) : null}
@@ -205,15 +206,15 @@ export function ModelsPanel({
 }: {
   models: ModelsState;
   /** The plugin whose model lens is showing, or null. */
-  activeLens: string | null;
-  onScore: (id: string) => void;
+  activeLens: PluginId | null;
+  onScore: (id: PluginId) => void;
   /** Each plugin's own controls or summary, by plugin id, shown in its card. */
-  slots: Readonly<Record<string, ReactNode>>;
+  slots: ReadonlyMap<PluginId, ReactNode>;
   notify: (message: string, tone?: "info" | "warn") => void;
 }) {
   const [installing, setInstalling] = useState<{ initial: Inspection | null } | null>(null);
 
-  async function checkForUpdate(id: string) {
+  async function checkForUpdate(id: PluginId) {
     try {
       setInstalling({ initial: await models.checkForUpdate(id) });
     } catch (error) {
@@ -221,17 +222,14 @@ export function ModelsPanel({
     }
   }
 
-  async function remove(id: string, name: string) {
-    if (
-      !window.confirm(`Remove ${name}? Its code, downloaded files, and pinned key are deleted. Pages it made stay.`)
-    ) {
-      return;
-    }
+  /** Remove a plugin once the author confirms: `run` removes it, installed or damaged. */
+  async function remove(name: string, run: () => Promise<void>) {
+    if (!window.confirm(modelsPanel.confirmRemove(name))) return;
     try {
-      await models.remove(id);
-      notify(`Removed ${name}.`);
+      await run();
+      notify(modelsPanel.removed(name));
     } catch (error) {
-      notify(`Couldn’t remove ${name}: ${error instanceof Error ? error.message : String(error)}`, "warn");
+      notify(modelsPanel.removeFailed(name, error instanceof Error ? error.message : String(error)), "warn");
     }
   }
 
@@ -250,13 +248,13 @@ export function ModelsPanel({
             key={card.id}
             card={card}
             models={models}
-            scoreActive={activeLens === card.id}
+            scoreActive={activeLens === pluginIdOf(card)}
             onScore={onScore}
             installed={null}
             onCheckForUpdate={() => {}}
             onRemove={() => {}}
           >
-            {slots[card.id] ?? null}
+            {slots.get(pluginIdOf(card)) ?? null}
           </PluginCard>
         ))}
         {models.installed.map((view) => (
@@ -264,24 +262,24 @@ export function ModelsPanel({
             key={view.card.id}
             card={view.card}
             models={models}
-            scoreActive={activeLens === view.card.id}
+            scoreActive={activeLens === pluginIdOf(view.card)}
             onScore={onScore}
             installed={view}
             onCheckForUpdate={(id) => void checkForUpdate(id)}
-            onRemove={(id) => void remove(id, view.card.name)}
+            onRemove={(id) => void remove(view.card.name, () => models.remove(id))}
           >
-            {slots[view.card.id] ?? null}
+            {slots.get(pluginIdOf(view.card)) ?? null}
           </PluginCard>
         ))}
         {models.damaged.map((d) => (
           <li key={d.id} className={styles.card} data-model={d.id} data-status="damaged">
             <strong>{d.id}</strong>
             <span className={styles.status} role="alert">
-              Damaged, so it doesn’t run: {d.reason}
+              {modelsPanel.damaged(d.reason)}
             </span>
             <div className="panel-actions">
-              <button type="button" className="btn" onClick={() => void remove(d.id, d.id)}>
-                Remove
+              <button type="button" className="btn" onClick={() => void remove(d.id, () => models.removeDamaged(d.id))}>
+                {modelsPanel.remove}
               </button>
             </div>
           </li>
@@ -289,7 +287,7 @@ export function ModelsPanel({
       </ul>
       <div className="panel-actions">
         <button type="button" className="btn btn-outline" onClick={() => setInstalling({ initial: null })}>
-          Install plugin…
+          {modelsPanel.install}
         </button>
       </div>
       <PluginInstallDialog
@@ -297,7 +295,7 @@ export function ModelsPanel({
         initial={installing?.initial ?? null}
         models={models}
         onClose={() => setInstalling(null)}
-        onInstalled={(name, update) => notify(update ? `Updated ${name}.` : `Installed ${name}.`)}
+        onInstalled={(name, update) => notify(update ? modelsPanel.updated(name) : modelsPanel.installed(name))}
       />
     </InspectorSection>
   );

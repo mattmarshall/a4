@@ -13,12 +13,12 @@ import { remoteHost, SEMANTIC_REPETITION } from "@/lib/models";
 import type { LensId } from "@/lib/page";
 import type { PageName } from "@/lib/persist";
 import type { SlotSnapshot } from "@/lib/workspace";
-import { PenJobChip } from "../FitToPage";
+import { PenJobChip } from "../PenPanel";
 import { VerdictChip } from "../MetricsPanel";
 import { SaveStatusPill } from "./SaveStatusPill";
 import type { Layout } from "./useLayout";
 import { planeKey, type LensSource } from "./model-lens";
-import type { PenEntry } from "./usePens";
+import type { Pen } from "./usePens";
 import type { ModelLens } from "./useModelLens";
 
 function PageNameField({
@@ -130,8 +130,8 @@ export function Topbar({
 }: {
   layout: Layout;
   title: ReactNode;
-  /** Every pen with a request: a running one shows its progress and Cancel. */
-  pens: readonly PenEntry[];
+  /** Every pen: a running one shows its progress and Cancel. */
+  pens: readonly Pen[];
   lens: LensId;
   modelLens: ModelLens;
   onLens: (id: LensId) => void;
@@ -162,7 +162,7 @@ export function Topbar({
         {title}
 
         {pens.map((pen) => (
-          <PenJobChip key={pen.card.id} card={pen.card} job={pen.job} />
+          <PenJobChip key={pen.id} card={pen.card} job={pen.job} />
         ))}
 
         <span className="spacer" />

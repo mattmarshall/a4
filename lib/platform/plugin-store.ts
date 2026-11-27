@@ -7,6 +7,14 @@
  * models layer checks them every time it uses them.
  */
 
+/**
+ * The BroadcastChannel a tab posts an `a4.v1.PluginEvent` on after it
+ * installs, updates, or removes a plugin, so other tabs read that record
+ * again. It's named here, beside the store whose changes it announces, so a
+ * tab can listen without loading the registry.
+ */
+export const PLUGIN_CHANNEL = "a4-plugins";
+
 /** Where installed plugins and their model files are kept. */
 export interface PluginStore {
   /** Every stored record, by plugin id. */
@@ -15,6 +23,8 @@ export interface PluginStore {
   putRecord(id: string, record: Uint8Array): Promise<void>;
   deleteRecord(id: string): Promise<void>;
   getFile(digest: string): Promise<Uint8Array | null>;
+  /** Whether a file is stored under `digest`, without reading its bytes. */
+  hasFile(digest: string): Promise<boolean>;
   putFile(digest: string, data: Uint8Array): Promise<void>;
   deleteFile(digest: string): Promise<void>;
 }
@@ -36,6 +46,9 @@ export class MemoryPluginStore implements PluginStore {
   }
   async getFile(digest: string) {
     return this.files.get(digest)?.slice() ?? null;
+  }
+  async hasFile(digest: string) {
+    return this.files.has(digest);
   }
   async putFile(digest: string, data: Uint8Array) {
     this.files.set(digest, data.slice());
@@ -110,6 +123,9 @@ export class IdbPluginStore implements PluginStore {
   }
   getFile(digest: string) {
     return this.#get("files", digest);
+  }
+  async hasFile(digest: string) {
+    return (await this.#run("files", "readonly", (s) => s.count(digest))) > 0;
   }
   async putFile(digest: string, data: Uint8Array) {
     await this.#run("files", "readwrite", (s) => s.put(data.slice(), digest));
