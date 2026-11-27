@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { generateKeyPairSync } from "node:crypto";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -129,5 +130,29 @@ test("plugin usage errors exit 2", async () => {
     assert.equal(a4(dir, ["plugin", "pack", "--card", "card.json"]).status, 2);
     assert.equal(a4(dir, ["plugin", "verify", "a.a4plugin", "--out", "x"]).status, 2);
     assert.equal(a4(dir, ["lint", "--card", "x"]).status, 2);
+  });
+});
+
+test("pack refuses a key that isn't Ed25519, and text that isn't a key, without printing either", async () => {
+  await inTemp(async (dir) => {
+    await writeFile(join(dir, "card.json"), JSON.stringify(CARD));
+    await writeFile(join(dir, "plugin.js"), "self.onmessage = () => {};\n");
+    const rsa = generateKeyPairSync("rsa", { modulusLength: 2048 }).privateKey.export({ format: "pem", type: "pkcs8" });
+    await writeFile(join(dir, "rsa.key"), rsa);
+    await writeFile(join(dir, "notes.key"), "not a key at all\n");
+    const pack = (key: string) =>
+      a4(dir, ["plugin", "pack", "--card", "card.json", "--code", "plugin.js", "--key", key, "--publisher", "Example"]);
+    const wrongType = pack("rsa.key");
+    assert.equal(wrongType.status, 2);
+    assert.match(wrongType.stderr, /“rsa\.key” isn’t an Ed25519 key\./);
+    const notAKey = pack("notes.key");
+    assert.equal(notAKey.status, 2);
+    assert.match(notAKey.stderr, /“notes\.key” isn’t a private key\./);
+    for (const run of [wrongType, notAKey])
+      assert.doesNotMatch(run.stdout + run.stderr, /PRIVATE KEY|not a key at all/);
+    assert.deepEqual(
+      (await readdir(dir)).filter((f) => f.endsWith(".a4plugin")),
+      [],
+    );
   });
 });

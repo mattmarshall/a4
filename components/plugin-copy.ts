@@ -110,6 +110,9 @@ export interface PenPanelCopy {
   readonly placeholder: string | null;
   readonly useKey: string;
   readonly forgetKey: string;
+  /** The label of the instruction select, for a pen with more than one. */
+  readonly instruction: string;
+  readonly cancel: string;
 }
 
 /** What `card`'s pen panel says: Fit to page in its own words, any other pen in the shared ones. */
@@ -130,6 +133,8 @@ export function penPanel(card: ModelCard): PenPanelCopy {
     placeholder: fit ? "sk-ant-…" : null,
     useKey: "Use key",
     forgetKey: "Forget key",
+    instruction: "Instruction",
+    cancel: "Cancel",
   };
 }
 
@@ -155,6 +160,8 @@ export interface ConsentDialogCopy {
   readonly title: string;
   readonly rows: readonly DialogRow[];
   readonly note: string;
+  readonly cancel: string;
+  readonly send: string;
 }
 
 /**
@@ -196,11 +203,14 @@ export function consentDialog(request: ConsentRequest): ConsentDialogCopy {
     title: `Send this page to ${fit ? "Anthropic" : host}?`,
     rows,
     note: `${server} ${next}`,
+    cancel: "Cancel",
+    send: "Send",
   };
 }
 
 /** What the Models section says, beyond each plugin's card. */
 export const modelsPanel = {
+  title: "Models",
   checking: "Checking…",
   downloadNote: (bytes: number) =>
     `Needs a one-time download of ${formatBytes(bytes)}. It’s kept in this browser for later visits.`,

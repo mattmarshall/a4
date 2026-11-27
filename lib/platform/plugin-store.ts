@@ -69,6 +69,11 @@ export class IdbPluginStore implements PluginStore {
     this.#db = new IdbDatabase(name, 1, ["plugins", "files"]);
   }
 
+  /** Close the database connection (a test's database can't be deleted while it's open). */
+  close(): void {
+    this.#db.close();
+  }
+
   async #get(store: "plugins" | "files", key: string): Promise<Uint8Array | null> {
     const value = (await this.#db.run(store, "readonly", (s) => s.get(key))) as Uint8Array | undefined;
     return value ? new Uint8Array(value) : null;

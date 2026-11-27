@@ -187,6 +187,84 @@ with the clearest payoff, and recorded the rest below. Three later changes,
 - **A shared page was the empty slot with a label.** Now it's a
   `SharedSlot`, and every slot on the stage has a `kind`.
 
+### Paydown after the hardening changes (2026-11-27)
+
+The three changes that closed the last round (`harden-served-protocol`,
+`harden-pens-and-plugins`, and `finish-tech-debt-review`) were each reviewed
+for what they added or kept. The reviewers found about 25 items. This round
+fixed the bugs and the cheapest duplication, and records the rest below.
+
+**Bugs fixed:**
+- **A tab loading its plugins could keep a removed one, or stop working.** A
+  change another tab made while this tab read its plugins was applied before
+  the load finished. A removed plugin stayed registered, and an update made
+  the load fail for good, which stopped every model in the tab. The load now
+  runs first in the queue of changes.
+- **Any plugin change set every installed plugin back to "checking".** That
+  turned an on lens off and interrupted a download. Now only a plugin that's
+  new, or a new version, is checked again.
+- **A lens's consent dialog outlived its plugin.** After an update in
+  another tab, it still named the old host, while Send went to the new one.
+  A request whose plugin was removed or updated is now dropped, and Send
+  checks again.
+- **Remove didn't stop a download in progress.** It now aborts it, and
+  nothing is stored.
+- **A changed model file stayed "ready".** The start refused it, but the
+  card never offered the download again. A score that fails as not ready
+  now checks that plugin's status again.
+- **A refused connect link left the old served library in place.** While
+  another served library was shown, the notice said this browser's library
+  was shown, but edits still saved to the old folder. Now this browser's
+  library is shown.
+- **The Connect form could close without connecting.** The server answered
+  its check, then stopped before the switch. Now the form reaches the server
+  once, remembers it only once its pages are shown, and keeps every failure
+  inline.
+- **An answer cut off mid-body read as an empty listing.** That could create
+  an Untitled page in the served folder. It's now the server stopping.
+- **`--new-token` replaced the token before the id file was checked.** A
+  damaged `.a4-library` then disconnected every browser for nothing.
+- **A disk or permission error on the server read as "an answer A4 can't
+  read".** It now reaches A4 as a typed failure naming the error's code.
+- **The folder watcher missed an outside edit made just before a re-watch.**
+  This happened during a swap or a library switch, and predates this round.
+  A re-watched file is now read and compared once.
+- **A poll pass that threw went unhandled.**
+- **An IndexedDB connection that failed or closed was kept.** Every later
+  call then failed until a reload. It now reopens.
+
+**Duplication and copy:**
+- `remove` and `removeDamaged` share one body, and `PluginFiles` is a `Pick`
+  of `PluginStore`.
+- The empty slot is defined once (`EMPTY_SLOT`).
+- The shared view's label, buttons, and save notice, the served library's
+  region and action names, the pen panel's "Instruction" and "Cancel", the
+  consent dialog's buttons, and the Models title moved into `*-copy.ts`.
+- Tests were added for each bug above, `pack`'s key refusals, a damaged
+  record heard from another tab, and a failing poll pass.
+
+**Left for a later round:**
+- **A library's id is learned once per connection.** Serving a copied
+  folder behind the same address and token keeps the original's id, and a
+  server upgraded mid-session isn't noticed until the next switch. The
+  README now says to delete the copied token too; the poller could ask for
+  the library again when the server comes back.
+- **A refused origin looks like a stopped server.** A page served from an
+  origin `a4 serve` doesn't allow (a dev server without `--origin`) is told
+  `a4 serve` isn't running.
+- **The served library's refusal sentences are written twice.** Once in
+  `lib/` as the error's message, once in `served-copy.ts`.
+- **`LibraryId` is a plain string.** Branding it, like `PageName`, would
+  stop an address being passed where an id is meant.
+- **Smaller copies:** the two store contracts' `check` and `runInBrowser`
+  loops; `PluginInstallDialog` reusing the pen panel's key classes; the page
+  commands' action names written inline in `useWorkspace.ts`.
+- **In development only, Vite's client runs inside the Semantic repetition
+  worker.** Vite rewrites the ONNX runtime's variable `import()` calls with
+  a helper it imports from `/@vite/client` in a module worker. On every CSS
+  hot update, that client looks for `document` and logs an error. Builds
+  aren't affected.
+
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.
 

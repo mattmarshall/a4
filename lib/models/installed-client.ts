@@ -32,6 +32,7 @@ import {
   StatusResponseSchema,
 } from "../gen/a4/v1/model_pb.js";
 import { PluginStartSchema } from "../gen/a4/v1/plugin_pb.js";
+import type { PluginStore } from "../platform/plugin-store.ts";
 import { type SheetModelClient, setCloser } from "./client.ts";
 import { ErrorCode, ModelError, NO_SANDBOX, toModelError } from "./errors.ts";
 import type { PluginContext } from "./host.ts";
@@ -40,12 +41,7 @@ import type { SandboxNetwork, SandboxOptions, SandboxPort } from "./sandbox.ts";
 import { connectPort, isClosed } from "./worker-transport.ts";
 
 /** Where an installed plugin's downloaded files are kept, by digest. */
-export interface PluginFiles {
-  getFile(digest: string): Promise<Uint8Array | null>;
-  /** Whether a file is stored under `digest`, without reading its bytes. */
-  hasFile(digest: string): Promise<boolean>;
-  putFile(digest: string, data: Uint8Array): Promise<void>;
-}
+export type PluginFiles = Pick<PluginStore, "getFile" | "hasFile" | "putFile">;
 
 export interface InstalledClientDeps {
   readonly pkg: VerifiedPackage;
@@ -115,6 +111,8 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
   let starting: Promise<Running> | null = null;
   /** Set when the plugin is removed: the client refuses calls, and a start in flight closes its port. */
   let closed = false;
+  /** Aborted by `close`, so a download in progress stops when the plugin is removed. */
+  const downloads = new AbortController();
   const removed = () => new ModelError(ErrorCode.NOT_FOUND, `${who} was removed.`);
 
   /** Stop the running sandbox, so the next call starts a new one. */
@@ -126,6 +124,7 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
   /** Close for good, when the plugin is removed. */
   const close = () => {
     closed = true;
+    downloads.abort();
     restart();
   };
 
@@ -192,6 +191,9 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
   };
 
   async function* prepare(_request: unknown, signal?: AbortSignal): AsyncIterable<PrepareResponse> {
+    if (closed) throw removed();
+    // The caller's Cancel, or a Remove.
+    const stop = signal ? AbortSignal.any([signal, downloads.signal]) : downloads.signal;
     const total = manifestFiles.reduce((sum, f) => sum + f.size, BigInt(0));
     let loaded = BigInt(0);
     const progress = (ready = false) =>
@@ -204,12 +206,9 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
       }
       let response: Response;
       try {
-        response = await deps.fetch(file.url, {
-          credentials: "omit",
-          referrerPolicy: "no-referrer",
-          ...(signal ? { signal } : {}),
-        });
+        response = await deps.fetch(file.url, { credentials: "omit", referrerPolicy: "no-referrer", signal: stop });
       } catch (error) {
+        if (closed) throw removed();
         if (signal?.aborted) throw new ModelError(ErrorCode.CANCELED, "Canceled.");
         throw new ModelError(ErrorCode.NETWORK, `Couldn’t download ${file.url}: ${(error as Error).message}`);
       }
@@ -220,7 +219,19 @@ export function installedClient(deps: InstalledClientDeps): SheetModelClient {
       let size = 0;
       const reader = response.body.getReader();
       for (;;) {
-        const { done, value } = await reader.read();
+        let chunk: ReadableStreamReadResult<Uint8Array>;
+        try {
+          chunk = await reader.read();
+        } catch (error) {
+          if (closed) throw removed();
+          if (signal?.aborted) throw new ModelError(ErrorCode.CANCELED, "Canceled.");
+          throw new ModelError(ErrorCode.NETWORK, `Couldn’t download ${file.url}: ${(error as Error).message}`);
+        }
+        if (closed) {
+          await reader.cancel();
+          throw removed();
+        }
+        const { done, value } = chunk;
         if (done) break;
         size += value.length;
         if (BigInt(size) > file.size) {

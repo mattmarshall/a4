@@ -78,6 +78,8 @@ function suite<H>(label: string, makeFixture: (clock: () => number) => Promise<F
       fixture,
       scheduler: { advance },
       repo,
+      watcher,
+      path,
       session,
       library,
       events,
@@ -141,6 +143,15 @@ function suite<H>(label: string, makeFixture: (clock: () => number) => Promise<F
     setVisible(true);
     await scheduler.advance(1000);
     assert.equal(session.text, "# Agents\nWhile hidden");
+  });
+
+  run("a change made just before the file is watched again (a swap, a library switch) is adopted", async (s) => {
+    await s.scheduler.advance(300);
+    await s.repo.put("AGENTS.md", "# Agents\nEdited elsewhere\n");
+    s.watcher.watch("a", s.path, s.session);
+    await s.scheduler.advance(1000);
+    await until(() => s.session.text === "# Agents\nEdited elsewhere");
+    assert.deepEqual(s.reloaded, ["# Agents\nEdited elsewhere"]);
   });
 }
 

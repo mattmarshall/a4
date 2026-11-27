@@ -42,8 +42,8 @@ import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { PenJobChip, PenPanel } from "./PenPanel";
 import { penSuffix, publisherNote } from "./plugin-copy";
-import { badConnection, connectFailed } from "./served-copy";
-import { CLIPBOARD_BLOCKED, copiedNotice } from "./share-copy";
+import { badConnection } from "./served-copy";
+import { CLIPBOARD_BLOCKED, copiedNotice, savedSharedCopies } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
@@ -258,10 +258,10 @@ export function Workbench() {
     const saved: string[] = [];
     for (const [i, page] of pages.entries()) {
       const name = await lib.createPage(page.name.replace(/\.(md|mdc)$/i, ""), page.text, i === 0 ? "a" : "b");
-      if (name) saved.push(`“${name}”`);
+      if (name) saved.push(name);
     }
     setActive("a");
-    if (saved.length > 0) notify(`Saved ${saved.join(" and ")} to your library.`);
+    if (saved.length > 0) notify(savedSharedCopies(saved));
   }
 
   async function newPage(desired: string, text: string) {
@@ -390,11 +390,8 @@ export function Workbench() {
     switchTo: (kind) => void lib.switchLibrary(kind),
     connect: async (address, token) => {
       const connection = servedConnection(address, token);
-      if (!connection) return badConnection(DEFAULT_SERVE_PORT);
       // The form checks the server first: if A4 can't use it, the form stays open and says why.
-      const outcome = await lib.connectServed(connection, "form");
-      if (outcome && !outcome.connected) return connectFailed(outcome.reason, connection.address, outcome.message);
-      return null;
+      return connection ? lib.connectByHand(connection) : badConnection(DEFAULT_SERVE_PORT);
     },
     disconnect: () => void lib.disconnectServed(),
   };

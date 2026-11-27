@@ -92,7 +92,13 @@ export class RemotePageStore implements ServedStore {
     } catch {
       throw new StoreUnavailableError(`a4 serve isn’t running at ${this.address}.`, "not-running");
     }
-    const bytes = new Uint8Array(await response.arrayBuffer().catch(() => new ArrayBuffer(0)));
+    let bytes: Uint8Array;
+    try {
+      bytes = new Uint8Array(await response.arrayBuffer());
+    } catch {
+      // The answer was cut off (the server stopped mid-response): never read it as an empty one.
+      throw new StoreUnavailableError(`a4 serve isn’t running at ${this.address}.`, "not-running");
+    }
     if (response.ok) {
       try {
         return decodeResponse(method, bytes);

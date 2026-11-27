@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { LibrarySource, PageName, PageRef, ServedConnection, TrashId } from "@/lib/persist";
 import {
+  EMPTY_SLOT,
   describeError,
   reportResult,
   type Notify,
@@ -22,6 +23,7 @@ import {
   type Result,
 } from "@/lib/workspace";
 import { acquireWorkspace, releaseWorkspace, type BrowserWorkspace } from "./browser-workspace";
+import { connectFailed, servedActions } from "../served-copy";
 import { describeNotice } from "./notices";
 
 const STARTING: WorkspaceSnapshot = {
@@ -29,8 +31,8 @@ const STARTING: WorkspaceSnapshot = {
   storage: null,
   library: { pages: [], trash: [] },
   slots: {
-    a: { kind: "empty", ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
-    b: { kind: "empty", ref: null, name: null, label: null, text: "", status: "saved", readOnly: false },
+    a: EMPTY_SLOT,
+    b: EMPTY_SLOT,
   },
   folder: { state: { status: "none" }, files: [], letters: [], stacks: [], partial: false, scanning: false },
   served: null,
@@ -173,13 +175,20 @@ export function useWorkspaceApi(notify: Notify) {
       sealLetter: (slot: Slot, seal: { verdict: "accepted" | "returned"; reason: string; signer: string }) =>
         inline((w) => w.sealLetter(slot, seal)),
       switchLibrary: (kind: LibrarySource) =>
-        run(kind === "browser" ? "switch to this browser’s library" : "switch to the served library", (w) =>
+        run(kind === "browser" ? servedActions.switchToBrowser : servedActions.switchToServed, (w) =>
           w.switchLibrary(kind),
         ),
-      /** From a connect link, or (`"form"`) the Connect form, which checks the server before it remembers it. */
-      connectServed: (connection: ServedConnection, from: "link" | "form" = "link") =>
-        run("connect to a4 serve", (w) => w.connectServed(connection, from)),
-      disconnectServed: () => run("disconnect from a4 serve", (w) => w.disconnectServed()),
+      /** From a connect link: remembered even when A4 can't use the server, with a notice saying why. */
+      connectServed: (connection: ServedConnection) => run(servedActions.connect, (w) => w.connectServed(connection)),
+      /** From the Connect form: null once connected, or why not, for the form to show. Nothing is remembered then. */
+      connectByHand: async (connection: ServedConnection) => {
+        if (!ws) return "Storage isn’t ready yet.";
+        const result = await ws.connectServed(connection, "form");
+        if (!result.ok) return describeError(result.error);
+        const outcome = result.value;
+        return outcome.connected ? null : connectFailed(outcome.reason, connection.address, outcome.message);
+      },
+      disconnectServed: () => run(servedActions.disconnect, (w) => w.disconnectServed()),
       /** A sealed letter's exact bytes and postmark, for a share link; null for any other page. */
       letterForShare: async (slot: Slot) => {
         if (!ws) return null;

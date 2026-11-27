@@ -528,3 +528,58 @@ test("the Connect form connects to a running a4 serve, remembers it, and shows i
   assert.equal(reloaded.workspace.getSnapshot().served?.shown, true, "a reload connects to it again");
   await reloaded.workspace.dispose();
 });
+
+test("a refused link while another served library is shown shows this browser's library, as its notice says", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "served brief");
+  const { workspace, notices } = s.open();
+  await workspace.start();
+  await workspace.createPage("Notes", "my notes", "a");
+  assert.ok((await workspace.connectServed(SERVED)).ok);
+  assert.equal(workspace.getSnapshot().storage?.kind, "served");
+  const older = new ServedStandIn(OTHER);
+  older.refusal = "older-server";
+  s.serve(older);
+  const other: ServedConnection = { address: "127.0.0.1:4321", token: TOKEN };
+  assert.ok((await workspace.connectServed(other)).ok);
+  const snapshot = workspace.getSnapshot();
+  assert.equal(snapshot.storage?.kind, "memory", "this browser's library is shown");
+  assert.deepEqual(snapshot.served, { address: "127.0.0.1:4321", shown: false });
+  assert.ok(names(workspace).includes(n("Notes")));
+  const notice = notices.at(-1);
+  assert.ok(notice?.kind === "served-unreachable" && notice.reason === "older-server");
+  workspace.edit("a", "typed after the notice");
+  await workspace.flushAll();
+  const notes = (await s.served.pages.list()).map((p) => p.name);
+  assert.deepEqual(notes, [n("Brief")], "nothing typed after the notice reached the served folder");
+  await workspace.dispose();
+});
+
+test("the Connect form asks a4 serve once, and remembers nothing if it stops before its pages are shown", async () => {
+  const s = setup();
+  let answered = 0;
+  const stops = new ServedStandIn();
+  const library = stops.library.bind(stops);
+  stops.library = async () => {
+    answered++;
+    const id = await library();
+    stops.down = true; // it answers GetLibrary, then stops
+    return id;
+  };
+  s.serve(stops);
+  const { workspace, notices } = s.open();
+  await workspace.start();
+  const result = await workspace.connectServed(SERVED, "form");
+  assert.ok(result.ok);
+  assert.equal(result.value.connected, false);
+  assert.equal(!result.value.connected && result.value.reason, "not-running");
+  assert.equal(answered, 1, "GetLibrary is asked once");
+  assert.equal(workspace.getSnapshot().served, null, "nothing is remembered");
+  assert.equal(workspace.getSnapshot().storage?.kind, "memory");
+  assert.equal(
+    notices.some((x) => x.kind === "served-unreachable"),
+    false,
+    "the form says why, not a notice",
+  );
+  await workspace.dispose();
+});

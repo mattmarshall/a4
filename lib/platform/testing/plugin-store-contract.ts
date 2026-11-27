@@ -82,7 +82,12 @@ export async function runInBrowser(): Promise<Record<string, string>> {
   for (const [name, run] of PLUGIN_STORE_CONTRACT) {
     const dbName = `a4-plugins-contract-${crypto.randomUUID()}`;
     try {
-      await run(new IdbPluginStore(dbName));
+      const store = new IdbPluginStore(dbName);
+      try {
+        await run(store);
+      } finally {
+        store.close();
+      }
       out[name] = "pass";
     } catch (error) {
       out[name] = `FAIL: ${(error as Error).message}`;

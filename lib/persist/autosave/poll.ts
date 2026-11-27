@@ -44,7 +44,10 @@ export class PollLoop {
     if (this.#stopped || this.#timer !== null || this.#idle()) return;
     this.#timer = scheduler.setTimeout(() => {
       this.#timer = null;
-      void this.tick().finally(() => this.start());
+      // A pass handles its own errors; one that escapes mustn't go unhandled or stop the loop.
+      void this.tick()
+        .catch(() => {})
+        .finally(() => this.start());
     }, intervalMs);
   }
 

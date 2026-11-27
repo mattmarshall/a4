@@ -26,7 +26,7 @@ export class LibraryPoller {
   readonly #store: PageStore;
   readonly #onChange: (change: PollerChange) => Promise<void>;
   readonly #loop: PollLoop;
-  #last: ReadonlyMap<PageName, PageSummary> | null = null;
+  #last: ReadonlyMap<PageName, PageSummary>;
 
   constructor(options: {
     store: PageStore;
@@ -65,7 +65,7 @@ export class LibraryPoller {
       return;
     }
     if (this.#loop.stopped) return;
-    const last = this.#last ?? new Map<PageName, PageSummary>();
+    const last = this.#last;
     const next = new Map(list.map((p) => [p.name, p]));
     const changed = list
       .filter((p) => {

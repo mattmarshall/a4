@@ -73,6 +73,11 @@ export interface ModelLensInput {
   lens: LensId;
 }
 
+/** Whether `source` is still offered as it was: its plugin wasn't removed or updated since. */
+function stillOffered(source: LensSource, offered: readonly LensSource[]): boolean {
+  return offered.some((s) => s.pluginId === source.pluginId && s.plane === source.plane && s.card === source.card);
+}
+
 export function useModelLens({ models, notify, sources, texts, specs, compare, target, lens }: ModelLensInput) {
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [scored, setScored] = useState<Record<Slot, Scored | null>>({ a: null, b: null });
@@ -80,10 +85,16 @@ export function useModelLens({ models, notify, sources, texts, specs, compare, t
   const active = sources.find((s) => planeKey(s.pluginId, s.plane) === activeKey) ?? null;
 
   // The schedule lives as long as the Workbench and calls the latest score, notify, and lens.
-  const latest = useRef({ score: models.score, notify, active });
+  const latest = useRef({ score: models.score, notify, active, sources });
   useEffect(() => {
-    latest.current = { score: models.score, notify, active };
+    latest.current = { score: models.score, notify, active, sources };
   });
+
+  // A request waiting for consent whose plugin was removed or updated, here or in
+  // another tab, is dropped: the dialog must name exactly what the page goes to.
+  useEffect(() => {
+    if (consent && !stillOffered(consent.source, sources)) setConsent(null);
+  }, [consent, sources]);
   const [schedule] = useState(
     () =>
       new ScoreSchedule<Slot, ScoreResult>({
@@ -192,6 +203,7 @@ export function useModelLens({ models, notify, sources, texts, specs, compare, t
       const request = consent;
       if (!request) return;
       setConsent(null);
+      if (!stillOffered(request.source, latest.current.sources)) return;
       try {
         const token = await models.approve(request.source.pluginId, Operation.SCORE, request.text);
         const result = await models.score(request.source.pluginId, request.text, request.spec, token);

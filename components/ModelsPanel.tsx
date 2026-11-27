@@ -236,8 +236,8 @@ export function ModelsPanel({
   return (
     <InspectorSection
       id="models"
-      title="Models"
-      label="Models"
+      title={modelsPanel.title}
+      label={modelsPanel.title}
       defaultOpen={false}
       openWhen={activeLens !== null}
       className="models"

@@ -56,11 +56,11 @@ export function ConsentDialog({
           <p className={styles.status}>{copy.note}</p>
           <div className="panel-actions">
             <button type="button" className="btn" onClick={onCancel}>
-              Cancel
+              {copy.cancel}
             </button>
             {/* biome-ignore lint/a11y/noAutofocus: the dialog opens on a click, and Send is its primary action. */}
             <button type="submit" className="btn btn-outline" autoFocus>
-              Send
+              {copy.send}
             </button>
           </div>
         </form>

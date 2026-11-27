@@ -17,7 +17,7 @@ import {
 import type { ConnectedFolder } from "../persist/folder/access.ts";
 import { fileCopyName, fileRef, libraryRef, refLabel, type FilePath } from "../persist/store/refs.ts";
 import type { Page, PageName, PageStore } from "../persist/store/types.ts";
-import type { FileRef, LibraryRef, Slot, SlotSnapshot } from "./types.ts";
+import { EMPTY_SLOT, type FileRef, type LibraryRef, type Slot, type SlotSnapshot } from "./types.ts";
 
 /** What a slot holds: a library page's session, or a folder file's. */
 export type OpenPage =
@@ -35,16 +35,6 @@ export interface SlotLibrary {
   readonly store: PageStore;
   readonly journal: Journal<PageName>;
 }
-
-const EMPTY_SLOT: SlotSnapshot = {
-  kind: "empty",
-  ref: null,
-  name: null,
-  label: null,
-  text: "",
-  status: "saved",
-  readOnly: false,
-};
 
 export class SlotController {
   readonly slot: Slot;

@@ -74,7 +74,12 @@ export async function runInBrowser(): Promise<Record<string, string>> {
     for (const [name, run] of HANDLE_STORE_CONTRACT) {
       const dbName = `a4-handle-contract-${crypto.randomUUID()}`;
       try {
-        await run(new IdbHandleStore(dbName), handles);
+        const store = new IdbHandleStore(dbName);
+        try {
+          await run(store, handles);
+        } finally {
+          store.close();
+        }
         out[name] = "pass";
       } catch (error) {
         out[name] = `FAIL: ${(error as Error).message}`;

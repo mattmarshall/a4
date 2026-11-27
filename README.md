@@ -1125,8 +1125,11 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   - It's made the first time the folder is served, and kept across restarts
     and `--new-token`.
   - It isn't secret.
-  - A copied folder carries it along: delete `.a4-library` in the copy to
-    make it a library of its own.
+  - A copied folder carries it along, and its token too: delete
+    `.a4-library` and `.a4-serve-token` in the copy to make it a library of
+    its own, and open the new link it prints. A4 learns a library's id when
+    it connects or switches to it, so serving the copy behind the same
+    address and token would keep the original's id.
   - If the file is edited so it no longer holds an id, `a4 serve` exits 2:
     delete it to give the library a new id.
 - **The command.** It prints its address and a link that connects A4, then

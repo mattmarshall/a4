@@ -8,6 +8,7 @@ import {
   copiedNotice,
   SEAL_MEANING,
   SHARED_PILL,
+  savedSharedCopies,
   sealLine,
   sharedBanner,
   sharedSealFor,
@@ -67,4 +68,6 @@ test("the banner's note names each page's preset and paper, for one page and a p
   assert.equal(sharedShownOn([terminal, pica]), "Shown on Terminal, A4 and Pica, A5, as the sender saw them.");
   assert.equal(sharedSealFor("Brief"), "“Brief”: ");
   assert.equal(SHARED_PILL, "Shared · not saved");
+  assert.equal(savedSharedCopies(["Brief"]), "Saved “Brief” to your library.");
+  assert.equal(savedSharedCopies(["Brief", "Notes"]), "Saved “Brief” and “Notes” to your library.");
 });

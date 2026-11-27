@@ -125,6 +125,9 @@ const NO_FOLDER: FolderSnapshot = {
 /** What showing a library recovered and migrated, for the notices that follow. */
 type Shown = { readonly recoveries: readonly Recovery[]; readonly migrated: number };
 
+/** A library reached and ready to show: its target, known by id for a served one, and its store. */
+type Reached = { readonly target: LibraryTarget; readonly store: PageStore };
+
 class NotReady extends Error {
   constructor() {
     super("Storage isn’t ready yet.");
@@ -300,7 +303,7 @@ export class Workspace<H> {
    * app's protocol. One that can't be used throws StoreUnavailableError, with
    * why, before anything changes.
    */
-  async #reach(choice: LibraryChoice): Promise<{ target: LibraryTarget; store: PageStore }> {
+  async #reach(choice: LibraryChoice): Promise<Reached> {
     if (choice.kind === "browser") {
       if (!this.#browserStore) throw new NotReady();
       return { target: BROWSER, store: this.#browserStore };
@@ -871,24 +874,41 @@ export class Workspace<H> {
   // Commands: the library shown
 
   /**
-   * Show `target`'s pages. Both slots are saved and closed first; a save that
+   * Show `choice`'s pages. Both slots are saved and closed first; a save that
    * fails (the server stopped) leaves its draft in that library's journal,
-   * recovered when the author returns to it. A served library that can't be
-   * reached leaves everything as it was, with a `served-unreachable` notice.
+   * recovered when the author returns to it.
+   *
+   * A served library that can't be used shows this browser's library, with a
+   * `served-unreachable` notice: nothing changes when this browser's library
+   * is already shown, and another served library shown is closed. Resolves
+   * with that error, or null once `choice` is shown. `reached` is the library
+   * the caller already reached, and `quiet` leaves the notice to the caller.
    */
-  #switchTo(choice: LibraryChoice): Promise<void> {
-    const run = async () => {
-      if (this.#disposed || isShown(this.#target, choice)) return;
+  #switchTo(
+    choice: LibraryChoice,
+    options: { readonly reached?: Reached; readonly quiet?: boolean } = {},
+  ): Promise<StoreUnavailableError | null> {
+    const run = async (): Promise<StoreUnavailableError | null> => {
+      if (this.#disposed || isShown(this.#target, choice)) return null;
       const platform = this.#platform;
+      const unusable = (error: StoreUnavailableError) => {
+        if (choice.kind === "served" && !options.quiet) this.#notify(this.#unreachable(choice.connection, error));
+        return error;
+      };
       // Reach the library before closing anything, so a failure changes nothing.
-      let reached: { target: LibraryTarget; store: PageStore };
+      let failure: StoreUnavailableError | null = null;
+      let reached: Reached;
       try {
-        reached = await this.#reach(choice);
+        reached = options.reached ?? (await this.#reach(choice));
       } catch (error) {
         if (choice.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
-        this.#notify(this.#unreachable(choice.connection, error));
-        this.#publish();
-        return;
+        failure = unusable(error);
+        if (this.#target?.kind !== "served") {
+          this.#publish();
+          return failure;
+        }
+        // Another served library is shown; the notice says this browser's is.
+        reached = await this.#reach(BROWSER);
       }
       for (const slot of SLOTS) this.#requests.begin(slot);
       await Promise.all(SLOTS.map((slot) => this.#slots[slot].close()));
@@ -897,15 +917,16 @@ export class Workspace<H> {
       try {
         shown = await this.#showLibrary(reached.target, reached.store, await platform.tabs.live());
       } catch (error) {
-        if (choice.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
+        if (reached.target.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
         // It stopped after answering: back to this browser's library.
-        this.#notify(this.#unreachable(choice.connection, error));
+        failure = unusable(error);
         const browser = await this.#reach(BROWSER);
         shown = await this.#showLibrary(browser.target, browser.store, await platform.tabs.live());
       }
       this.#rewatch();
       this.#publish();
       this.#notifyRecovered(shown);
+      return failure;
     };
     const next = this.#switching.then(run, run);
     this.#switching = next.catch(() => {});
@@ -916,10 +937,13 @@ export class Workspace<H> {
   switchLibrary(kind: LibrarySource): Promise<Result<void>> {
     return attempt(async () => {
       this.#need();
-      if (kind === "browser") return this.#switchTo(BROWSER);
+      if (kind === "browser") {
+        await this.#switchTo(BROWSER);
+        return;
+      }
       const connection = readSetting(SETTINGS.servedLibrary);
       if (!connection) throw new Error("Connect to a4 serve first.");
-      return this.#switchTo({ kind: "served", connection });
+      await this.#switchTo({ kind: "served", connection });
     });
   }
 
@@ -930,24 +954,37 @@ export class Workspace<H> {
    *
    * - From a connect link, it's remembered even when A4 can't use the server,
    *   and a `served-unreachable` notice says why.
-   * - From the Connect form, the server is reached first. When A4 can't use
-   *   it, nothing is remembered, published, or notified, and the outcome says
-   *   why, for the form to show.
+   * - From the Connect form, the server is reached once, and the switch uses
+   *   what it answered. The connection is remembered only once its pages are
+   *   shown. When A4 can't use it, nothing is remembered or notified, and the
+   *   outcome says why, for the form to show.
    */
   connectServed(connection: ServedConnection, from: "link" | "form" = "link"): Promise<Result<ConnectOutcome>> {
     return attempt(async (): Promise<ConnectOutcome> => {
       this.#need();
-      if (from === "form") {
-        try {
-          await this.#reach({ kind: "served", connection });
-        } catch (error) {
-          if (!isStoreError(error, "unavailable")) throw error;
-          return { connected: false, reason: error.reason, message: describeError(error) };
-        }
+      const choice: LibraryChoice = { kind: "served", connection };
+      if (from === "link") {
+        writeSetting(SETTINGS.servedLibrary, connection);
+        this.#publish();
+        await this.#switchTo(choice);
+        return { connected: true };
       }
+      const refused = (error: StoreUnavailableError): ConnectOutcome => ({
+        connected: false,
+        reason: error.reason,
+        message: describeError(error),
+      });
+      let reached: Reached;
+      try {
+        reached = await this.#reach(choice);
+      } catch (error) {
+        if (!isStoreError(error, "unavailable")) throw error;
+        return refused(error);
+      }
+      const failure = await this.#switchTo(choice, { reached, quiet: true });
+      if (failure) return refused(failure);
       writeSetting(SETTINGS.servedLibrary, connection);
       this.#publish();
-      await this.#switchTo({ kind: "served", connection });
       return { connected: true };
     });
   }

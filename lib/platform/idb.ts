@@ -17,8 +17,17 @@ export class IdbDatabase {
     this.#stores = stores;
   }
 
+  /**
+   * The open connection, opened on first use. A failed open isn't kept, and
+   * neither is a connection the browser closes (site data cleared) or another
+   * tab's upgrade asks to close: the next call opens afresh.
+   */
   #open(): Promise<IDBDatabase> {
-    this.#db ??= new Promise((resolve, reject) => {
+    if (this.#db) return this.#db;
+    const forget = () => {
+      if (this.#db === opening) this.#db = null;
+    };
+    const opening: Promise<IDBDatabase> = new Promise<IDBDatabase>((resolve, reject) => {
       const request = indexedDB.open(this.#name, this.#version);
       request.onupgradeneeded = () => {
         const db = request.result;
@@ -26,10 +35,32 @@ export class IdbDatabase {
           if (!db.objectStoreNames.contains(store)) db.createObjectStore(store);
         }
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        const db = request.result;
+        db.onversionchange = () => {
+          db.close();
+          forget();
+        };
+        db.onclose = forget;
+        resolve(db);
+      };
       request.onerror = () => reject(request.error);
+    }).catch((error: unknown) => {
+      forget();
+      throw error;
     });
-    return this.#db;
+    this.#db = opening;
+    return opening;
+  }
+
+  /** Close the connection, if one is open; a later call opens it again. */
+  close(): void {
+    const db = this.#db;
+    this.#db = null;
+    void db?.then(
+      (open) => open.close(),
+      () => {},
+    );
   }
 
   /** Run one request in its own transaction; resolves with its result once the transaction completes. */

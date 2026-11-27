@@ -6,6 +6,7 @@
 
 export { describeError, reportResult, type Notify } from "./errors.ts";
 export {
+  EMPTY_SLOT,
   SLOTS,
   type FolderSnapshot,
   type Result,

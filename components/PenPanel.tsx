@@ -38,7 +38,7 @@ export function PenJobChip({ card, job }: { card: ModelCard; job: PenJob<PageRef
         {phase.maxAttempts === null ? "" : `/${phase.maxAttempts}`}
       </span>
       <button type="button" className="btn" onClick={() => job.cancel()}>
-        Cancel
+        {penPanel(card).cancel}
       </button>
     </span>
   );
@@ -144,7 +144,7 @@ export function PenPanel({
 
       {instructions.length > 1 ? (
         <label className={styles.status}>
-          Instruction{" "}
+          {copy.instruction}{" "}
           <select value={pen.instruction} onChange={(e) => pen.setInstruction(e.target.value)}>
             {instructions.map((i) => (
               <option key={i} value={i}>
@@ -167,7 +167,7 @@ export function PenPanel({
           <span className={styles.status}>{copy.progress(phase)}</span>
           {phase.note ? <span className={styles.status}>{phase.note}</span> : null}
           <button type="button" className="btn" onClick={() => job.cancel()}>
-            Cancel
+            {copy.cancel}
           </button>
         </div>
       ) : null}

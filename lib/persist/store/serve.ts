@@ -19,7 +19,7 @@ import { StoreFailureSchema } from "../../gen/a4/v1/store_pb.js";
 import { parsePageName } from "./names.ts";
 import { parseRevision } from "./revision.ts";
 import { parseTrashId } from "./trash-ids.ts";
-import { PageNotFoundError, PageStoreError, type PageStore, type TrashId } from "./types.ts";
+import { PageNotFoundError, PageStoreError, type PageStore, StoreUnavailableError, type TrashId } from "./types.ts";
 import {
   failureOf,
   type LibraryId,
@@ -101,6 +101,16 @@ async function answer<K extends StoreMethod>(
  * request's protobuf bytes. Unknown methods are 404 and undecodable requests
  * 400, with an empty body; store errors are a StoreFailure with their status.
  */
+/**
+ * The answer to a call that failed outside the store's typed errors (the disk
+ * is full, a permission changed): a StoreFailure that A4 shows as is, naming
+ * only `code` (such as ENOSPC), never what the page held.
+ */
+export function folderFailure(code: string): StoreCallResult {
+  const { status, failure } = failureOf(new StoreUnavailableError(`a4 serve couldn’t use its folder (${code}).`));
+  return { status, body: toBinary(StoreFailureSchema, create(StoreFailureSchema, failure)) };
+}
+
 export async function handleStoreCall(
   handlers: StoreHandlers,
   wireName: string,

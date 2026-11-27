@@ -51,13 +51,17 @@ export class FileWatcher {
     });
   }
 
-  /** Watch `path` for `key` (a slot), replacing what that key watched. */
+  /**
+   * Watch `path` for `key` (a slot), replacing what that key watched. The same
+   * file and session keep the last stat seen. Anything else starts with none,
+   * so the first poll reads the file and compares its revision with the
+   * session's: a change made just before (during a swap or a library switch)
+   * is adopted, not taken as the starting point.
+   */
   watch(key: string, path: FilePath, session: PageSession<FilePath>): void {
-    this.#watched.set(key, { path, session, last: null });
-    void this.#stat(path).then((stat) => {
-      const entry = this.#watched.get(key);
-      if (entry && entry.session === session && entry.last === null) entry.last = stat;
-    });
+    const prior = this.#watched.get(key);
+    const last = prior && prior.path === path && prior.session === session ? prior.last : null;
+    this.#watched.set(key, { path, session, last });
     this.#loop.start();
   }
 

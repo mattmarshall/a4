@@ -92,3 +92,22 @@ test("after stop, no pass runs and no timer is set", async () => {
   assert.equal(passes(), 0);
   assert.equal(poller.stopped, true);
 });
+
+test("a pass that throws doesn't go unhandled, and the loop keeps polling", async () => {
+  const unhandled: unknown[] = [];
+  const onUnhandled = (reason: unknown) => unhandled.push(reason);
+  process.on("unhandledRejection", onUnhandled);
+  try {
+    const { scheduler, poller, passes } = loop({
+      pass: () => Promise.reject(new Error("the store went away")),
+    });
+    poller.start();
+    await scheduler.advance(3000);
+    assert.equal(passes(), 3);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.deepEqual(unhandled, []);
+    poller.stop();
+  } finally {
+    process.off("unhandledRejection", onUnhandled);
+  }
+});

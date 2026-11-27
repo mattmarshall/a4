@@ -11,7 +11,7 @@ import { ErrorCode, ModelError } from "./errors.ts";
 import { FetchPackageError, fetchPackage } from "./installed.ts";
 import { BUNDLED_CARDS } from "./manifest.ts";
 import { cardFromJson, PackageError, packPackage } from "./package.ts";
-import { changedPluginId } from "./plugin-events.ts";
+import { changedPluginId, encodePluginEvent, pluginChanged } from "./plugin-events.ts";
 import { pluginIdOf } from "./plugin-id.ts";
 import { PluginRegistry } from "./registry.ts";
 import { SAMPLE_CODE, testKey } from "./testing/packages.ts";
@@ -285,4 +285,91 @@ test("a message that isn't a plugin event is ignored", async () => {
   await new Promise((resolve) => setTimeout(resolve, 10));
   assert.equal(changes, 0);
   assert.deepEqual(b.registry.installed(), []);
+});
+
+/** `store`, but its listing waits for `release`, as a slow load's signature checks would. */
+function slowListing(store: MemoryPluginStore) {
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  let listed = () => {};
+  const read = new Promise<void>((resolve) => {
+    listed = resolve;
+  });
+  const slow = Object.create(store) as MemoryPluginStore;
+  slow.records = async () => {
+    const records = await store.records();
+    listed();
+    await gate;
+    return records;
+  };
+  return { slow, read, release };
+}
+
+test("a removal heard while this tab loads applies after the load: the plugin isn't left registered", async () => {
+  const store = new MemoryPluginStore();
+  const hub = new ChannelHub();
+  const b = registry(store, recordingFetch(), hub);
+  await b.registry.load();
+  await b.registry.install(await b.registry.inspect(await wordLengthPackage()));
+  const { slow, read, release } = slowListing(store);
+  const a = registry(slow, recordingFetch(), hub);
+  const loading = a.registry.load();
+  await read;
+  const heard = nextChange(a.registry);
+  await b.registry.remove(pluginIdOf(card));
+  release();
+  await loading;
+  await heard;
+  assert.deepEqual(a.registry.installed(), []);
+  assert.equal(
+    a.registry.host.list().some((c) => c.id === "example.word-length"),
+    false,
+  );
+});
+
+test("an update heard while this tab loads applies after the load, which still succeeds", async () => {
+  const key = testKey();
+  const store = new MemoryPluginStore();
+  const hub = new ChannelHub();
+  const b = registry(store, recordingFetch(), hub);
+  await b.registry.load();
+  await b.registry.install(await b.registry.inspect(await wordLengthPackage("1.0.0", key)));
+  const { slow, read, release } = slowListing(store);
+  const a = registry(slow, recordingFetch(), hub);
+  const loading = a.registry.load();
+  await read;
+  const heard = nextChange(a.registry);
+  await b.registry.install(await b.registry.inspect(await wordLengthPackage("1.1.0", key)));
+  release();
+  await loading;
+  await heard;
+  assert.equal(a.registry.host.card(pluginIdOf(card)).version, "1.1.0");
+  await a.registry.load();
+});
+
+test("a damaged record heard from another tab is listed as damaged, and removing it is heard back", async () => {
+  const { a, b, hub } = await twoTabs();
+  const installed = nextChange(b.registry);
+  await a.registry.install(await a.registry.inspect(await wordLengthPackage()));
+  await installed;
+  // The stored code changes outside A4, and a third tab says the plugin changed.
+  const store = a.store;
+  const record = fromBinary(InstalledPluginSchema, store.plugins.get("example.word-length") ?? new Uint8Array());
+  const pkg = fromBinary(PluginPackageSchema, record.package);
+  pkg.code = new TextEncoder().encode("// changed");
+  record.package = toBinary(PluginPackageSchema, pkg);
+  store.plugins.set("example.word-length", toBinary(InstalledPluginSchema, record));
+  const damaged = nextChange(b.registry);
+  hub.open(PLUGIN_CHANNEL).post(encodePluginEvent(pluginChanged("example.word-length")));
+  await damaged;
+  assert.deepEqual(b.registry.installed(), []);
+  assert.equal(b.registry.damaged()[0]?.id, "example.word-length");
+  const cleared = nextChange(a.registry);
+  await b.registry.removeDamaged("example.word-length");
+  await cleared;
+  assert.deepEqual(a.registry.installed(), []);
+  assert.deepEqual(a.registry.damaged(), []);
+  assert.equal(store.plugins.size, 0);
 });

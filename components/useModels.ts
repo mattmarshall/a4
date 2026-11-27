@@ -18,8 +18,10 @@ import {
   BUNDLED_CARDS,
   type ConsentToken,
   type DamagedPlugin,
+  ErrorCode,
   type Inspection,
   isDownloaded,
+  isModelError,
   type ModelCard,
   type ModelHost,
   needsDownload,
@@ -139,6 +141,7 @@ export function useModels(): ModelsState {
         // Start the plugin only if its model is already downloaded.
         const ready = (await downloaded()) && (await (await host()).status(id));
         setStatus((s) => withEntry(s, id, ready ? "ready" : "not-downloaded"));
+        setErrors((e) => without(e, id));
       } catch (error) {
         setStatus((s) => withEntry(s, id, "error"));
         setErrors((e) => withEntry(e, id, error instanceof Error ? error.message : String(error)));
@@ -147,9 +150,14 @@ export function useModels(): ModelsState {
     [host],
   );
 
+  /** Each installed plugin's card as last checked: the registry keeps a card until it registers a new version. */
+  const checkedCards = useRef(new Map<PluginId, ModelCard>());
+
   /**
    * Show the registry's installed plugins, drop what's known about removed
-   * ones, and check the sandbox once there are any.
+   * ones, and check the sandbox once there are any. Only a plugin that's new
+   * or a new version is checked again, so another plugin's change doesn't
+   * interrupt this one's download or turn its lens off.
    */
   const refresh = useCallback(
     async (r: PluginRegistry) => {
@@ -160,7 +168,14 @@ export function useModels(): ModelsState {
       setStatus((s) => onlyKeys(s, keep));
       setProgress((p) => onlyKeys(p, keep));
       setErrors((e) => onlyKeys(e, keep));
-      for (const view of views) void checkStatus(view.card, async () => true);
+      const checked = checkedCards.current;
+      for (const id of [...checked.keys()]) if (!keep.has(id)) checked.delete(id);
+      for (const view of views) {
+        const id = pluginIdOf(view.card);
+        if (checked.get(id) === view.card) continue;
+        checked.set(id, view.card);
+        void checkStatus(view.card, async () => true);
+      }
       if (views.length > 0) {
         setSandbox((s) => (s === "unknown" ? "checking" : s));
         const works = await r.sandboxWorks();
@@ -226,10 +241,26 @@ export function useModels(): ModelsState {
     [host],
   );
 
+  /**
+   * Score a page. A plugin whose model files are missing or changed since this
+   * tab checked them fails as not ready; its status is checked again, so its
+   * lens turns off and its card offers the download again.
+   */
   const score = useCallback(
-    async (id: PluginId, text: string, spec: PageSpec, consent?: ConsentToken) =>
-      (await host()).score(id, text, spec, undefined, consent),
-    [host],
+    async (id: PluginId, text: string, spec: PageSpec, consent?: ConsentToken) => {
+      try {
+        return await (await host()).score(id, text, spec, undefined, consent);
+      } catch (error) {
+        if (isModelError(error, ErrorCode.NOT_READY)) {
+          const bundled = BUNDLED_CARDS.find((card) => pluginIdOf(card) === id);
+          const installedCard = checkedCards.current.get(id);
+          if (bundled) void checkStatus(bundled, () => isDownloaded(id));
+          else if (installedCard) void checkStatus(installedCard, async () => true);
+        }
+        throw error;
+      }
+    },
+    [host, checkStatus],
   );
 
   const approve = useCallback(

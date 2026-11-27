@@ -12,6 +12,8 @@ import type { UnavailableReason } from "../lib/persist/index.ts";
 
 /** The Pages panel's switch between this browser's library and the served one. */
 export const servedSwitch = {
+  /** The section's label for assistive technology. */
+  region: "Library",
   label: "Show pages from",
   browser: "This browser",
   served: "a4 serve",
@@ -19,6 +21,14 @@ export const servedSwitch = {
   disconnect: "Disconnect",
   connect: "Connect a4 serve…",
   connectTitle: "Show a library of Markdown files served by a4 serve on this machine",
+} as const;
+
+/** What a failed library command was doing, for its notice: "Couldn’t connect to a4 serve: …". */
+export const servedActions = {
+  switchToBrowser: "switch to this browser’s library",
+  switchToServed: "switch to the served library",
+  connect: "connect to a4 serve",
+  disconnect: "disconnect from a4 serve",
 } as const;
 
 /** The Connect form, for when the link `a4 serve` prints can't be clicked. */

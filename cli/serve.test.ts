@@ -206,9 +206,13 @@ test("the library's id is made once, and kept across restarts and --new-token", 
   assert.notEqual((await serve()).library, first.library);
 });
 
-test("a library file that doesn't hold an id stops the server", async () => {
+test("a library file that doesn't hold an id stops the server, before --new-token replaces the token", async () => {
   const dir = await folder();
+  const first = await serve(dir);
+  await first.close();
   await writeFile(join(dir, LIBRARY_FILE), "edited by hand\n");
+  await assert.rejects(serve(dir, { newToken: true }), /doesn’t hold a library id\. Delete it/);
+  assert.equal((await readFile(join(dir, TOKEN_FILE), "utf8")).trim(), first.token, "the token is unchanged");
   await assert.rejects(serve(dir), /doesn’t hold a library id\. Delete it/);
   assert.equal((await readFile(join(dir, LIBRARY_FILE), "utf8")).trim(), "edited by hand");
   const run = await runCli([dir]);

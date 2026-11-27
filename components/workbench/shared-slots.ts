@@ -6,7 +6,7 @@
  */
 
 import type { SharedPageView } from "../../lib/share/index.ts";
-import type { Slot, SlotSnapshot } from "../../lib/workspace/index.ts";
+import { EMPTY_SLOT, type Slot, type SlotSnapshot } from "../../lib/workspace/index.ts";
 
 /** A share link's page in a slot. */
 interface SharedSlot {
@@ -22,21 +22,11 @@ interface SharedSlot {
 /** What a slot on the stage shows: one of the reader's (empty, a library page, or a file), or a shared page. */
 export type StageSlot = SlotSnapshot | SharedSlot;
 
-const EMPTY: SlotSnapshot = {
-  kind: "empty",
-  ref: null,
-  name: null,
-  label: null,
-  text: "",
-  status: "saved",
-  readOnly: false,
-};
-
 function sharedSlot(page: SharedPageView): SharedSlot {
   return { kind: "shared", ref: null, name: null, label: page.name, text: page.text, status: "saved", readOnly: true };
 }
 
 /** A link's page as A, and its second page as B, or an empty B for a single page. */
 export function sharedSlots(a: SharedPageView, b: SharedPageView | undefined): Readonly<Record<Slot, StageSlot>> {
-  return { a: sharedSlot(a), b: b ? sharedSlot(b) : EMPTY };
+  return { a: sharedSlot(a), b: b ? sharedSlot(b) : EMPTY_SLOT };
 }

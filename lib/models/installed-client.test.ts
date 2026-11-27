@@ -303,3 +303,48 @@ test("a checked file that's deleted from the store is no longer ready", async ()
   files.map.clear();
   assert.equal((await c.status(create(StatusRequestSchema))).ready, false);
 });
+
+test("a Remove during a download stops it: no more reads, nothing stored, and it fails as removed", async () => {
+  const CHUNKS = 20;
+  const chunk = new Uint8Array(1024).fill(7);
+  const model = new Uint8Array(CHUNKS * chunk.length).fill(7);
+  const listed = [{ url: MODEL_URL, size: BigInt(model.length), digest: await digestUrn(model) }];
+  const card = create(ModelCardSchema, { ...overlayCard(), downloadBytes: BigInt(model.length) });
+  const pkg = await verifyPackage(await rawPackage({ card, key: testKey(), files: listed }));
+  let pulled = 0;
+  const files = new MemoryFiles();
+  const c = installedClient({
+    pkg,
+    files,
+    context: { credential: () => null },
+    fetch: async (_input, init) =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            if (init?.signal?.aborted) return;
+            pulled++;
+            if (pulled > CHUNKS) controller.close();
+            else controller.enqueue(chunk.slice());
+          },
+        }),
+      ),
+    open: fakeSandbox(card).open,
+    sandboxWorks: async () => true,
+  });
+  made.push(c);
+  let events = 0;
+  await assert.rejects(
+    (async () => {
+      for await (const _ of c.prepare(create(PrepareRequestSchema))) {
+        events++;
+        if (events === 1) closeClient(c);
+      }
+    })(),
+    (e: unknown) => isModelError(e, ErrorCode.NOT_FOUND) && e.message === "Word length was removed.",
+  );
+  assert.ok(pulled < CHUNKS, `read ${pulled} of ${CHUNKS} chunks after the Remove`);
+  assert.equal(files.map.size, 0);
+  await assert.rejects(drain(c.prepare(create(PrepareRequestSchema))), (e: unknown) =>
+    isModelError(e, ErrorCode.NOT_FOUND),
+  );
+});

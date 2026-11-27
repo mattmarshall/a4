@@ -40,6 +40,11 @@ export class IdbHandleStore implements HandleStore {
     this.#db = new IdbDatabase(name, 1, ["folders"]);
   }
 
+  /** Close the database connection (a test's database can't be deleted while it's open). */
+  close(): void {
+    this.#db.close();
+  }
+
   async get(id: string): Promise<FileSystemDirectoryHandle | null> {
     return (
       ((await this.#db.run("folders", "readonly", (s) => s.get(id))) as FileSystemDirectoryHandle | undefined) ?? null

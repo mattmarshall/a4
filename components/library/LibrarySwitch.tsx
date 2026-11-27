@@ -75,7 +75,7 @@ export function LibrarySwitch({ served, actions }: { served: WorkspaceSnapshot["
   const [connecting, setConnecting] = useState(false);
   if (served) {
     return (
-      <section className={styles.libraries} aria-label="Library">
+      <section className={styles.libraries} aria-label={servedSwitch.region}>
         <fieldset className="seg" aria-label={servedSwitch.label}>
           <button type="button" aria-pressed={!served.shown} onClick={() => actions.switchTo("browser")}>
             {servedSwitch.browser}
@@ -96,7 +96,7 @@ export function LibrarySwitch({ served, actions }: { served: WorkspaceSnapshot["
     );
   }
   return (
-    <section className={styles.libraries} aria-label="Library">
+    <section className={styles.libraries} aria-label={servedSwitch.region}>
       {connecting ? (
         <ConnectForm
           onCancel={() => setConnecting(false)}

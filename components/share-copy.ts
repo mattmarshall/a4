@@ -44,6 +44,14 @@ export function sharedSealFor(name: string): string {
   return `“${name}”: `;
 }
 
+/** The shared view's banner: its label for assistive technology, and its buttons. */
+export const sharedViewCopy = { label: "Shared page", saveCopy: "Save a copy", close: "Close" } as const;
+
+/** After Save a copy: the pages now in the reader's library. */
+export function savedSharedCopies(names: readonly string[]): string {
+  return `Saved ${quoted(names)} to your library.`;
+}
+
 /** The top bar's pill for a shared page, in place of its save status. */
 export const SHARED_PILL = "Shared · not saved";
 

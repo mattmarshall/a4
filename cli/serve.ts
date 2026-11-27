@@ -26,7 +26,7 @@ import {
   type StoreHandlers,
 } from "../lib/persist/index.ts";
 import { openFolderLibrary } from "../lib/persist/store/node-handle.ts";
-import { handleStoreCall, STORE_PATH, storeHandlers } from "../lib/persist/store/serve.ts";
+import { folderFailure, handleStoreCall, STORE_PATH, storeHandlers } from "../lib/persist/store/serve.ts";
 import { UsageError } from "./usage.ts";
 
 export interface ServeArgs {
@@ -163,9 +163,11 @@ function handler(handlers: StoreHandlers, port: () => number, origins: ReadonlyS
       res.writeHead(result.status, { "content-type": "application/proto" }).end(Buffer.from(result.body));
     } catch (error) {
       // A failure outside the store's typed errors (the disk is full, a permission changed): log its
-      // code and answer 500, never saying what the page held.
-      process.stderr.write(`a4 serve: ${method} failed (${errorCode(error)}).\n`);
-      res.writeHead(500).end();
+      // code, and answer with it, never saying what the page held.
+      const code = errorCode(error);
+      process.stderr.write(`a4 serve: ${method} failed (${code}).\n`);
+      const failed = folderFailure(code);
+      res.writeHead(failed.status, { "content-type": "application/proto" }).end(Buffer.from(failed.body));
     }
   };
 }
@@ -208,8 +210,9 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
     }
   }
   const origins = new Set([APP_ORIGIN, ...args.origins.map((o) => o.replace(/\/+$/, ""))]);
-  const token = await libraryToken(folder, args.newToken);
+  // The id first: a damaged id file stops the server before --new-token disconnects every browser.
   const library = await libraryId(folder);
+  const token = await libraryToken(folder, args.newToken);
   const store = await openFolderLibrary(folder);
   let port = args.port;
   const server = createServer(guarded(handler(storeHandlers(store, library), () => port, origins, token)));

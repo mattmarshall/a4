@@ -75,15 +75,19 @@ export class PluginRegistry implements PluginRegistryApi {
 
   /**
    * Load and register the installed plugins, once; bundled plugins are already
-   * registered. From then on, this registry hears other tabs' changes.
+   * registered. From then on, this registry hears other tabs' changes. The
+   * load runs first in the queue of changes, so a change heard while it reads
+   * the store is applied after it, to what it registered.
    */
   load(): Promise<void> {
-    this.#loaded ??= (async () => {
+    if (!this.#loaded) {
       this.#deps.channel?.subscribe((data) => this.#hear(data));
-      const { installed, damaged } = await loadInstalled(this.#deps.store);
-      for (const plugin of installed) this.#register(plugin);
-      this.#damaged = damaged;
-    })();
+      this.#loaded = this.#serially(async () => {
+        const { installed, damaged } = await loadInstalled(this.#deps.store);
+        for (const plugin of installed) this.#register(plugin);
+        this.#damaged = damaged;
+      });
+    }
     return this.#loaded;
   }
 
@@ -145,18 +149,17 @@ export class PluginRegistry implements PluginRegistryApi {
   }
 
   /** Remove an installed plugin: its code, files, pinned key, and source URL. */
-  async remove(id: PluginId): Promise<void> {
-    await this.load();
-    await this.#serially(async () => {
-      await remove(this.#deps.store, id);
-      this.#post(id);
-      this.#forget(id);
-      this.#notify();
-    });
+  remove(id: PluginId): Promise<void> {
+    return this.#removeStored(id);
   }
 
   /** Remove a damaged plugin, by the id it's stored under. */
-  async removeDamaged(id: string): Promise<void> {
+  removeDamaged(id: string): Promise<void> {
+    return this.#removeStored(id);
+  }
+
+  /** Delete the record stored under `id` and what only it lists, then tell this tab and the others. */
+  async #removeStored(id: string): Promise<void> {
     await this.load();
     await this.#serially(async () => {
       await remove(this.#deps.store, id);

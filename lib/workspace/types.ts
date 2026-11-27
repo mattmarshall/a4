@@ -35,6 +35,17 @@ interface SlotBase {
   readonly readOnly: boolean;
 }
 
+/** A slot showing nothing. */
+export const EMPTY_SLOT: SlotSnapshot = {
+  kind: "empty",
+  ref: null,
+  name: null,
+  label: null,
+  text: "",
+  status: "saved",
+  readOnly: false,
+};
+
 /** What a slot shows: nothing, a library page, or a folder file, as its `kind` says. */
 export type SlotSnapshot =
   | (SlotBase & { readonly kind: "empty"; readonly ref: null; readonly name: null })
@@ -111,7 +122,6 @@ export type WorkspaceNotice =
       readonly error: unknown;
     };
 
-/** A command's outcome. Commands never throw to the UI. */
 /**
  * What connecting by hand did: connected, or not, because A4 can't use the
  * server (its reason, and the error's sentence). Nothing is remembered when
@@ -121,6 +131,7 @@ export type ConnectOutcome =
   | { readonly connected: true }
   | { readonly connected: false; readonly reason: UnavailableReason | null; readonly message: string };
 
+/** A command's outcome. Commands never throw to the UI. */
 export type Result<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly error: unknown };
 
 export function ok<T>(value: T): Result<T> {

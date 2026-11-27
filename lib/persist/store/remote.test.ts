@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { MemoryPageStore } from "./key-value.ts";
 import { parsePageName } from "./names.ts";
 import { RemotePageStore } from "./remote.ts";
-import { handleStoreCall, STORE_PATH, storeHandlers } from "./serve.ts";
+import { folderFailure, handleStoreCall, STORE_PATH, storeHandlers } from "./serve.ts";
 import { pageStoreContract } from "./testing/contract.ts";
 import { isStoreError, type PageStore, type UnavailableReason } from "./types.ts";
 import { STORE_PROTOCOL, type StoreHandlers } from "./wire.ts";
@@ -91,4 +91,30 @@ test("an unknown method is 404, and a request that doesn't decode is 400", async
   assert.equal((await handleStoreCall(handlers, "DeleteEverything", new Uint8Array())).status, 404);
   assert.equal((await handleStoreCall(handlers, "readPage", new Uint8Array())).status, 404);
   assert.equal((await handleStoreCall(handlers, "ReadPage", new Uint8Array([0xff, 0xff, 0xff]))).status, 400);
+});
+
+test("an answer cut off mid-body is the server stopping, never an empty listing", async () => {
+  const cutOff = async () =>
+    new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new Uint8Array([0x0a]));
+          controller.error(new Error("socket closed"));
+        },
+      }),
+      { status: 200 },
+    );
+  await assert.rejects(remoteWith(cutOff).list(), because("not-running"));
+  await assert.rejects(remoteWith(cutOff).listTrash(), because("not-running"));
+});
+
+test("a failure in the server's folder reaches A4 with its code, not as an answer A4 can't read", async () => {
+  const answer = folderFailure("EACCES");
+  assert.equal(answer.status, 503);
+  const failing = remoteWith(async () => new Response(new Uint8Array(answer.body), { status: answer.status }));
+  await assert.rejects(
+    failing.list(),
+    (e: unknown) =>
+      isStoreError(e, "unavailable") && e.reason === null && e.message === "a4 serve couldn’t use its folder (EACCES).",
+  );
 });
