@@ -1488,6 +1488,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-25-add-share-links`
 - `2026-11-25-add-served-library`
 - `2026-11-26-harden-served-protocol`
+- `2026-11-27-harden-pens-and-plugins`
 
 ```bash
 openspec list --specs
