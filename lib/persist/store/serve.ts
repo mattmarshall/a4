@@ -1,64 +1,46 @@
 /**
  * The served library's request handler (README, "Served library"): one page
  * store operation per call, as `a4.v1.PageStoreService` (proto/a4/v1/store.proto)
- * describes it, answered over any PageStore. It takes a method name and the
- * request's protobuf bytes and returns a status and the response's bytes. A
- * store error comes back as an `a4.v1.StoreFailure` with its status, so
- * RemotePageStore throws the same typed error.
+ * describes it, answered over any PageStore, plus `GetLibrary` for the
+ * library's id and protocol version.
+ *
+ * The handlers are a `StoreHandlers` table (wire.ts), so a method the proto
+ * adds doesn't compile until it's handled here. A call takes a method's wire
+ * name and the request's protobuf bytes, and returns a status and the
+ * response's bytes. A store error comes back as an `a4.v1.StoreFailure` with
+ * its status and typed detail, so RemotePageStore throws the same error.
  *
  * It uses no Node or DOM API: `a4 serve` wraps it in node:http, and the
  * contract tests call it in-process.
  */
 
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import {
-  PageStoreService,
-  StoreErrorCode,
-  StoreFailureSchema,
-  type StoredPageSummary,
-  type StoredTrashEntry,
-  type StoredWrite,
-} from "../../gen/a4/v1/store_pb.js";
+import { create, toBinary } from "@bufbuild/protobuf";
+import { StoreFailureSchema } from "../../gen/a4/v1/store_pb.js";
 import { parsePageName } from "./names.ts";
 import { parseRevision } from "./revision.ts";
 import { parseTrashId } from "./trash-ids.ts";
+import { PageNotFoundError, PageStoreError, type PageStore, type TrashId } from "./types.ts";
 import {
-  PageNotFoundError,
-  PageStoreError,
-  type PageStore,
-  type PageSummary,
-  type PageStoreErrorCode,
-  type TrashEntry,
-  type TrashId,
-  type WriteResult,
-} from "./types.ts";
+  failureOf,
+  type LibraryId,
+  methodByWireName,
+  decodeRequest,
+  encodeResponse,
+  pageWire,
+  STORE_PROTOCOL,
+  type StoreHandlers,
+  type StoreMethod,
+  type StoreRequest,
+  summaryWire,
+  trashWire,
+  writeWire,
+} from "./wire.ts";
+
+export { STORE_PATH } from "./wire.ts";
 
 export interface StoreCallResult {
   readonly status: number;
   readonly body: Uint8Array;
-}
-
-/** Each store error's code on the wire and its HTTP status. */
-const ERRORS: Readonly<Record<PageStoreErrorCode, { code: StoreErrorCode; status: number }>> = {
-  "not-found": { code: StoreErrorCode.NOT_FOUND, status: 404 },
-  exists: { code: StoreErrorCode.EXISTS, status: 409 },
-  "invalid-name": { code: StoreErrorCode.INVALID_NAME, status: 422 },
-  "invalid-text": { code: StoreErrorCode.INVALID_TEXT, status: 422 },
-  conflict: { code: StoreErrorCode.CONFLICT, status: 409 },
-  unavailable: { code: StoreErrorCode.UNAVAILABLE, status: 503 },
-  unreadable: { code: StoreErrorCode.UNREADABLE, status: 422 },
-};
-
-function summary(p: PageSummary): Omit<StoredPageSummary, "$typeName" | "$unknown"> {
-  return { name: p.name, size: BigInt(p.size), modifiedAt: p.modifiedAt };
-}
-
-function written(w: WriteResult): Omit<StoredWrite, "$typeName" | "$unknown"> {
-  return { name: w.name, revision: w.revision, size: BigInt(w.size), modifiedAt: w.modifiedAt };
-}
-
-function trashed(t: TrashEntry): Omit<StoredTrashEntry, "$typeName" | "$unknown"> {
-  return { id: t.id, name: t.name, size: BigInt(t.size), trashedAt: t.trashedAt };
 }
 
 /** A trash id from the wire; one that names no trashed page reads as not found. */
@@ -71,94 +53,68 @@ function trashId(value: string): TrashId {
 /** A request that decodes but can't be one this server's client sent. */
 class BadRequest extends Error {}
 
-type Handler = (store: PageStore, request: never) => Promise<unknown>;
-
-/** Each method: run it on the store, with a request already decoded. */
-const HANDLERS: Readonly<Record<string, Handler>> = {
-  ListPages: async (store: PageStore) => ({ pages: (await store.list()).map(summary) }),
-  ReadPage: async (store: PageStore, r: { name: string }) => {
-    const page = await store.read(parsePageName(r.name));
-    return {
-      page: {
-        name: page.name,
-        text: page.text,
-        revision: page.revision,
-        size: BigInt(page.size),
-        modifiedAt: page.modifiedAt,
-      },
-    };
-  },
-  CreatePage: async (store: PageStore, r: { name: string; text: string }) => ({
-    result: written(await store.create(parsePageName(r.name), r.text)),
-  }),
-  CreateUniquePage: async (store: PageStore, r: { desired: string; text: string }) => ({
-    result: written(await store.createUnique(r.desired, r.text)),
-  }),
-  WritePage: async (store: PageStore, r: { name: string; text: string; expected?: string }) => {
-    // Revisions come from this server's own answers, so one that doesn't parse is a malformed request.
-    const expected = r.expected === undefined ? null : parseRevision(r.expected);
-    if (r.expected !== undefined && expected === null) throw new BadRequest();
-    return { result: written(await store.write(parsePageName(r.name), r.text, expected)) };
-  },
-  RenamePage: async (store: PageStore, r: { from: string; to: string }) => ({
-    result: written(await store.rename(parsePageName(r.from), parsePageName(r.to))),
-  }),
-  TrashPage: async (store: PageStore, r: { name: string }) => ({
-    entry: trashed(await store.trash(parsePageName(r.name))),
-  }),
-  ListTrash: async (store: PageStore) => ({ entries: (await store.listTrash()).map(trashed) }),
-  RestorePage: async (store: PageStore, r: { id: string }) => ({
-    result: written(await store.restore(trashId(r.id))),
-  }),
-  PurgePage: async (store: PageStore, r: { id: string }) => {
-    await store.purge(trashId(r.id));
-    return {};
-  },
-};
-
-function failure(error: PageStoreError): StoreCallResult {
-  const { code, status } = ERRORS[error.code];
-  const detail = error as PageStoreError & {
-    page?: string;
-    input?: string;
-    expected?: string;
-    actual?: string | null;
-    reason?: string;
+/** Every method, answered over `store`, for the library `id`. */
+export function storeHandlers(store: PageStore, id: LibraryId): StoreHandlers {
+  return {
+    listPages: async () => ({ pages: (await store.list()).map(summaryWire.to) }),
+    readPage: async (r) => ({ page: pageWire.to(await store.read(parsePageName(r.name))) }),
+    createPage: async (r) => ({ result: writeWire.to(await store.create(parsePageName(r.name), r.text)) }),
+    createUniquePage: async (r) => ({ result: writeWire.to(await store.createUnique(r.desired, r.text)) }),
+    writePage: async (r) => {
+      // Revisions come from this server's own answers, so one that doesn't parse is a malformed request.
+      const expected = r.expected === undefined ? null : parseRevision(r.expected);
+      if (r.expected !== undefined && expected === null) throw new BadRequest();
+      return { result: writeWire.to(await store.write(parsePageName(r.name), r.text, expected)) };
+    },
+    renamePage: async (r) => ({
+      result: writeWire.to(await store.rename(parsePageName(r.from), parsePageName(r.to))),
+    }),
+    trashPage: async (r) => ({ entry: trashWire.to(await store.trash(parsePageName(r.name))) }),
+    listTrash: async () => ({ entries: (await store.listTrash()).map(trashWire.to) }),
+    restorePage: async (r) => ({ result: writeWire.to(await store.restore(trashId(r.id))) }),
+    purgePage: async (r) => {
+      await store.purge(trashId(r.id));
+      return {};
+    },
+    getLibrary: async () => ({ library: { id, protocol: STORE_PROTOCOL } }),
   };
-  const message = create(StoreFailureSchema, {
-    code,
-    message: error.message,
-    page: detail.page ?? detail.input ?? "",
-    expected: detail.expected ?? "",
-    ...(typeof detail.actual === "string" ? { actual: detail.actual } : {}),
-    reason: detail.reason ?? "",
-  });
-  return { status, body: toBinary(StoreFailureSchema, message) };
 }
 
-/** The path prefix of every store call. */
-export const STORE_PATH = `/${PageStoreService.typeName}/`;
-
-/**
- * Answer one call: `method` (such as "ReadPage") with the request's protobuf
- * bytes. Unknown methods are 404 and undecodable requests 400, with an empty
- * body; store errors are a StoreFailure with their status.
- */
-export async function handleStoreCall(store: PageStore, method: string, body: Uint8Array): Promise<StoreCallResult> {
-  const handler = HANDLERS[method];
-  const desc = Object.values(PageStoreService.method).find((m) => m.name === method);
-  if (!handler || !desc) return { status: 404, body: new Uint8Array() };
-  let request: unknown;
+/** Decode `method`'s request, run its handler, and encode its response; 400 for a request that doesn't decode. */
+async function answer<K extends StoreMethod>(
+  handlers: StoreHandlers,
+  method: K,
+  body: Uint8Array,
+): Promise<StoreCallResult> {
+  let request: StoreRequest<K>;
   try {
-    request = fromBinary(desc.input, body);
+    request = decodeRequest(method, body);
   } catch {
     return { status: 400, body: new Uint8Array() };
   }
+  const handler: StoreHandlers[K] = handlers[method];
+  return { status: 200, body: encodeResponse(method, await handler(request)) };
+}
+
+/**
+ * Answer one call: the method's wire name (such as "ReadPage") with the
+ * request's protobuf bytes. Unknown methods are 404 and undecodable requests
+ * 400, with an empty body; store errors are a StoreFailure with their status.
+ */
+export async function handleStoreCall(
+  handlers: StoreHandlers,
+  wireName: string,
+  body: Uint8Array,
+): Promise<StoreCallResult> {
+  const method = methodByWireName(wireName);
+  if (!method) return { status: 404, body: new Uint8Array() };
   try {
-    const response = await handler(store, request as never);
-    return { status: 200, body: toBinary(desc.output, create(desc.output, response as never)) };
+    return await answer(handlers, method, body);
   } catch (error) {
-    if (error instanceof PageStoreError) return failure(error);
+    if (error instanceof PageStoreError) {
+      const { status, failure } = failureOf(error);
+      return { status, body: toBinary(StoreFailureSchema, create(StoreFailureSchema, failure)) };
+    }
     if (error instanceof BadRequest) return { status: 400, body: new Uint8Array() };
     throw error;
   }

@@ -188,10 +188,20 @@ export class PageConflictError extends PageStoreError {
   }
 }
 
+/**
+ * Why a served library can't be used (README, "Served library"): `a4 serve`
+ * isn't running, refused this browser's token, speaks an older or newer
+ * protocol version, or sent an answer A4 can't read.
+ */
+export type UnavailableReason = "not-running" | "refused" | "older-server" | "newer-server" | "bad-answer";
+
 export class StoreUnavailableError extends PageStoreError {
   override readonly code = "unavailable";
-  constructor(message: string) {
+  /** Why a served library can't be used; null for the other stores. */
+  readonly reason: UnavailableReason | null;
+  constructor(message: string, reason: UnavailableReason | null = null) {
     super("unavailable", message);
+    this.reason = reason;
   }
 }
 

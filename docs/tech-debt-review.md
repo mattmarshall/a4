@@ -137,16 +137,20 @@ with the clearest payoff, and records the rest below.
   only from the copy checked.
 - The README says to keep `.a4-serve-token` out of git.
 
+**Taken up by `harden-served-protocol`:**
+- **The store protocol was mirrored by hand.** Now:
+  - `lib/persist/store/wire.ts` derives the methods from the generated
+    service;
+  - the server's handler table must cover every method to compile;
+  - each conversion sits beside its inverse;
+  - failures carry a typed detail.
+- **A served library had no identity.** Now:
+  - each library folder keeps an id in `.a4-library`, which the app learns
+    from `GetLibrary` with the protocol version;
+  - drafts, tab messages, and open pages are kept by that id;
+  - a server of another version is refused, saying what to do.
+
 **Left for a later round:**
-- **The store protocol is mirrored by hand.**
-  - `serve.ts` and `remote.ts` each list every method and convert each
-    message.
-  - A typed method table, like `lib/models/client.ts`'s, would make a new
-    RPC fail to compile until both sides handle it.
-  - `StoreFailure` could carry a typed detail instead of a free `reason`.
-- **A served library has no identity.** Drafts and open pages are keyed by
-  address, so another folder served on the same port inherits them. A
-  `GetLibrary` call with an id and a protocol version would fix both.
 - **Pen UI.**
   - Fit to page's panel, the installed pens' controls, and the consent
     dialog are near copies.

@@ -1,61 +1,26 @@
 /**
  * A PageStore served by `a4 serve` (README, "Served library"): each operation
  * is one POST to `<base>/a4.v1.PageStoreService/<Method>` with the library's
- * token, and protobuf bodies both ways (proto/a4/v1/store.proto). A store error
- * comes back as an `a4.v1.StoreFailure` and is thrown as the same typed error
- * the browser's own store throws, so autosave, conflicts, and retries work as
- * they do there. A request that can't reach the server, or that the server
- * refuses, is StoreUnavailableError.
+ * token, and protobuf bodies both ways (proto/a4/v1/store.proto), encoded and
+ * decoded by the wire module both sides share (wire.ts).
+ *
+ * A store error comes back as an `a4.v1.StoreFailure` and is thrown as the
+ * same typed error the browser's own store throws, so autosave, conflicts,
+ * and retries work as they do there. Anything else is StoreUnavailableError,
+ * with why:
+ * - not-running: the request couldn't reach the server;
+ * - refused: the server refused the token or this page's origin;
+ * - older-server: it doesn't know the method (an older checkout);
+ * - newer-server or older-server: `library()` found another protocol version;
+ * - bad-answer: an answer A4 can't read.
  */
 
-import {
-  create,
-  type DescMessage,
-  fromBinary,
-  type MessageInitShape,
-  type MessageShape,
-  toBinary,
-} from "@bufbuild/protobuf";
-import {
-  CreatePageRequestSchema,
-  CreatePageResponseSchema,
-  CreateUniquePageRequestSchema,
-  CreateUniquePageResponseSchema,
-  ListPagesRequestSchema,
-  ListPagesResponseSchema,
-  ListTrashRequestSchema,
-  ListTrashResponseSchema,
-  PurgePageRequestSchema,
-  PurgePageResponseSchema,
-  ReadPageRequestSchema,
-  ReadPageResponseSchema,
-  RenamePageRequestSchema,
-  RenamePageResponseSchema,
-  RestorePageRequestSchema,
-  RestorePageResponseSchema,
-  StoreErrorCode,
-  type StoredTrashEntry,
-  type StoredWrite,
-  type StoreFailure,
-  StoreFailureSchema,
-  TrashPageRequestSchema,
-  TrashPageResponseSchema,
-  WritePageRequestSchema,
-  WritePageResponseSchema,
-} from "../../gen/a4/v1/store_pb.js";
-import { storedPageName } from "./names.ts";
-import { parseRevision } from "./revision.ts";
-import { parseTrashId } from "./trash-ids.ts";
+import { fromBinary } from "@bufbuild/protobuf";
+import { StoreErrorCode, type StoreFailure, StoreFailureSchema } from "../../gen/a4/v1/store_pb.js";
 import {
   assertStorableText,
-  FileUnreadableError,
-  InvalidPageNameError,
-  InvalidTextError,
   type Page,
-  PageConflictError,
-  PageExistsError,
   type PageName,
-  PageNotFoundError,
   type PageStore,
   type PageSummary,
   type Revision,
@@ -64,6 +29,32 @@ import {
   type TrashId,
   type WriteResult,
 } from "./types.ts";
+import {
+  decodeResponse,
+  encodeRequest,
+  errorFrom,
+  type LibraryId,
+  libraryFrom,
+  olderServer,
+  pageWire,
+  STORE_PATH,
+  type StoreMethod,
+  type StoreRequestInit,
+  type StoreResponse,
+  summaryWire,
+  trashWire,
+  wireName,
+  writeWire,
+} from "./wire.ts";
+
+/** A served library's store: a PageStore that can say which library it is. */
+export interface ServedStore extends PageStore {
+  /**
+   * The library's id, once the server is reached and speaks this app's
+   * protocol. @throws StoreUnavailableError with why it can't be used.
+   */
+  library(): Promise<LibraryId>;
+}
 
 export interface RemotePageStoreOptions {
   /** The server, such as "http://127.0.0.1:4320". */
@@ -72,56 +63,7 @@ export interface RemotePageStoreOptions {
   readonly fetch?: typeof fetch;
 }
 
-const PATH = "/a4.v1.PageStoreService/";
-
-function name(value: string): PageName {
-  const parsed = storedPageName(value);
-  if (!parsed) throw new StoreUnavailableError(`a4 serve sent a page name A4 can’t use: “${value}”.`);
-  return parsed;
-}
-
-function revision(value: string): Revision {
-  const parsed = parseRevision(value);
-  if (!parsed) throw new StoreUnavailableError("a4 serve sent a revision A4 can’t read.");
-  return parsed;
-}
-
-function writeResult(w: StoredWrite | undefined): WriteResult {
-  if (!w) throw new StoreUnavailableError("a4 serve sent an empty answer.");
-  return { name: name(w.name), revision: revision(w.revision), size: Number(w.size), modifiedAt: w.modifiedAt };
-}
-
-function trashEntry(t: StoredTrashEntry | undefined): TrashEntry {
-  const parsed = t ? parseTrashId(t.id) : null;
-  if (!t || !parsed) throw new StoreUnavailableError("a4 serve sent a trash entry A4 can’t read.");
-  return { id: parsed.id, name: name(t.name), size: Number(t.size), trashedAt: t.trashedAt };
-}
-
-/** The typed error a StoreFailure stands for. */
-function errorOf(failure: StoreFailure): Error {
-  switch (failure.code) {
-    case StoreErrorCode.NOT_FOUND:
-      return new PageNotFoundError(failure.page);
-    case StoreErrorCode.EXISTS:
-      return new PageExistsError(failure.page);
-    case StoreErrorCode.INVALID_NAME:
-      return new InvalidPageNameError(failure.page, failure.message);
-    case StoreErrorCode.INVALID_TEXT:
-      return new InvalidTextError(failure.page);
-    case StoreErrorCode.CONFLICT:
-      return new PageConflictError(
-        failure.page,
-        revision(failure.expected),
-        failure.actual === undefined ? null : parseRevision(failure.actual),
-      );
-    case StoreErrorCode.UNREADABLE:
-      return new FileUnreadableError(failure.page, failure.reason === "too-large" ? "too-large" : "not-utf8");
-    default:
-      return new StoreUnavailableError(failure.message || "a4 serve couldn’t do that.");
-  }
-}
-
-export class RemotePageStore implements PageStore {
+export class RemotePageStore implements ServedStore {
   readonly kind = "served" as const;
   readonly durable = true;
   /** The server this store talks to, as "127.0.0.1:4320". */
@@ -137,36 +79,29 @@ export class RemotePageStore implements PageStore {
     this.#fetch = options.fetch ?? ((input, init) => globalThis.fetch(input, init));
   }
 
-  async #call<I extends DescMessage, O extends DescMessage>(
-    method: string,
-    input: I,
-    output: O,
-    request: MessageInitShape<I>,
-  ): Promise<MessageShape<O>> {
+  async #call<K extends StoreMethod>(method: K, request: StoreRequestInit<K>): Promise<StoreResponse<K>> {
     let response: Response;
     try {
-      response = await this.#fetch(`${this.#base}${PATH}${method}`, {
+      response = await this.#fetch(`${this.#base}${STORE_PATH}${wireName(method)}`, {
         method: "POST",
         headers: { "content-type": "application/proto", authorization: `Bearer ${this.#token}` },
-        body: toBinary(input, create(input, request)),
+        body: encodeRequest(method, request),
         credentials: "omit",
         referrerPolicy: "no-referrer",
       });
     } catch {
-      throw new StoreUnavailableError(`a4 serve isn’t running at ${this.address}.`);
+      throw new StoreUnavailableError(`a4 serve isn’t running at ${this.address}.`, "not-running");
     }
     const bytes = new Uint8Array(await response.arrayBuffer().catch(() => new ArrayBuffer(0)));
     if (response.ok) {
       try {
-        return fromBinary(output, bytes);
+        return decodeResponse(method, bytes);
       } catch {
-        throw new StoreUnavailableError("a4 serve sent an answer A4 can’t read.");
+        throw new StoreUnavailableError("a4 serve sent an answer A4 can’t read.", "bad-answer");
       }
     }
     if (response.status === 401 || response.status === 403) {
-      throw new StoreUnavailableError(
-        `a4 serve at ${this.address} refused this request: the token or this page’s address doesn’t match.`,
-      );
+      throw new StoreUnavailableError(`a4 serve at ${this.address} refused this browser’s token.`, "refused");
     }
     let failure: StoreFailure | null = null;
     try {
@@ -174,74 +109,58 @@ export class RemotePageStore implements PageStore {
     } catch {
       failure = null;
     }
-    if (failure && failure.code !== StoreErrorCode.UNSPECIFIED) throw errorOf(failure);
-    throw new StoreUnavailableError(`a4 serve at ${this.address} answered ${response.status}.`);
+    if (failure && failure.code !== StoreErrorCode.UNSPECIFIED) throw errorFrom(failure);
+    // A 404 with no failure: the server doesn't know this method, so it's from an older checkout.
+    if (response.status === 404 && bytes.length === 0) throw olderServer(this.address);
+    throw new StoreUnavailableError(`a4 serve at ${this.address} answered ${response.status}.`, "bad-answer");
+  }
+
+  async library(): Promise<LibraryId> {
+    const r = await this.#call("getLibrary", {});
+    return libraryFrom(r.library, this.address);
   }
 
   async list(): Promise<PageSummary[]> {
-    const r = await this.#call("ListPages", ListPagesRequestSchema, ListPagesResponseSchema, {});
-    return r.pages.map((p) => ({ name: name(p.name), size: Number(p.size), modifiedAt: p.modifiedAt }));
+    return (await this.#call("listPages", {})).pages.map(summaryWire.from);
   }
 
   async read(page: PageName): Promise<Page> {
-    const r = await this.#call("ReadPage", ReadPageRequestSchema, ReadPageResponseSchema, { name: page });
-    const p = r.page;
-    if (!p) throw new StoreUnavailableError("a4 serve sent an empty answer.");
-    return {
-      name: name(p.name),
-      text: p.text,
-      revision: revision(p.revision),
-      size: Number(p.size),
-      modifiedAt: p.modifiedAt,
-    };
+    return pageWire.from((await this.#call("readPage", { name: page })).page);
   }
 
   async create(page: PageName, text: string): Promise<WriteResult> {
     assertStorableText(page, text);
-    const r = await this.#call("CreatePage", CreatePageRequestSchema, CreatePageResponseSchema, { name: page, text });
-    return writeResult(r.result);
+    return writeWire.from((await this.#call("createPage", { name: page, text })).result);
   }
 
   async createUnique(desired: string, text: string): Promise<WriteResult> {
     assertStorableText(desired, text);
-    const r = await this.#call("CreateUniquePage", CreateUniquePageRequestSchema, CreateUniquePageResponseSchema, {
-      desired,
-      text,
-    });
-    return writeResult(r.result);
+    return writeWire.from((await this.#call("createUniquePage", { desired, text })).result);
   }
 
   async write(page: PageName, text: string, expected?: Revision | null): Promise<WriteResult> {
     assertStorableText(page, text);
-    const r = await this.#call("WritePage", WritePageRequestSchema, WritePageResponseSchema, {
-      name: page,
-      text,
-      ...(expected ? { expected } : {}),
-    });
-    return writeResult(r.result);
+    const r = await this.#call("writePage", { name: page, text, ...(expected ? { expected } : {}) });
+    return writeWire.from(r.result);
   }
 
   async rename(from: PageName, to: PageName): Promise<WriteResult> {
-    const r = await this.#call("RenamePage", RenamePageRequestSchema, RenamePageResponseSchema, { from, to });
-    return writeResult(r.result);
+    return writeWire.from((await this.#call("renamePage", { from, to })).result);
   }
 
   async trash(page: PageName): Promise<TrashEntry> {
-    const r = await this.#call("TrashPage", TrashPageRequestSchema, TrashPageResponseSchema, { name: page });
-    return trashEntry(r.entry);
+    return trashWire.from((await this.#call("trashPage", { name: page })).entry);
   }
 
   async listTrash(): Promise<TrashEntry[]> {
-    const r = await this.#call("ListTrash", ListTrashRequestSchema, ListTrashResponseSchema, {});
-    return r.entries.map(trashEntry);
+    return (await this.#call("listTrash", {})).entries.map(trashWire.from);
   }
 
   async restore(id: TrashId): Promise<WriteResult> {
-    const r = await this.#call("RestorePage", RestorePageRequestSchema, RestorePageResponseSchema, { id });
-    return writeResult(r.result);
+    return writeWire.from((await this.#call("restorePage", { id })).result);
   }
 
   async purge(id: TrashId): Promise<void> {
-    await this.#call("PurgePage", PurgePageRequestSchema, PurgePageResponseSchema, { id });
+    await this.#call("purgePage", { id });
   }
 }

@@ -12,7 +12,7 @@ import { ReadPageRequestSchema, WritePageRequestSchema } from "../lib/gen/a4/v1/
 import { parsePageName } from "../lib/persist/store/names.ts";
 import { RemotePageStore } from "../lib/persist/store/remote.ts";
 import { pageStoreContract } from "../lib/persist/store/testing/contract.ts";
-import { APP_ORIGIN, type RunningServer, startServer, TOKEN_FILE } from "./serve.ts";
+import { APP_ORIGIN, LIBRARY_FILE, type RunningServer, startServer, TOKEN_FILE } from "./serve.ts";
 
 const folders: string[] = [];
 const servers: RunningServer[] = [];
@@ -184,6 +184,36 @@ test("the token is kept owner-only, reused across runs, and replaced by --new-to
   // The old token no longer opens the library.
   await assert.rejects(client(third, first.token).list(), /refused/);
   assert.deepEqual(await client(third).list(), []);
+});
+
+test("the library's id is made once, and kept across restarts and --new-token", async () => {
+  const dir = await folder();
+  const first = await serve(dir);
+  assert.match(first.library, /^[A-Za-z0-9_-]{22}$/);
+  assert.equal((await readFile(join(dir, LIBRARY_FILE), "utf8")).trim(), first.library);
+  assert.equal((await stat(join(dir, LIBRARY_FILE))).mode & 0o777, 0o644);
+  // The app learns it from GetLibrary.
+  assert.equal(await client(first).library(), first.library);
+  await first.close();
+  const again = await serve(dir);
+  assert.equal(again.library, first.library);
+  await again.close();
+  const renewed = await serve(dir, { newToken: true });
+  assert.notEqual(renewed.token, first.token);
+  assert.equal(renewed.library, first.library);
+  assert.equal(await client(renewed).library(), first.library);
+  // Another folder is another library.
+  assert.notEqual((await serve()).library, first.library);
+});
+
+test("a library file that doesn't hold an id stops the server", async () => {
+  const dir = await folder();
+  await writeFile(join(dir, LIBRARY_FILE), "edited by hand\n");
+  await assert.rejects(serve(dir), /doesn’t hold a library id\. Delete it/);
+  assert.equal((await readFile(join(dir, LIBRARY_FILE), "utf8")).trim(), "edited by hand");
+  const run = await runCli([dir]);
+  assert.equal(run.status, 2);
+  assert.match(run.stderr, /doesn’t hold a library id/);
 });
 
 test("a client that goes away mid-request ends that request, not the server", async () => {

@@ -16,9 +16,17 @@ import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmod, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { join, resolve } from "node:path";
-import { APP_ORIGIN, connectLink, DEFAULT_SERVE_PORT, isServedToken, type PageStore } from "../lib/persist/index.ts";
+import {
+  APP_ORIGIN,
+  connectLink,
+  DEFAULT_SERVE_PORT,
+  isLibraryId,
+  isServedToken,
+  type LibraryId,
+  type StoreHandlers,
+} from "../lib/persist/index.ts";
 import { openFolderLibrary } from "../lib/persist/store/node-handle.ts";
-import { handleStoreCall, STORE_PATH } from "../lib/persist/store/serve.ts";
+import { handleStoreCall, STORE_PATH, storeHandlers } from "../lib/persist/store/serve.ts";
 import { UsageError } from "./usage.ts";
 
 export interface ServeArgs {
@@ -37,6 +45,9 @@ export const DEFAULT_PORT = DEFAULT_SERVE_PORT;
 /** The token file, beside the pages. */
 export const TOKEN_FILE = ".a4-serve-token";
 
+/** The library's id file, beside the pages: made once, kept across restarts and new tokens. */
+export const LIBRARY_FILE = ".a4-library";
+
 /** The largest request body accepted: a page and its envelope. */
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 
@@ -54,6 +65,27 @@ async function libraryToken(folder: string, fresh: boolean): Promise<string> {
   await writeFile(path, `${token}\n`, { mode: 0o600 });
   await chmod(path, 0o600);
   return token;
+}
+
+/**
+ * The library's id: the one in the folder, or a new one (16 random bytes)
+ * written there once, with an exclusive create so two servers starting at
+ * once agree on it. It's an id, not a secret. A file that doesn't hold an id
+ * stops the server: replacing it would orphan the library's drafts.
+ */
+async function libraryId(folder: string): Promise<LibraryId> {
+  const path = join(folder, LIBRARY_FILE);
+  const fresh = randomBytes(16).toString("base64url");
+  await writeFile(path, `${fresh}\n`, { flag: "wx", mode: 0o644 }).catch((error: NodeJS.ErrnoException) => {
+    if (error.code !== "EEXIST") throw error;
+  });
+  const id = (await readFile(path, "utf8")).trim();
+  if (!isLibraryId(id)) {
+    throw new Error(
+      `“${LIBRARY_FILE}” in ${folder} doesn’t hold a library id. Delete it to give the library a new one.`,
+    );
+  }
+  return id;
 }
 
 function sameSecret(given: string, token: string): boolean {
@@ -77,6 +109,8 @@ export interface RunningServer {
   /** "127.0.0.1:<port>". */
   readonly address: string;
   readonly token: string;
+  /** The library's id, from `.a4-library`. */
+  readonly library: LibraryId;
   /** One connect link per allowed origin, the app's first. */
   readonly links: readonly string[];
   readonly server: Server;
@@ -84,7 +118,7 @@ export interface RunningServer {
 }
 
 /** The request handler: Host, then Origin and preflight, then the token, then the store call. */
-function handler(store: PageStore, port: () => number, origins: ReadonlySet<string>, token: string) {
+function handler(handlers: StoreHandlers, port: () => number, origins: ReadonlySet<string>, token: string) {
   return async (req: IncomingMessage, res: ServerResponse) => {
     const host = req.headers.host ?? "";
     if (host !== `127.0.0.1:${port()}` && host !== `localhost:${port()}`) {
@@ -125,7 +159,7 @@ function handler(store: PageStore, port: () => number, origins: ReadonlySet<stri
     }
     const method = url.pathname.slice(STORE_PATH.length);
     try {
-      const result = await handleStoreCall(store, method, bytes);
+      const result = await handleStoreCall(handlers, method, bytes);
       res.writeHead(result.status, { "content-type": "application/proto" }).end(Buffer.from(result.body));
     } catch (error) {
       // A failure outside the store's typed errors (the disk is full, a permission changed): log its
@@ -175,9 +209,10 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
   }
   const origins = new Set([APP_ORIGIN, ...args.origins.map((o) => o.replace(/\/+$/, ""))]);
   const token = await libraryToken(folder, args.newToken);
+  const library = await libraryId(folder);
   const store = await openFolderLibrary(folder);
   let port = args.port;
-  const server = createServer(guarded(handler(store, () => port, origins, token)));
+  const server = createServer(guarded(handler(storeHandlers(store, library), () => port, origins, token)));
   await new Promise<void>((done, fail) => {
     server.once("error", (error: NodeJS.ErrnoException) =>
       fail(error.code === "EADDRINUSE" ? new Error(`Port ${args.port} is taken. Choose another with --port.`) : error),
@@ -190,6 +225,7 @@ export async function startServer(args: ServeArgs): Promise<RunningServer> {
   return {
     address,
     token,
+    library,
     links: [...origins].map((o) => connectLink(o, { address, token })),
     server,
     close: () =>

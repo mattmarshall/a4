@@ -1117,6 +1117,16 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
 - **The folder.** Pages are `pages/<name>.md`, holding exactly the page text,
   and trashed pages are in `trash/`, as in this browser's library. The
   library's token is in `.a4-serve-token`. A missing folder is created.
+- **The library's id.** `.a4-library` names the library, so A4 keeps its
+  unsaved edits and open pages apart from any other folder's, even one
+  served on the same port later.
+  - It's made the first time the folder is served, and kept across restarts
+    and `--new-token`.
+  - It isn't secret.
+  - A copied folder carries it along: delete `.a4-library` in the copy to
+    make it a library of its own.
+  - If the file is edited so it no longer holds an id, `a4 serve` exits 2:
+    delete it to give the library a new id.
 - **The command.** It prints its address and a link that connects A4, then
   serves until Ctrl-C.
   - **`--port <n>`** listens on another port (default 4320; 0 picks a free
@@ -1125,6 +1135,8 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
     `http://localhost:5173` for a development server. It prints a link for
     each origin.
   - **`--new-token`** replaces the token, which disconnects every browser.
+    The library's id stays the same, so opening the new link brings back
+    its open pages.
   - It exits 2 for a folder it can't use or a port that's taken.
 - **What keeps it private.**
   - It listens on 127.0.0.1 only, and answers only requests whose `Host` is
@@ -1134,17 +1146,28 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   - Every request carries the library's token, 32 random bytes kept in
     `.a4-serve-token` (readable only by you), and reused across runs so a
     connected browser stays connected. A wrong token gets 401. If the folder
-    is a git repository, add `.a4-serve-token` to its `.gitignore`.
+    is a git repository, add `.a4-serve-token` and `.a4-library` to its
+    `.gitignore`.
   - Page text goes only between this browser and 127.0.0.1. a4.marsh.build
     still stores nothing.
   - It keeps out web pages, not programs: anything running as you can read
     the folder anyway.
-- **The protocol.** One POST per store operation to
+- **The protocol.** One POST per call to
   `/a4.v1.PageStoreService/<Method>`, with protobuf bodies
-  (`proto/a4/v1/store.proto`). A store error comes back as a `StoreFailure`,
-  so a conflict or a taken name behaves as it does in this browser. The
-  served store, and the store over HTTP, pass the same contract tests as
-  this browser's.
+  (`proto/a4/v1/store.proto`).
+  - A store error comes back as a `StoreFailure` with a typed detail, so a
+    conflict, a taken name, or a file that isn't UTF-8 behaves as it does
+    in this browser.
+  - `GetLibrary` returns the library's id and the protocol version.
+  - The served store, and the store over HTTP, pass the same contract tests
+    as this browser's.
+- **Versions.** A4 and `a4 serve` must speak the same protocol version,
+  and A4 checks before it shows the library.
+  - A server from an older checkout is refused, with a note to update the
+    checkout and restart it.
+  - A server newer than the open A4 tab is refused, with a note to reload
+    A4.
+  - Either way, nothing is read from or written to that server.
 - **Connecting.** Open the link it prints:
   `https://a4.marsh.build/#serve=127.0.0.1:4320.<token>`. A4 connects,
   shows the served pages, remembers the connection in this browser, and
@@ -1154,20 +1177,30 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   127.0.0.1 or localhost.
 - **Switching.** The Pages panel switches between **This browser** and
   **a4 serve**. Every library action works on the one shown. Each library
-  keeps its own open pages, unsaved edits, and other-tab updates, so
-  switching back shows each as you left it. The open folder stays open.
+  keeps its own open pages, unsaved edits, and other-tab updates, a served
+  one by its id. So switching back shows each as you left it, and a
+  different folder served at the same address starts fresh. The open
+  folder stays open.
 - **Changes on disk.** While the served library is shown in a visible tab,
   A4 lists it every 2 seconds. A page added, removed, or changed on disk
   shows up within 5 seconds. An open page with no unsaved edits shows the
   new text; one with unsaved edits keeps both versions when it saves, as a
   conflict with another tab does.
-- **When the server is down.** Starting on, or switching to, the served
-  library while `a4 serve` isn't running says so, with its address, and
-  shows this browser's library. Edits typed while it stopped stay in this
-  browser, and are saved to the served library when you switch back with it
-  running.
+- **When A4 can't use the server.** Starting on, or switching to, the
+  served library then shows this browser's library, changes nothing, and
+  says why, with what to do:
+  - **not running:** start `a4 serve` and switch again;
+  - **refused this browser's token** (it was restarted with
+    `--new-token`): open the link it printed;
+  - **older or newer than this A4:** see Versions;
+  - **an answer A4 can't read:** restart it, and update your checkout if
+    that doesn't help.
+
+  Edits typed while it stopped stay in this browser, and are saved to the
+  served library when you switch back with it running.
 - **Disconnect** forgets the address and token in this browser and shows
-  this browser's library. The folder's files stay as they are.
+  this browser's library. The folder's files stay as they are, and the
+  library's open pages come back when it's connected again.
 - **The two libraries don't sync.** To copy pages from one to the other, use
   **Export all** and **Import .zip**.
 

@@ -5,16 +5,19 @@ import { browserFolderSource } from "../persist/folder/fs-browser.ts";
 import { MemoryHandleStore } from "../platform/handle-store.ts";
 import { MemoryKeyValue } from "../platform/key-value.ts";
 import { ChannelHub, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
-import { readSetting, SETTINGS } from "../persist/settings.ts";
+import { Journal } from "../persist/autosave/journal.ts";
+import { libraryRef } from "../persist/store/refs.ts";
+import { readSetting, SETTINGS, writeSetting } from "../persist/settings.ts";
 import { MemoryPageStore } from "../persist/store/key-value.ts";
-import { parsePageName } from "../persist/store/names.ts";
+import { pageNameCodec, parsePageName } from "../persist/store/names.ts";
+import type { ServedStore } from "../persist/store/remote.ts";
 import type { ServedConnection } from "../persist/store/served.ts";
 import {
   type PageName,
-  type PageStore,
   type Revision,
   StoreUnavailableError,
   type TrashId,
+  type UnavailableReason,
 } from "../persist/store/types.ts";
 import type { WorkspaceNotice } from "./types.ts";
 import { Workspace } from "./workspace.ts";
@@ -22,17 +25,38 @@ import { Workspace } from "./workspace.ts";
 const n = parsePageName;
 const TOKEN = "t".repeat(43);
 const SERVED: ServedConnection = { address: "127.0.0.1:4320", token: TOKEN };
+const NOTES = "NotesNotesNotesNotes_1";
+const OTHER = "OtherOtherOtherOther_2";
 
-/** A memory store standing in for `a4 serve`: it can be stopped, and counts listings. */
-class ServedStandIn implements PageStore {
+/**
+ * A memory store standing in for `a4 serve` over one library folder: it can
+ * be stopped, or answer as another protocol version, and it counts listings
+ * and page operations.
+ */
+class ServedStandIn implements ServedStore {
   readonly kind = "served" as const;
   readonly durable = true;
   readonly pages = new MemoryPageStore();
+  readonly id: string;
   down = false;
+  /** Answer GetLibrary as a server that can't be used for this reason. */
+  refusal: UnavailableReason | null = null;
   listings = 0;
+  /** Page operations: anything but GetLibrary. */
+  operations = 0;
+
+  constructor(id = NOTES) {
+    this.id = id;
+  }
 
   #up(): void {
-    if (this.down) throw new StoreUnavailableError("a4 serve isn’t running at 127.0.0.1:4320.");
+    if (this.down) throw new StoreUnavailableError("a4 serve isn’t running at 127.0.0.1:4320.", "not-running");
+    this.operations++;
+  }
+  async library() {
+    if (this.down) throw new StoreUnavailableError("a4 serve isn’t running at 127.0.0.1:4320.", "not-running");
+    if (this.refusal) throw new StoreUnavailableError("a4 serve at 127.0.0.1:4320 can’t be used.", this.refusal);
+    return this.id;
   }
   async list() {
     this.#up();
@@ -86,6 +110,8 @@ function setup() {
   const handles = new MemoryHandleStore<FileSystemDirectoryHandle>();
   const store = new MemoryPageStore();
   const served = new ServedStandIn();
+  /** The folder `a4 serve` serves at 127.0.0.1:4320 right now. */
+  let serving = served;
   let visible = true;
   const open = () => {
     const platform = fakePlatform({ scheduler, keyValue, hub, tabs });
@@ -96,7 +122,7 @@ function setup() {
       welcomeText: "Welcome to A4",
       skipMigration: [],
       openStore: async () => ({ store, movedFromFallback: 0 }),
-      openServed: () => served,
+      openServed: () => serving,
       scheduler,
       isVisible: () => visible,
     });
@@ -110,6 +136,10 @@ function setup() {
     served,
     tabs,
     open,
+    /** Serve another folder at the same address. */
+    serve: (folder: ServedStandIn) => {
+      serving = folder;
+    },
     hide: (hidden: boolean) => {
       visible = !hidden;
     },
@@ -174,8 +204,8 @@ test("a draft typed on the served library while it's stopped is recovered there,
   s.served.down = true;
   workspace.edit("a", "v2, typed while the server was stopped");
   assert.ok(
-    s.keyValue.keys().some((k) => k.startsWith("a4:served:127.0.0.1:4320:draft:")),
-    "journaled under the served prefix",
+    s.keyValue.keys().some((k) => k.startsWith(`a4:served:${NOTES}:draft:`)),
+    "journaled under the library's id",
   );
   assert.ok(!s.keyValue.keys().some((k) => k.startsWith("a4:draft:") && k.endsWith(":Brief")));
 
@@ -211,6 +241,7 @@ test("a served library that can't be reached leaves this browser's library in pl
   assert.equal(snapshot.slots.a.text, "Welcome, edited", "nothing was closed");
   const notice = notices.find((x) => x.kind === "served-unreachable");
   assert.ok(notice && notice.kind === "served-unreachable" && notice.address === "127.0.0.1:4320");
+  assert.equal(notice.reason, "not-running");
   // The connection is remembered, so switching works once the server runs.
   s.served.down = false;
   assert.ok((await workspace.switchLibrary("served")).ok);
@@ -314,5 +345,123 @@ test("nothing polls while the tab is hidden, or on this browser's library", asyn
   const after = s.served.listings;
   await s.scheduler.advance(10_000);
   assert.equal(s.served.listings, after);
+  await workspace.dispose();
+});
+
+test("a draft stays with its library: another folder on the same port doesn't get it", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "notes v1");
+  const other = new ServedStandIn(OTHER);
+  await other.pages.create(n("Brief"), "other's brief");
+  const { workspace } = s.open();
+  await workspace.start();
+  await workspace.connectServed(SERVED);
+  s.served.down = true;
+  workspace.edit("a", "notes v2, unsaved");
+  assert.ok((await workspace.switchLibrary("browser")).ok);
+
+  // Another folder is served at the same address: the draft isn't its.
+  s.serve(other);
+  assert.ok((await workspace.switchLibrary("served")).ok);
+  assert.equal(workspace.getSnapshot().served?.shown, true);
+  assert.equal((await other.pages.read(n("Brief"))).text, "other's brief");
+  assert.deepEqual(
+    (await other.pages.list()).map((p) => p.name),
+    ["Brief"],
+  );
+
+  // The first folder, served again, gets its draft back.
+  s.served.down = false;
+  s.serve(s.served);
+  assert.ok((await workspace.switchLibrary("browser")).ok);
+  assert.ok((await workspace.switchLibrary("served")).ok);
+  assert.equal((await s.served.pages.read(n("Brief"))).text, "notes v2, unsaved");
+  await workspace.dispose();
+});
+
+test("open pages come back per library", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "notes brief");
+  await s.served.pages.create(n("Plan"), "notes plan");
+  const other = new ServedStandIn(OTHER);
+  await other.pages.create(n("Ideas"), "other's ideas");
+  const { workspace } = s.open();
+  await workspace.start();
+  await workspace.connectServed(SERVED);
+  await workspace.open("a", libraryRef(n("Plan")));
+  assert.ok((await workspace.switchLibrary("browser")).ok);
+
+  s.serve(other);
+  assert.ok((await workspace.switchLibrary("served")).ok);
+  assert.equal(workspace.getSnapshot().slots.a.name, "Ideas");
+  assert.ok((await workspace.switchLibrary("browser")).ok);
+
+  s.serve(s.served);
+  assert.ok((await workspace.switchLibrary("served")).ok);
+  assert.equal(workspace.getSnapshot().slots.a.name, "Plan");
+  // Disconnecting forgets the connection, not the library's open pages.
+  assert.ok((await workspace.disconnectServed()).ok);
+  assert.ok((await workspace.connectServed(SERVED)).ok);
+  assert.equal(workspace.getSnapshot().slots.a.name, "Plan");
+  await workspace.dispose();
+});
+
+test("a server of another version is refused with its reason, and gets no page operation", async () => {
+  for (const reason of ["older-server", "newer-server"] as const) {
+    const s = setup();
+    await s.served.pages.create(n("Brief"), "served brief");
+    s.served.refusal = reason;
+    const { workspace, notices } = s.open();
+    await workspace.start();
+    workspace.edit("a", "Welcome, edited");
+    assert.ok((await workspace.connectServed(SERVED)).ok);
+    const snapshot = workspace.getSnapshot();
+    assert.equal(snapshot.served?.shown, false);
+    assert.equal(snapshot.storage?.kind, "memory");
+    assert.equal(snapshot.slots.a.text, "Welcome, edited", "nothing was closed");
+    const notice = notices.find((x) => x.kind === "served-unreachable");
+    assert.ok(notice?.kind === "served-unreachable");
+    assert.equal(notice.reason, reason);
+    assert.equal(s.served.operations, 0, `the ${reason} received no page operation`);
+    await workspace.dispose();
+  }
+});
+
+test("what was kept by address is adopted once by the first library reached there", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "brief v1");
+  await s.served.pages.create(n("Plan"), "plan v1");
+  const briefBase = (await s.served.pages.read(n("Brief"))).revision;
+  const planBase = (await s.served.pages.read(n("Plan"))).revision;
+  await s.served.pages.write(n("Plan"), "plan v2, changed since the draft", planBase);
+  const { workspace, notices } = s.open();
+  await workspace.start();
+
+  // Before libraries had ids: drafts from a tab that's gone, kept by address, and one pair of open-page keys.
+  const old = new Journal(s.keyValue, "a-closed-tab", pageNameCodec, { prefix: "a4:served:127.0.0.1:4320:" });
+  old.set(n("Brief"), "brief v1, then a draft", briefBase);
+  old.set(n("Plan"), "plan v1, then a draft", planBase);
+  writeSetting(SETTINGS.servedOpenA, libraryRef(n("Plan")));
+
+  assert.ok((await workspace.connectServed(SERVED)).ok);
+  // The unchanged page gets its draft; the changed one keeps its text, and the draft is saved beside it.
+  assert.equal((await s.served.pages.read(n("Brief"))).text, "brief v1, then a draft");
+  assert.equal((await s.served.pages.read(n("Plan"))).text, "plan v2, changed since the draft");
+  const copies = (await s.served.pages.list()).filter((p) => p.name.startsWith("Plan (recovered"));
+  assert.equal(copies.length, 1);
+  assert.equal((await s.served.pages.read(copies[0]?.name ?? n("missing"))).text, "plan v1, then a draft");
+  assert.ok(notices.some((x) => x.kind === "recovered-library"));
+  // The open page moved to the library's id, and nothing is kept by address any more.
+  assert.equal(workspace.getSnapshot().slots.a.name, "Plan");
+  assert.equal(readSetting(SETTINGS.servedOpenA), null);
+  assert.ok(!s.keyValue.keys().some((k) => k.startsWith("a4:served:127.0.0.1:4320:")));
+
+  // A second reach adopts nothing.
+  const pages = (await s.served.pages.list()).length;
+  const recovered = notices.filter((x) => x.kind === "recovered-library").length;
+  assert.ok((await workspace.switchLibrary("browser")).ok);
+  assert.ok((await workspace.switchLibrary("served")).ok);
+  assert.equal((await s.served.pages.list()).length, pages);
+  assert.equal(notices.filter((x) => x.kind === "recovered-library").length, recovered);
   await workspace.dispose();
 });

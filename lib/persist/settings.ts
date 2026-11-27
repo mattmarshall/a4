@@ -90,6 +90,11 @@ export type LibrarySource = "browser" | "served";
 
 const LIBRARY_SOURCES: readonly LibrarySource[] = ["browser", "served"];
 
+/** The page open in `slot` on the served library `library`, kept by the library's id. */
+export function servedOpenSetting(library: string, slot: "a" | "b"): Setting<PageRef | null> {
+  return defineSetting({ key: `served:${library}:open:${slot}`, codec: openRefCodec, default: null });
+}
+
 export const SETTINGS = {
   preset: defineSetting<PresetId>({ key: "preset", codec: choiceCodec(PRESET_IDS), default: DEFAULT_PRESET }),
   lens: defineSetting<LensId>({ key: "lens", codec: choiceCodec(LENS_IDS), default: "ink" }),
@@ -110,7 +115,11 @@ export const SETTINGS = {
     codec: choiceCodec(LIBRARY_SOURCES),
     default: "browser",
   }),
-  /** The pages open in A and B on the served library (openA and openB are this browser's library). */
+  /**
+   * The pages open in A and B on the served library, kept before libraries had
+   * ids. Adopted once by the first library reached, then cleared (see
+   * `servedOpenSetting` for each library's own).
+   */
   servedOpenA: defineSetting({ key: "served:open:a", codec: openRefCodec, default: null }),
   servedOpenB: defineSetting({ key: "served:open:b", codec: openRefCodec, default: null }),
   /** The name written into the postmarks of letters sealed in this browser. */

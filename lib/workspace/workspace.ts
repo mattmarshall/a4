@@ -59,19 +59,22 @@ import {
   type PageName,
   type PageStore,
   type PageSummary,
+  type StoreUnavailableError,
   type TrashId,
 } from "../persist/store/types.ts";
+import type { ServedStore } from "../persist/store/remote.ts";
 import { FolderIndex } from "./folder-index.ts";
 import { LibraryIndex } from "./library-index.ts";
 import {
+  addressKeys,
   BROWSER,
   channelName,
   defaultServedStore,
-  forgetServedPages,
+  isShown,
   journalPrefix,
+  type LibraryChoice,
   type LibraryTarget,
   openSettings,
-  sameTarget,
 } from "./library-target.ts";
 import { LibraryPoller, type PollerChange } from "./library-poller.ts";
 import { shouldReopen, type PendingFile } from "./pending.ts";
@@ -105,7 +108,7 @@ export interface WorkspaceOptions<H> {
   /** Whether the tab is visible: the watcher polls only then (default: always). */
   isVisible?: () => boolean;
   /** The served library's store (default: `a4 serve` over HTTP at the connection's address). */
-  openServed?: (connection: ServedConnection) => PageStore;
+  openServed?: (connection: ServedConnection) => ServedStore;
 }
 
 const NO_FOLDER: FolderSnapshot = {
@@ -223,8 +226,8 @@ export class Workspace<H> {
     if (recovered.length) this.#notify({ kind: "recovered-library", recoveries: recovered });
   }
 
-  #unreachable(connection: ServedConnection, error: unknown): WorkspaceNotice {
-    return { kind: "served-unreachable", address: connection.address, error };
+  #unreachable(connection: ServedConnection, error: StoreUnavailableError): WorkspaceNotice {
+    return { kind: "served-unreachable", address: connection.address, reason: error.reason, error };
   }
 
   #slotOf(ref: PageRef): Slot | undefined {
@@ -267,8 +270,10 @@ export class Workspace<H> {
     let unreachable: WorkspaceNotice | null = null;
     let shown: Shown | null = null;
     if (served && readSetting(SETTINGS.librarySource) === "served") {
-      const target: LibraryTarget = { kind: "served", connection: served };
-      const result = await attempt(async () => this.#showLibrary(target, await this.#reach(target), live));
+      const result = await attempt(async () => {
+        const reached = await this.#reach({ kind: "served", connection: served });
+        return this.#showLibrary(reached.target, reached.store, live);
+      });
       if (result.ok) shown = result.value;
       else if (isStoreError(result.error, "unavailable")) unreachable = this.#unreachable(served, result.error);
       else throw result.error;
@@ -288,18 +293,56 @@ export class Workspace<H> {
   }
 
   /**
-   * `target`'s store, once it answers: this browser's as it is, and the
-   * served one after a listing, so one that can't be reached throws
-   * StoreUnavailableError before anything changes.
+   * The library `choice` picks, once it answers: this browser's as it is,
+   * and a served one once it says which library it is (GetLibrary), in this
+   * app's protocol. One that can't be used throws StoreUnavailableError, with
+   * why, before anything changes.
    */
-  async #reach(target: LibraryTarget): Promise<PageStore> {
-    if (target.kind === "browser") {
+  async #reach(choice: LibraryChoice): Promise<{ target: LibraryTarget; store: PageStore }> {
+    if (choice.kind === "browser") {
       if (!this.#browserStore) throw new NotReady();
-      return this.#browserStore;
+      return { target: BROWSER, store: this.#browserStore };
     }
-    const store = (this.#options.openServed ?? defaultServedStore)(target.connection);
-    await store.list();
-    return store;
+    const store = (this.#options.openServed ?? defaultServedStore)(choice.connection);
+    const library = await store.library();
+    return { target: { kind: "served", connection: choice.connection, library }, store };
+  }
+
+  /**
+   * Drafts and open pages kept for this served library's address before
+   * libraries had ids: recovered into it (a draft whose page changed is saved
+   * as a copy) and remembered for it, once. Then nothing is kept by address.
+   */
+  async #adoptAddressKeys(
+    target: Extract<LibraryTarget, { kind: "served" }>,
+    store: PageStore,
+    others: ReadonlySet<string> | null,
+  ): Promise<Recovery[]> {
+    const platform = this.#platform;
+    const tabId = this.#tabId;
+    if (!tabId) throw new NotReady();
+    const kept = addressKeys(target.connection.address);
+    const journal = new Journal(platform.keyValue, tabId, pageNameCodec, {
+      clock: platform.clock,
+      prefix: kept.journalPrefix,
+    });
+    const recoveries = await recoverDrafts(
+      store,
+      journal,
+      { kind: "same-store", store },
+      others,
+      platform.clock.now(),
+      {
+        includeOwnTab: true,
+      },
+    ).catch(() => []);
+    const own = openSettings(target);
+    for (const slot of SLOTS) {
+      const ref = readSetting(kept.open[slot]);
+      if (ref && readSetting(own[slot]) === null) writeSetting(own[slot], ref);
+      writeSetting(kept.open[slot], null);
+    }
+    return recoveries;
   }
 
   /**
@@ -323,16 +366,11 @@ export class Workspace<H> {
     });
     // This tab's own drafts here are from saves that failed before a switch away: recover them too.
     const others = live ? new Set([...live].filter((id) => id !== tabId)) : null;
-    const recoveries = await recoverDrafts(
-      store,
-      journal,
-      { kind: "same-store", store },
-      others,
-      platform.clock.now(),
-      {
-        includeOwnTab: true,
-      },
-    ).catch(() => []);
+    const adopted = target.kind === "served" ? await this.#adoptAddressKeys(target, store, others) : [];
+    const own = await recoverDrafts(store, journal, { kind: "same-store", store }, others, platform.clock.now(), {
+      includeOwnTab: true,
+    }).catch(() => []);
+    const recoveries = [...adopted, ...own];
     let migrated = 0;
     if (target.kind === "browser") {
       if (options.starting) {
@@ -836,17 +874,17 @@ export class Workspace<H> {
    * recovered when the author returns to it. A served library that can't be
    * reached leaves everything as it was, with a `served-unreachable` notice.
    */
-  #switchTo(target: LibraryTarget): Promise<void> {
+  #switchTo(choice: LibraryChoice): Promise<void> {
     const run = async () => {
-      if (this.#disposed || sameTarget(this.#target, target)) return;
+      if (this.#disposed || isShown(this.#target, choice)) return;
       const platform = this.#platform;
       // Reach the library before closing anything, so a failure changes nothing.
-      let store: PageStore;
+      let reached: { target: LibraryTarget; store: PageStore };
       try {
-        store = await this.#reach(target);
+        reached = await this.#reach(choice);
       } catch (error) {
-        if (target.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
-        this.#notify(this.#unreachable(target.connection, error));
+        if (choice.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
+        this.#notify(this.#unreachable(choice.connection, error));
         this.#publish();
         return;
       }
@@ -855,12 +893,13 @@ export class Workspace<H> {
       for (const slot of SLOTS) this.#folder?.unwatch(slot);
       let shown: Shown;
       try {
-        shown = await this.#showLibrary(target, store, await platform.tabs.live());
+        shown = await this.#showLibrary(reached.target, reached.store, await platform.tabs.live());
       } catch (error) {
-        if (target.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
+        if (choice.kind !== "served" || !isStoreError(error, "unavailable")) throw error;
         // It stopped after answering: back to this browser's library.
-        this.#notify(this.#unreachable(target.connection, error));
-        shown = await this.#showLibrary(BROWSER, await this.#reach(BROWSER), await platform.tabs.live());
+        this.#notify(this.#unreachable(choice.connection, error));
+        const browser = await this.#reach(BROWSER);
+        shown = await this.#showLibrary(browser.target, browser.store, await platform.tabs.live());
       }
       this.#rewatch();
       this.#publish();
@@ -884,27 +923,28 @@ export class Workspace<H> {
 
   /**
    * Remember `connection` (from a connect link or the Connect form) as the
-   * served library, and show it. Pages remembered for a served library at
-   * another address are forgotten.
+   * served library, and show it. Each library keeps its own open pages, by
+   * its id, so nothing is forgotten when the address changes.
    */
   connectServed(connection: ServedConnection): Promise<Result<void>> {
     return attempt(async () => {
       this.#need();
-      const previous = readSetting(SETTINGS.servedLibrary);
-      if (previous?.address !== connection.address) forgetServedPages();
       writeSetting(SETTINGS.servedLibrary, connection);
       this.#publish();
       await this.#switchTo({ kind: "served", connection });
     });
   }
 
-  /** Forget the served library in this browser and show this browser's library. Its files are untouched. */
+  /**
+   * Forget the served library's connection in this browser and show this
+   * browser's library. Its files are untouched, and the pages it had open are
+   * kept with its id, for when it's connected again.
+   */
   disconnectServed(): Promise<Result<void>> {
     return attempt(async () => {
       this.#need();
       await this.#switchTo(BROWSER);
       writeSetting(SETTINGS.servedLibrary, null);
-      forgetServedPages();
       writeSetting(SETTINGS.librarySource, "browser");
       this.#publish();
     });

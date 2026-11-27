@@ -6,6 +6,10 @@
 //
 // A store error comes back with a non-200 status and a StoreFailure body, so
 // the app throws the same typed error the browser's own store would.
+//
+// GetLibrary names the library (an id kept in the folder) and the protocol
+// version the server speaks. The app asks it before showing the library, and
+// refuses a server that speaks another version.
 
 syntax = "proto3";
 
@@ -22,6 +26,7 @@ service PageStoreService {
   rpc ListTrash(ListTrashRequest) returns (ListTrashResponse);
   rpc RestorePage(RestorePageRequest) returns (RestorePageResponse);
   rpc PurgePage(PurgePageRequest) returns (PurgePageResponse);
+  rpc GetLibrary(GetLibraryRequest) returns (GetLibraryResponse);
 }
 
 // A page in a listing.
@@ -144,6 +149,22 @@ message PurgePageRequest {
 
 message PurgePageResponse {}
 
+message GetLibraryRequest {}
+
+message GetLibraryResponse {
+  LibraryInfo library = 1;
+}
+
+// Which library this is, and how the server speaks.
+message LibraryInfo {
+  // The library folder's id: 22 base64url characters, kept in
+  // `<folder>/.a4-library`, the same across restarts and new tokens.
+  string id = 1;
+  // The protocol version the server speaks. The app shows the library only
+  // when it is the app's own.
+  uint32 protocol = 2;
+}
+
 // The store errors a page store throws (lib/persist/store/types.ts).
 enum StoreErrorCode {
   STORE_ERROR_CODE_UNSPECIFIED = 0;
@@ -156,16 +177,41 @@ enum StoreErrorCode {
   STORE_ERROR_CODE_UNREADABLE = 7;
 }
 
+// Why a file can't be read as a page.
+enum UnreadableReason {
+  UNREADABLE_REASON_UNSPECIFIED = 0;
+  UNREADABLE_REASON_TOO_LARGE = 1;
+  UNREADABLE_REASON_NOT_UTF8 = 2;
+}
+
+// A conflict: the revision the write expected, and the stored one (unset when
+// the stored content can't be read).
+message ConflictDetail {
+  string expected = 1;
+  optional string actual = 2;
+}
+
+// A file that can't be read as a page, and why.
+message UnreadableDetail {
+  UnreadableReason reason = 1;
+}
+
 // A store error, carried back to the caller as the same typed error.
 message StoreFailure {
   StoreErrorCode code = 1;
   string message = 2;
   // The page (or name input) the error is about.
   string page = 3;
-  // For a conflict: the revision the write expected, and the stored one
-  // (unset when the stored content can't be read).
-  string expected = 4;
-  optional string actual = 5;
-  // For an unreadable file: "too-large" or "not-utf8".
-  string reason = 6;
+  // Replaced by `detail`'s conflict. Still sent, for tabs loaded before it.
+  string expected = 4 [deprecated = true];
+  // Replaced by `detail`'s conflict. Still sent, for tabs loaded before it.
+  optional string actual = 5 [deprecated = true];
+  // Replaced by `detail`'s unreadable reason ("too-large" or "not-utf8").
+  // Still sent, for tabs loaded before it.
+  string reason = 6 [deprecated = true];
+  // What the error carries beyond its code, typed by kind.
+  oneof detail {
+    ConflictDetail conflict = 7;
+    UnreadableDetail unreadable = 8;
+  }
 }

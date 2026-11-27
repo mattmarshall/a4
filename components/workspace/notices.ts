@@ -6,7 +6,7 @@
  */
 
 import { assertNever } from "../../lib/page/index.ts";
-import type { Recovery } from "../../lib/persist/index.ts";
+import type { Recovery, UnavailableReason } from "../../lib/persist/index.ts";
 import { describeError, type WorkspaceNotice } from "../../lib/workspace/index.ts";
 
 type Tone = "info" | "warn";
@@ -40,6 +40,23 @@ function failure(notice: Extract<WorkspaceNotice, { kind: "failed" }>): string {
   }
 }
 
+/**
+ * Why the served library can't be used, and what to do (README, "Served
+ * library"). Each says this browser's library is shown meanwhile.
+ */
+function servedUnreachable(notice: Extract<WorkspaceNotice, { kind: "served-unreachable" }>): string {
+  const at = `a4 serve at ${notice.address}`;
+  const shown = "Showing this browser’s library.";
+  if (notice.reason === null) return `${describeError(notice.error)} ${shown}`;
+  const sentences: Record<UnavailableReason, string> = {
+    "not-running": `${describeError(notice.error)} ${shown} Run “a4 serve <folder>”, then switch in the Pages panel (or open the link it prints).`,
+    refused: `${at} refused this browser’s token: it was probably restarted with --new-token. ${shown} Open the link it printed to connect again.`,
+    "older-server": `${at} is older than this A4. ${shown} Update your A4 checkout, restart a4 serve, then switch in the Pages panel.`,
+    "newer-server": `${at} is newer than this A4. ${shown} Reload A4, then switch in the Pages panel.`,
+    "bad-answer": `${at} sent an answer A4 can’t read. ${shown} Restart a4 serve, and update your A4 checkout if that doesn’t help.`,
+  };
+  return sentences[notice.reason];
+}
 export function describeNotice(notice: WorkspaceNotice): NoticeCopy {
   switch (notice.kind) {
     case "recovered-library":
@@ -88,10 +105,7 @@ export function describeNotice(notice: WorkspaceNotice): NoticeCopy {
     case "still-no-access":
       return { message: `A4 still doesn’t have access to “${notice.folder}”.`, tone: "warn" };
     case "served-unreachable":
-      return {
-        message: `${describeError(notice.error)} Showing this browser’s library. Run “a4 serve <folder>”, then switch in the Pages panel (or open the link it prints).`,
-        tone: "warn",
-      };
+      return { message: servedUnreachable(notice), tone: "warn" };
     case "failed":
       return { message: failure(notice), tone: "warn" };
     default:

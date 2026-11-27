@@ -10,7 +10,7 @@ import type { FolderState } from "../persist/folder/access.ts";
 import type { FolderFile } from "../persist/folder/scan.ts";
 import type { Letter, StackReport } from "../desk/index.ts";
 import type { FilePath, FileRef, LibraryRef } from "../persist/store/refs.ts";
-import type { PageName, PageSummary, StoreKind, TrashEntry } from "../persist/store/types.ts";
+import type { PageName, PageSummary, StoreKind, TrashEntry, UnavailableReason } from "../persist/store/types.ts";
 import type { Slot } from "./pending.ts";
 
 export type { Slot } from "./pending.ts";
@@ -92,8 +92,17 @@ export type WorkspaceNotice =
   | { readonly kind: "folder-copies"; readonly copies: readonly PageName[] }
   | { readonly kind: "saved-to-folder"; readonly name: PageName; readonly path: string }
   | { readonly kind: "still-no-access"; readonly folder: string }
-  /** The served library couldn't be reached (or refused the token), so this browser's library is shown. */
-  | { readonly kind: "served-unreachable"; readonly address: string; readonly error: unknown }
+  /**
+   * The served library can't be used, so this browser's library is shown:
+   * why (not running, the token refused, another protocol version, an answer
+   * A4 can't read), and the error.
+   */
+  | {
+      readonly kind: "served-unreachable";
+      readonly address: string;
+      readonly reason: UnavailableReason | null;
+      readonly error: unknown;
+    }
   | {
       readonly kind: "failed";
       readonly action: WorkspaceAction;
