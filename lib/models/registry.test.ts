@@ -361,11 +361,14 @@ test("a damaged record heard from another tab is listed as damaged, and removing
   pkg.code = new TextEncoder().encode("// changed");
   record.package = toBinary(PluginPackageSchema, pkg);
   store.plugins.set("example.word-length", toBinary(InstalledPluginSchema, record));
-  const damaged = nextChange(b.registry);
+  // Both tabs hear it. Waiting for both keeps this tab's change apart from
+  // the removal's below.
+  const damaged = Promise.all([nextChange(a.registry), nextChange(b.registry)]);
   hub.open(PLUGIN_CHANNEL).post(encodePluginEvent(pluginChanged("example.word-length")));
   await damaged;
   assert.deepEqual(b.registry.installed(), []);
   assert.equal(b.registry.damaged()[0]?.id, "example.word-length");
+  assert.equal(a.registry.damaged()[0]?.id, "example.word-length");
   const cleared = nextChange(a.registry);
   await b.registry.removeDamaged("example.word-length");
   await cleared;

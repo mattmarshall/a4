@@ -2,6 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { FakeScheduler, settle } from "../persist/autosave/testing/fake-scheduler.ts";
 import { browserFolderSource } from "../persist/folder/fs-browser.ts";
+import type { Clock } from "../platform/clock.ts";
 import { MemoryHandleStore } from "../platform/handle-store.ts";
 import { MemoryKeyValue } from "../platform/key-value.ts";
 import { ChannelHub, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
@@ -33,12 +34,13 @@ const OTHER = libraryIdOf("OtherOtherOtherOther_2");
 /**
  * A memory store standing in for `a4 serve` over one library folder: it can
  * be stopped, or answer as another protocol version, and it counts listings
- * and page operations.
+ * and page operations. Its pages' times come from `clock`, the system's by
+ * default.
  */
 class ServedStandIn implements ServedStore {
   readonly kind = "served" as const;
   readonly durable = true;
-  readonly pages = new MemoryPageStore();
+  readonly pages: MemoryPageStore;
   readonly id: LibraryId;
   down = false;
   /** Answer GetLibrary as a server that can't be used for this reason. */
@@ -47,8 +49,9 @@ class ServedStandIn implements ServedStore {
   /** Page operations: anything but GetLibrary. */
   operations = 0;
 
-  constructor(id = NOTES) {
+  constructor(id = NOTES, clock?: Clock) {
     this.id = id;
+    this.pages = new MemoryPageStore(clock ? { clock } : {});
   }
 
   #up(): void {
@@ -668,10 +671,13 @@ test("a pass that can't learn which library is served lists nothing and reports 
 test("another library served behind the same connection is shown within 5 seconds; the first keeps its edit", async () => {
   const s = setup();
   await s.served.pages.create(n("Brief"), "notes v1");
-  // A copy of the folder that kept its token but not its `.a4-library`.
-  const copy = new ServedStandIn(OTHER);
-  await copy.pages.create(n("Brief"), "notes v1");
+  // A copy of the folder that kept its token but not its `.a4-library`. A
+  // library shown afresh opens its newest page, so its clock ticks once per
+  // write, and Brief is written last.
+  let tick = 0;
+  const copy = new ServedStandIn(OTHER, { now: () => ++tick });
   await copy.pages.create(n("Copied"), "only in the copy");
+  await copy.pages.create(n("Brief"), "notes v1");
   const { workspace, notices } = s.open();
   await workspace.start();
   await workspace.connectServed(SERVED);
