@@ -16,6 +16,7 @@ import {
   type ModelCard,
   Operation,
   remoteHost,
+  type TransformResult,
   type UpdateChanges,
 } from "../lib/models/index.ts";
 
@@ -68,6 +69,24 @@ const isFitToPage = (card: ModelCard) => card.id === FIT_TO_PAGE.card.id;
 /** What a pen's result page is called after: "<source> (fit)" for Fit to page, "<source> (<pen name>)" otherwise. */
 export function penSuffix(card: ModelCard): string {
   return isFitToPage(card) ? " (fit)" : ` (${card.name})`;
+}
+
+/**
+ * A pen's result page, once it's created: how many of the page's rows it
+ * fills, or how far over it still is after its attempts.
+ */
+export function penResultNotice(
+  name: string,
+  result: Pick<TransformResult, "fits" | "rowsUsed" | "rowsAllowed" | "overBy" | "attempts">,
+): string {
+  return result.fits
+    ? `Created “${name}”: it fits in ${result.rowsUsed} of ${result.rowsAllowed} rows.`
+    : `Created “${name}”, but it’s still over by ${result.overBy} rows after ${result.attempts} attempts.`;
+}
+
+/** A lens's score that failed: the plugin's name, or "Model" when no lens is on, then why. */
+export function modelFailed(name: string | undefined, why: string): string {
+  return `${name ?? "Model"}: ${why}`;
 }
 
 /** A running rewrite, on the top bar's chip: “Fitting “Brief””, or the pen's name and the page's. */

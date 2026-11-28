@@ -284,6 +284,21 @@ fixed the bugs and the cheapest duplication. `harden-served-identity` and
   leaves alone, and fails if an ONNX runtime update changes the call.
   Builds are unchanged.
 
+### Found after the rounds (2026-11-28)
+
+With every round closed, a scan of the UI found two kinds of copy no round
+had recorded. `finish-ui-copy` took up both, so no item is left open:
+- **Notices and confirmations written inline.** Nineteen calls in
+  `Workbench.tsx`, `LibraryPanel.tsx`, `menus.tsx`, and `useModelLens.ts`
+  now take their words from `library-copy.ts`, `desk-copy.ts`,
+  `plugin-copy.ts`, or the new `view-copy.ts`. Emptying the trash now asks
+  about "1 page" or "3 pages", not "page(s)".
+- **Error text made by hand.** Nine places in five UI files turned an error
+  into text themselves, so a browser error showed the browser's wording.
+  They use `describeError` now. Export and import report a failure through
+  `runReported`, so a failed export says "Couldn’t export the pages: …"
+  instead of "Export failed: …".
+
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.
 

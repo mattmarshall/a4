@@ -4,7 +4,16 @@ import { MemoryPluginStore } from "../lib/platform/plugin-store.ts";
 import { inspect, install } from "../lib/models/installed.ts";
 import { overlayCard, penCard, rawPackage, testKey } from "../lib/models/testing/packages.ts";
 import { FIT_TO_PAGE } from "../lib/models/index.ts";
-import { consentDialog, formatBytes, installDialog, modelsPanel, penPanel, penSuffix } from "./plugin-copy.ts";
+import {
+  consentDialog,
+  formatBytes,
+  installDialog,
+  modelFailed,
+  modelsPanel,
+  penPanel,
+  penResultNotice,
+  penSuffix,
+} from "./plugin-copy.ts";
 
 const text = (copy: ReturnType<typeof installDialog>) =>
   [copy.title, ...copy.rows.map((r) => `${r.label}: ${r.value}`), ...copy.changes].join("\n");
@@ -168,4 +177,20 @@ test("the Models section's words that take a value", () => {
   assert.equal(modelsPanel.damaged("its code changed"), "Damaged, so it doesn’t run: its code changed");
   assert.equal(modelsPanel.installed("Word length"), "Installed Word length.");
   assert.equal(modelsPanel.updated("Word length"), "Updated Word length.");
+});
+
+test("a pen's result says how many rows it fills, or how far over it still is", () => {
+  assert.equal(
+    penResultNotice("Brief (fit)", { fits: true, rowsUsed: 58, rowsAllowed: 60, overBy: 0, attempts: 1 }),
+    "Created “Brief (fit)”: it fits in 58 of 60 rows.",
+  );
+  assert.equal(
+    penResultNotice("Brief (fit)", { fits: false, rowsUsed: 63, rowsAllowed: 60, overBy: 3, attempts: 3 }),
+    "Created “Brief (fit)”, but it’s still over by 3 rows after 3 attempts.",
+  );
+});
+
+test("a lens's failed score names the plugin, or Model when no lens is on", () => {
+  assert.equal(modelFailed("Semantic repetition", "The network failed."), "Semantic repetition: The network failed.");
+  assert.equal(modelFailed(undefined, "The network failed."), "Model: The network failed.");
 });

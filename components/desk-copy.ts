@@ -81,3 +81,8 @@ export function stackProblems(stack: StackReport): string[] {
   }
   return problems;
 }
+
+/** After a seal, in the app: the verdict, and the letter by its label. */
+export function sealedNotice(verdict: "accepted" | "returned", label: string | null): string {
+  return `Sealed: ${verdict} “${label ?? "the letter"}”.`;
+}

@@ -9,6 +9,7 @@ import { SAMPLE_PAIRS, TEMPLATES, WELCOME } from "@/lib/content";
 import { SETTINGS, baseName } from "@/lib/persist";
 import type { Notify } from "@/lib/workspace";
 import type { StageSlot } from "./stage";
+import { libraryNotices } from "../library-copy";
 import { Menu, MenuItem } from "../Menu";
 import { CLIPBOARD_BLOCKED } from "../share-copy";
 import { useSetting } from "../useSetting";
@@ -40,7 +41,7 @@ export function PageMenu({
   async function copyText() {
     try {
       await navigator.clipboard.writeText(page.text);
-      notify(`Copied “${page.label}” (${page.text.length.toLocaleString("en-US")} characters)`);
+      notify(libraryNotices.copiedText(page.label, page.text.length));
     } catch {
       notify(CLIPBOARD_BLOCKED, "warn");
     }

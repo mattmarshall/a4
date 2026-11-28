@@ -4,7 +4,7 @@
  * Result. Depends on lib/persist, lib/archive, lib/page, and lib/platform.
  */
 
-export { describeError, NOT_READY, reportResult, type Notify } from "./errors.ts";
+export { describeError, NOT_READY, reportResult, runReported, type Notify } from "./errors.ts";
 export {
   EMPTY_SLOT,
   SLOTS,

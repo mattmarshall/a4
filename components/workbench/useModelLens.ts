@@ -21,8 +21,9 @@ import { type FindingResult, Operation, type ScoreResult, SEMANTIC_REPETITION, S
 import { isPaperId, isPresetId, type LensId, type PageSpec, pageSpec, PRESETS } from "@/lib/page";
 import { realScheduler } from "@/lib/persist";
 import { type A4Plane, type LensAttr, modelLens } from "@/lib/render";
-import type { Notify, Slot } from "@/lib/workspace";
+import { describeError, type Notify, type Slot } from "@/lib/workspace";
 import type { SemanticSummary } from "../ModelsPanel";
+import { modelFailed } from "../plugin-copy";
 import type { ModelsState } from "../useModels";
 import { type LensSource, legendOf, planeKey, rescoresWhileTyping } from "./model-lens";
 
@@ -107,10 +108,7 @@ export function useModelLens({ models, notify, sources, texts, specs, compare, t
         },
         onResult: (slot, result, _text, key) => setScored((s) => ({ ...s, [slot]: { ...result, spec: key } })),
         onError: (_slot, error) =>
-          latest.current.notify(
-            `${latest.current.active?.card.name ?? "Model"}: ${error instanceof Error ? error.message : String(error)}`,
-            "warn",
-          ),
+          latest.current.notify(modelFailed(latest.current.active?.card.name, describeError(error)), "warn"),
       }),
   );
   useEffect(() => () => schedule.stop(), [schedule]);
@@ -209,7 +207,7 @@ export function useModelLens({ models, notify, sources, texts, specs, compare, t
         const result = await models.score(request.source.pluginId, request.text, request.spec, token);
         setScored((s) => ({ ...s, [request.slot]: { ...result, spec: specKey(request.spec) } }));
       } catch (error) {
-        notify(`${request.source.card.name}: ${error instanceof Error ? error.message : String(error)}`, "warn");
+        notify(modelFailed(request.source.card.name, describeError(error)), "warn");
       }
     },
     /** The consent dialog's Cancel: nothing is sent. */

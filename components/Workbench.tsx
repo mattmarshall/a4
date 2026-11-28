@@ -32,23 +32,25 @@ import {
   type PageRef,
 } from "@/lib/persist";
 import { type SharePageInput, ShareError, shareLink } from "@/lib/share";
-import type { Slot } from "@/lib/workspace";
+import { runReported, type Slot } from "@/lib/workspace";
 import type { A4SheetHandle } from "./A4Sheet";
 import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { ConsentDialog } from "./ConsentDialog";
+import { sealedNotice } from "./desk-copy";
 import { LibraryPanel, type FolderActions, type LibraryActions, type PageActions } from "./LibraryPanel";
 // Named apart from the Library panel's actions below.
-import { libraryActions as actionNames } from "./library-copy";
+import { libraryActions as actionNames, libraryConfirm, libraryNotices } from "./library-copy";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { PenJobChip, PenPanel } from "./PenPanel";
-import { penSuffix, publisherNote } from "./plugin-copy";
+import { penResultNotice, penSuffix, publisherNote } from "./plugin-copy";
 import { badConnection } from "./served-copy";
 import { CLIPBOARD_BLOCKED, copiedNotice, savedSharedCopies } from "./share-copy";
 import { SealDialog, SealedChip, type SealVerdict } from "./SealDialog";
 import { useModels } from "./useModels";
 import { useSetting } from "./useSetting";
+import { NO_WEBGPU } from "./view-copy";
 import { saveFile } from "./workbench/download";
 import { HelpMenu, PageMenu, ViewMenu } from "./workbench/menus";
 import { SheetStage } from "./workbench/SheetStage";
@@ -126,7 +128,7 @@ export function Workbench() {
   useShortcuts({
     save: () =>
       void flushAll().then((saved) =>
-        saved ? notify("Saved") : notify("Saving failed. A4 keeps your edits and will keep trying.", "warn"),
+        saved ? notify(libraryNotices.saved) : notify(libraryNotices.saveFailed, "warn"),
       ),
     toggleFocus: () => layout.setFocus(!layout.focus),
     escape: layout.dismiss,
@@ -185,12 +187,7 @@ export function Workbench() {
     const name = await lib.createPage(copyNameFor(ref, penSuffix(card)), result.text, "b");
     setActive("b");
     if (!name) return;
-    notify(
-      result.fits
-        ? `Created “${name}”: it fits in ${result.rowsUsed} of ${result.rowsAllowed} rows.`
-        : `Created “${name}”, but it’s still over by ${result.overBy} rows after ${result.attempts} attempts.`,
-      result.fits ? "info" : "warn",
-    );
+    notify(penResultNotice(name, result), result.fits ? "info" : "warn");
   }
   const pens = usePens({ host: models.host, installed: installedPlugins, spec, onResult: openPenResult });
   // The one consent dialog: the lens's pending score, else a pen's request.
@@ -269,7 +266,7 @@ export function Workbench() {
   async function newPage(desired: string, text: string) {
     leaveShared();
     const name = await lib.createPage(desired, text, target);
-    if (name) notify(`Created “${name}”.`);
+    if (name) notify(libraryNotices.created(name));
   }
 
   async function loadPair(id: string) {
@@ -283,44 +280,43 @@ export function Workbench() {
 
   function clearPage() {
     if (!editable || page.readOnly || !page.label || page.text === "") return;
-    if (!window.confirm(`Clear all text on “${page.label}”?`)) return;
+    if (!window.confirm(libraryConfirm.clearPage(page.label))) return;
     lib.edit(target, "");
     handles[target].current?.focus();
   }
 
   async function exportAll() {
-    try {
-      const archive = await lib.exportAll();
-      if (!archive) return;
-      saveFile(new Blob([archive.bytes as BlobPart], { type: "application/zip" }), archive.fileName);
-      notify(`Exported ${archive.count} page${archive.count === 1 ? "" : "s"} to ${archive.fileName}`);
-    } catch (error) {
-      notify(`Export failed: ${error instanceof Error ? error.message : String(error)}`, "warn");
-    }
+    const archive = await runReported(
+      async () => {
+        const built = await lib.exportAll();
+        saveFile(new Blob([built.bytes as BlobPart], { type: "application/zip" }), built.fileName);
+        return built;
+      },
+      notify,
+      actionNames.exportPages,
+    );
+    if (archive) notify(libraryNotices.exported(archive.count, archive.fileName));
   }
 
   async function importFile(file: File) {
     if (file.size > MAX_IMPORT_FILE_BYTES) {
-      notify(
-        `Couldn’t import “${file.name}”: files over ${formatByteLimit(MAX_IMPORT_FILE_BYTES)} aren’t supported.`,
-        "warn",
-      );
+      notify(libraryNotices.importTooLarge(file.name, formatByteLimit(MAX_IMPORT_FILE_BYTES)), "warn");
       return;
     }
-    try {
-      const report = await lib.importArchive(new Uint8Array(await file.arrayBuffer()));
-      if (!report) return;
-      notify(
-        describeImport(report),
-        report.skipped.length || report.created.some((c) => c.renamedFrom) ? "warn" : "info",
-      );
-    } catch (error) {
-      notify(`Couldn’t import “${file.name}”: ${error instanceof Error ? error.message : String(error)}`, "warn");
-    }
+    const report = await runReported(
+      async () => lib.importArchive(new Uint8Array(await file.arrayBuffer())),
+      notify,
+      actionNames.importFile(file.name),
+    );
+    if (!report) return;
+    notify(
+      describeImport(report),
+      report.skipped.length || report.created.some((c) => c.renamedFrom) ? "warn" : "info",
+    );
   }
 
   function trashPage(name: PageName) {
-    if (window.confirm(`Move “${name}” to the trash? You can restore it from the trash.`)) {
+    if (window.confirm(libraryConfirm.trashPage(name))) {
       void lib.trashPage(name);
     }
   }
@@ -361,10 +357,8 @@ export function Workbench() {
     if (error) return error;
     setSigner(name);
     setSealing(false);
-    if (verdict === "accepted") {
-      if (effectiveRender === "3d") handles[target].current?.fold();
-      notify(`Sealed: accepted “${page.label ?? "the letter"}”.`);
-    } else notify(`Sealed: returned “${page.label ?? "the letter"}”.`);
+    if (verdict === "accepted" && effectiveRender === "3d") handles[target].current?.fold();
+    notify(sealedNotice(verdict, page.label));
     return null;
   }
 
@@ -374,7 +368,7 @@ export function Workbench() {
       return;
     }
     const name = await lib.duplicatePage(ref, actionNames.copyIntoLibrary(ref.path));
-    if (name) notify(`Copied “${ref.path}” into the library as “${name}”.`);
+    if (name) notify(libraryNotices.copiedIntoLibrary(ref.path, name));
   }
 
   const pageActions: PageActions = {
@@ -417,7 +411,7 @@ export function Workbench() {
   function onSheetRender(reported: "3d" | "flat") {
     if (reported === "flat" && render === "3d" && !gpuMissing) {
       setGpuMissing(true);
-      notify("3D needs WebGPU, which this browser doesn’t provide, so sheets are shown flat.", "warn");
+      notify(NO_WEBGPU, "warn");
     }
   }
 

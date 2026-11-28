@@ -19,6 +19,7 @@ import {
 } from "@/lib/persist";
 import type { FolderSnapshot, Slot, StorageInfo, WorkspaceSnapshot } from "@/lib/workspace";
 import { FolderSection, type FolderActions } from "./library/FolderSection";
+import { libraryConfirm } from "./library-copy";
 import { type LibraryActions, LibrarySwitch } from "./library/LibrarySwitch";
 import { formatSize, type Placement, relativeTime, slotOf, otherSlot } from "./library/shared";
 import styles from "./LibraryPanel.module.css";
@@ -293,8 +294,7 @@ export function LibraryPanel({
                     <button
                       type="button"
                       onClick={() => {
-                        if (window.confirm(`Permanently delete “${t.name}”? This can’t be undone.`))
-                          pageActions.purge([t.id]);
+                        if (window.confirm(libraryConfirm.purgePage(t.name))) pageActions.purge([t.id]);
                       }}
                     >
                       Delete forever
@@ -309,9 +309,7 @@ export function LibraryPanel({
                 type="button"
                 className={`btn btn-outline ${styles.emptyTrash}`}
                 onClick={() => {
-                  if (
-                    window.confirm(`Permanently delete ${trash.length} page(s) in the trash? This can’t be undone.`)
-                  ) {
+                  if (window.confirm(libraryConfirm.emptyTrash(trash.length))) {
                     pageActions.purge(trash.map((t) => t.id));
                   }
                 }}

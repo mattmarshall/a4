@@ -10,6 +10,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Inspection } from "@/lib/models";
+import { describeError } from "@/lib/workspace";
 import styles from "./ModelsPanel.module.css";
 import { installDialog } from "./plugin-copy";
 import type { ModelsState } from "./useModels";
@@ -19,8 +20,6 @@ type Phase =
   | { readonly kind: "checking" }
   | { readonly kind: "review"; readonly inspection: Inspection; readonly error: string | null }
   | { readonly kind: "installing"; readonly inspection: Inspection };
-
-const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 export function PluginInstallDialog({
   open,
@@ -56,7 +55,7 @@ export function PluginInstallDialog({
     try {
       setPhase({ kind: "review", inspection: await inspect(), error: null });
     } catch (error) {
-      setPhase({ kind: "choose", error: message(error) });
+      setPhase({ kind: "choose", error: describeError(error) });
     }
   }
 
@@ -67,7 +66,7 @@ export function PluginInstallDialog({
       onInstalled(inspection.pkg.card.name, inspection.kind.is === "update");
       onClose();
     } catch (error) {
-      setPhase({ kind: "review", inspection, error: message(error) });
+      setPhase({ kind: "review", inspection, error: describeError(error) });
     }
   }
 

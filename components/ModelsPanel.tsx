@@ -21,6 +21,7 @@ import {
   SEMANTIC_REPETITION,
 } from "@/lib/models";
 import { heatFill } from "@/lib/render";
+import { describeError } from "@/lib/workspace";
 import { InspectorSection } from "./InspectorSection";
 import styles from "./ModelsPanel.module.css";
 import { PluginInstallDialog } from "./PluginInstallDialog";
@@ -218,7 +219,7 @@ export function ModelsPanel({
     try {
       setInstalling({ initial: await models.checkForUpdate(id) });
     } catch (error) {
-      notify(error instanceof Error ? error.message : String(error), "info");
+      notify(describeError(error), "info");
     }
   }
 
@@ -229,7 +230,7 @@ export function ModelsPanel({
       await run();
       notify(modelsPanel.removed(name));
     } catch (error) {
-      notify(modelsPanel.removeFailed(name, error instanceof Error ? error.message : String(error)), "warn");
+      notify(modelsPanel.removeFailed(name, describeError(error)), "warn");
     }
   }
 

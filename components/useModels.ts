@@ -33,6 +33,7 @@ import {
 } from "@/lib/models";
 import type { PageSpec } from "@/lib/page";
 import { browserChannel, IdbPluginStore, PLUGIN_CHANNEL } from "@/lib/platform";
+import { describeError } from "@/lib/workspace";
 
 type ModelStatus = "checking" | "not-downloaded" | "downloading" | "ready" | "error";
 
@@ -144,7 +145,7 @@ export function useModels(): ModelsState {
         setErrors((e) => without(e, id));
       } catch (error) {
         setStatus((s) => withEntry(s, id, "error"));
-        setErrors((e) => withEntry(e, id, error instanceof Error ? error.message : String(error)));
+        setErrors((e) => withEntry(e, id, describeError(error)));
       }
     },
     [host],
@@ -235,7 +236,7 @@ export function useModels(): ModelsState {
         setStatus((s) => withEntry(s, id, "ready"));
       } catch (error) {
         setStatus((s) => withEntry(s, id, "not-downloaded"));
-        setErrors((e) => withEntry(e, id, error instanceof Error ? error.message : String(error)));
+        setErrors((e) => withEntry(e, id, describeError(error)));
       }
     },
     [host],
