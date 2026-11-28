@@ -1510,6 +1510,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-26-harden-served-protocol`
 - `2026-11-27-harden-pens-and-plugins`
 - `2026-11-27-finish-tech-debt-review`
+- `2026-11-27-harden-served-identity`
 
 ```bash
 openspec list --specs
