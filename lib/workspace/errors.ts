@@ -8,6 +8,9 @@ import { ModelError } from "../models/errors.ts";
 import { PageStoreError } from "../persist/store/types.ts";
 import type { Result } from "./types.ts";
 
+/** Why a command can't run before the workspace has started. */
+export const NOT_READY = "Storage isn’t ready yet.";
+
 function errorName(error: unknown): string | undefined {
   return typeof error === "object" && error !== null ? (error as { name?: string }).name : undefined;
 }

@@ -79,6 +79,45 @@ function browserOnlyPlugins(): Plugin {
   };
 }
 
+/**
+ * In development, the dev server serves the ONNX runtime unbundled from
+ * node_modules (ort.webgpu.bundle.min.mjs, which transformers.js imports).
+ * Its import analysis gives the runtime's one `import()` of a variable URL
+ * (the WebAssembly glue, `wasmPaths.mjs`) a query helper it imports from
+ * `/@vite/client`. That client then runs in the Semantic repetition worker,
+ * opens its own HMR connection, and throws on every CSS update, because a
+ * worker has no `document`.
+ *
+ * Wrapping the variable in a template literal makes it read as a string URL
+ * with no extension, which the dev server leaves as it is. The URL is
+ * absolute, so the helper never changed it anyway. Fails if the runtime
+ * changes that call, so the client can't silently come back. If the dev
+ * server starts pre-bundling the runtime into node_modules/.vite/deps, widen
+ * the id filter to match. Builds don't use it.
+ */
+function devWorkerSafeOrtImport(): Plugin {
+  const call =
+    /import\((\s*\/\*\s*webpackIgnore:\s*true\s*\*\/\s*\/\*\s*@vite-ignore\s*\*\/\s*)([A-Za-z_$][\w$]*)\s*\)/g;
+  return {
+    name: "a4:dev-worker-safe-ort-import",
+    apply: "serve",
+    enforce: "pre",
+    transform(code, id) {
+      if (!/onnxruntime-web[\\/]dist[\\/]ort\.[^\\/]*\.mjs$/.test(id.split("?")[0] ?? "")) return null;
+      const found = [...code.matchAll(call)].length;
+      if (found !== 1) {
+        this.error(
+          `The ONNX runtime has ${found} variable import() calls where one was expected; review devWorkerSafeOrtImport in vite.config.ts.`,
+        );
+      }
+      return {
+        code: code.replace(call, (_match, comments: string, name: string) => `import(${comments}\`\${${name}}\`)`),
+        map: null,
+      };
+    },
+  };
+}
+
 /** Where recordClientChunks writes, outside the served assets. */
 const CLIENT_CHUNKS_REPORT = "dist/client-chunks.json";
 
@@ -152,6 +191,7 @@ export default defineConfig({
     }),
     a4Css(),
     browserOnlyPlugins(),
+    devWorkerSafeOrtImport(),
     dropUnusedOrtWasm(),
     recordClientChunks(),
   ],

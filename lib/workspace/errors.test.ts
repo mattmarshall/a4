@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ErrorCode, ModelError } from "../models/errors.ts";
 import { PageNotFoundError } from "../persist/store/types.ts";
-import { describeError, runReported } from "./errors.ts";
+import { describeError, NOT_READY, runReported } from "./errors.ts";
 
 function domError(name: string, message = "") {
   const error = new Error(message);
@@ -28,4 +28,8 @@ test("a reported action never rejects, and says what failed", async () => {
     undefined,
   );
   assert.deepEqual(messages, [["Couldn’t restore “Brief”: No page named “Brief”.", "warn"]]);
+});
+
+test("a command before the workspace starts says storage isn’t ready", () => {
+  assert.equal(NOT_READY, "Storage isn’t ready yet.");
 });

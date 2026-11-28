@@ -38,6 +38,8 @@ import { formatByteLimit } from "./analysis-copy";
 import { ComparePanel } from "./ComparePanel";
 import { ConsentDialog } from "./ConsentDialog";
 import { LibraryPanel, type FolderActions, type LibraryActions, type PageActions } from "./LibraryPanel";
+// Named apart from the Library panel's actions below.
+import { libraryActions as actionNames } from "./library-copy";
 import { LensLegend, MetricsPanel } from "./MetricsPanel";
 import { ModelsPanel, SemanticSummaryView } from "./ModelsPanel";
 import { PenJobChip, PenPanel } from "./PenPanel";
@@ -326,7 +328,7 @@ export function Workbench() {
   function openInSlot(slot: Slot, ref: PageRef) {
     leaveShared();
     setActive(slot);
-    void lib.openInSlot(slot, ref, `open “${ref.kind === "file" ? ref.path : ref.name}”`).then(() => {
+    void lib.openInSlot(slot, ref, actionNames.openNamed(ref.kind === "file" ? ref.path : ref.name)).then(() => {
       if (layout.narrow) layout.setLibrary(false);
     });
   }
@@ -344,8 +346,8 @@ export function Workbench() {
       return;
     }
     setMode("compare");
-    await lib.openInSlot("a", fileRef(previous), `open “${previous}”`);
-    await lib.openInSlot("b", ref, `open “${ref.path}”`);
+    await lib.openInSlot("a", fileRef(previous), actionNames.openNamed(previous));
+    await lib.openInSlot("b", ref, actionNames.openNamed(ref.path));
     setActive("b");
     if (layout.narrow) layout.setLibrary(false);
   }
@@ -368,10 +370,10 @@ export function Workbench() {
 
   async function duplicate(ref: PageRef) {
     if (ref.kind === "library") {
-      await lib.duplicatePage(ref, `duplicate “${ref.name}”`);
+      await lib.duplicatePage(ref, actionNames.duplicate(ref.name));
       return;
     }
-    const name = await lib.duplicatePage(ref, `copy “${ref.path}” into the library`);
+    const name = await lib.duplicatePage(ref, actionNames.copyIntoLibrary(ref.path));
     if (name) notify(`Copied “${ref.path}” into the library as “${name}”.`);
   }
 
@@ -589,7 +591,7 @@ export function Workbench() {
                         swap: () => void lib.swapSlots(),
                         copyAToB: () => {
                           const ref = slots.a.ref;
-                          if (ref) void lib.duplicatePage(ref, "copy page A into B", "b");
+                          if (ref) void lib.duplicatePage(ref, actionNames.copyAToB, "b");
                         },
                       }
                     : null

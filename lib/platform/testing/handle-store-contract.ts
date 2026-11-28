@@ -7,16 +7,13 @@
  */
 
 import { type HandleStore, IdbHandleStore } from "../handle-store.ts";
+import { check, runEach } from "./contract.ts";
 
 /** Two handles, and how to tell whether a handle read back is the one stored. */
 interface ContractHandles<H> {
   readonly a: H;
   readonly b: H;
   readonly same: (x: H | null, y: H) => Promise<boolean>;
-}
-
-function check(condition: boolean, message: string): void {
-  if (!condition) throw new Error(message);
 }
 
 type Check = <H>(store: HandleStore<H>, handles: ContractHandles<H>) => Promise<void>;
@@ -69,26 +66,13 @@ export async function runInBrowser(): Promise<Record<string, string>> {
     b: folder,
     same: async (x, y) => x !== null && (await x.isSameEntry(y)),
   };
-  const out: Record<string, string> = {};
   try {
-    for (const [name, run] of HANDLE_STORE_CONTRACT) {
-      const dbName = `a4-handle-contract-${crypto.randomUUID()}`;
-      try {
-        const store = new IdbHandleStore(dbName);
-        try {
-          await run(store, handles);
-        } finally {
-          store.close();
-        }
-        out[name] = "pass";
-      } catch (error) {
-        out[name] = `FAIL: ${(error as Error).message}`;
-      } finally {
-        indexedDB.deleteDatabase(dbName);
-      }
-    }
+    return await runEach(
+      HANDLE_STORE_CONTRACT.map(([name, run]) => [name, (store: IdbHandleStore) => run(store, handles)] as const),
+      "a4-handle-contract",
+      (dbName: string) => new IdbHandleStore(dbName),
+    );
   } finally {
     await root.removeEntry("a4-handle-contract");
   }
-  return out;
 }

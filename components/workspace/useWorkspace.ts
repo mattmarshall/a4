@@ -16,6 +16,7 @@ import type { LibrarySource, PageName, PageRef, ServedConnection, TrashId } from
 import {
   EMPTY_SLOT,
   describeError,
+  NOT_READY,
   reportResult,
   type Notify,
   type Slot,
@@ -23,6 +24,7 @@ import {
   type Result,
 } from "@/lib/workspace";
 import { acquireWorkspace, releaseWorkspace, type BrowserWorkspace } from "./browser-workspace";
+import { folderPicker, libraryActions } from "../library-copy";
 import { connectFailed, servedActions } from "../served-copy";
 import { describeNotice } from "./notices";
 
@@ -104,7 +106,7 @@ export function useWorkspaceApi(notify: Notify) {
   /** A command whose failure the caller shows inline: the message, or null on success. */
   const inline = useCallback(
     async <T>(command: (w: BrowserWorkspace) => Promise<Result<T>>) => {
-      if (!ws) return "Storage isn’t ready yet.";
+      if (!ws) return NOT_READY;
       const result = await command(ws);
       return result.ok ? null : describeError(result.error);
     },
@@ -124,15 +126,15 @@ export function useWorkspaceApi(notify: Notify) {
       if (errorName(error) === "AbortError") {
         // A cancel takes a person longer than this: the browser refused to show the picker.
         if (performance.now() - asked < 250) {
-          notify("This browser didn’t show a folder picker. Open A4 in Chrome or Edge to edit a folder.", "warn");
+          notify(folderPicker.notShown, "warn");
         }
         return;
       }
-      notify(`Couldn’t open that folder: ${describeError(error)} Try the repository folder itself.`, "warn");
+      notify(folderPicker.pickFailed(describeError(error)), "warn");
       return;
     }
     const result = await ws.openFolder(handle);
-    if (!result.ok) notify(`Couldn’t open that folder: ${describeError(result.error)}`, "warn");
+    if (!result.ok) notify(folderPicker.openFailed(describeError(result.error)), "warn");
   }, [ws, notify]);
 
   // Commands keep their identity while the workspace and `notify` do, so effects can depend on them.
@@ -140,35 +142,35 @@ export function useWorkspaceApi(notify: Notify) {
     () => ({
       retry: () => void ws?.start(),
       edit: (slot: Slot, text: string) => ws?.edit(slot, text),
-      openInSlot: (slot: Slot, target: PageRef | PageName | null, what = "open the page") =>
+      openInSlot: (slot: Slot, target: PageRef | PageName | null, what: string = libraryActions.openPage) =>
         run(what, (w) => w.open(slot, target)),
       createPage: async (desired: string, text: string, slot: Slot = "a") =>
-        (await run("create the page", (w) => w.createPage(desired, text, slot))) ?? null,
+        (await run(libraryActions.createPage, (w) => w.createPage(desired, text, slot))) ?? null,
       renamePage: (from: PageName, input: string) => inline((w) => w.renamePage(from, input)),
       duplicatePage: (target: PageRef | PageName, what: string, slot?: Slot) =>
         run(what, (w) => w.duplicatePage(target, slot)),
-      trashPage: (name: PageName) => run(`move “${name}” to the trash`, (w) => w.trashPage(name)),
-      restorePage: (id: TrashId) => run("restore the page", (w) => w.restorePage(id)),
-      purgePages: (ids: readonly TrashId[]) => run("delete the page permanently", (w) => w.purgePages(ids)),
-      ensureSlotB: () => run("open page B", (w) => w.ensureSlotB()),
+      trashPage: (name: PageName) => run(libraryActions.trashPage(name), (w) => w.trashPage(name)),
+      restorePage: (id: TrashId) => run(libraryActions.restorePage, (w) => w.restorePage(id)),
+      purgePages: (ids: readonly TrashId[]) => run(libraryActions.purgePages, (w) => w.purgePages(ids)),
+      ensureSlotB: () => run(libraryActions.openPageB, (w) => w.ensureSlotB()),
       closeSlotB: () => ws?.closeSlotB() ?? Promise.resolve(),
-      swapSlots: () => run("swap the pages", (w) => w.swapSlots()),
+      swapSlots: () => run(libraryActions.swapPages, (w) => w.swapSlots()),
       flushAll: () => ws?.flushAll() ?? Promise.resolve(false),
       exportAll: async () => {
-        if (!ws) throw new Error("Storage isn’t ready yet.");
+        if (!ws) throw new Error(NOT_READY);
         const result = await ws.exportAll();
         if (!result.ok) throw result.error;
         return result.value;
       },
       importArchive: async (bytes: Uint8Array) => {
-        if (!ws) throw new Error("Storage isn’t ready yet.");
+        if (!ws) throw new Error(NOT_READY);
         const result = await ws.importArchive(bytes);
         if (!result.ok) throw result.error;
         return result.value;
       },
       openFolder,
-      reconnectFolder: () => run("reconnect the folder", (w) => w.reconnectFolder()),
-      closeFolder: () => run("close the folder", (w) => w.closeFolder()),
+      reconnectFolder: () => run(libraryActions.reconnectFolder, (w) => w.reconnectFolder()),
+      closeFolder: () => run(libraryActions.closeFolder, (w) => w.closeFolder()),
       createFile: (input: string, text: string, slot: Slot) => inline((w) => w.createFile(input, text, slot)),
       saveToFolder: (name: PageName, input: string, slot: Slot) => inline((w) => w.saveToFolder(name, input, slot)),
       createLetter: (text: string, slot: Slot) => inline((w) => w.createLetter(text, slot)),
@@ -182,7 +184,7 @@ export function useWorkspaceApi(notify: Notify) {
       connectServed: (connection: ServedConnection) => run(servedActions.connect, (w) => w.connectServed(connection)),
       /** From the Connect form: null once connected, or why not, for the form to show. Nothing is remembered then. */
       connectByHand: async (connection: ServedConnection) => {
-        if (!ws) return "Storage isn’t ready yet.";
+        if (!ws) return NOT_READY;
         const result = await ws.connectServed(connection, "form");
         if (!result.ok) return describeError(result.error);
         const outcome = result.value;

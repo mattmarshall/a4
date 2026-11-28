@@ -192,7 +192,8 @@ with the clearest payoff, and recorded the rest below. Three later changes,
 The three changes that closed the last round (`harden-served-protocol`,
 `harden-pens-and-plugins`, and `finish-tech-debt-review`) were each reviewed
 for what they added or kept. The reviewers found about 25 items. This round
-fixed the bugs and the cheapest duplication, and records the rest below.
+fixed the bugs and the cheapest duplication. `harden-served-identity` and
+`tidy-copies-and-dev-worker` took up every item left, so none remains.
 
 **Bugs fixed:**
 - **A tab loading its plugins could keep a removed one, or stop working.** A
@@ -243,16 +244,6 @@ fixed the bugs and the cheapest duplication, and records the rest below.
 - Tests were added for each bug above, `pack`'s key refusals, a damaged
   record heard from another tab, and a failing poll pass.
 
-**Left for a later round:**
-- **Smaller copies:** the two store contracts' `check` and `runInBrowser`
-  loops; `PluginInstallDialog` reusing the pen panel's key classes; the page
-  commands' action names written inline in `useWorkspace.ts`.
-- **In development only, Vite's client runs inside the Semantic repetition
-  worker.** Vite rewrites the ONNX runtime's variable `import()` calls with
-  a helper it imports from `/@vite/client` in a module worker. On every CSS
-  hot update, that client looks for `document` and logs an error. Builds
-  aren't affected.
-
 **Taken up by `harden-served-identity`:**
 - **A library's id was learned once per connection.** Now:
   - each poll pass asks `GetLibrary` before it lists the pages;
@@ -272,6 +263,26 @@ fixed the bugs and the cheapest duplication, and records the rest below.
 - **`LibraryId` was a plain string.** It's branded now, minted only by
   `isLibraryId`, and `pnpm lint:casts` checks it. A compile-time test
   refuses an address where an id is meant.
+
+**Taken up by `tidy-copies-and-dev-worker`:**
+- **Smaller copies.** Each is written once now:
+  - `lib/platform/testing/contract.ts` holds `check` and the loop that runs
+    each check on a fresh IndexedDB database, for the plugin and handle
+    store contracts. Each keeps its own `runInBrowser()` for the dev
+    console.
+  - The pen panel's key form and the install dialog's URL form share
+    `.field` and `.fieldInput`, named for both.
+  - `library-copy.ts` names what each page and folder command was doing,
+    for `useWorkspace.ts` and `Workbench.tsx`, and holds the folder
+    picker's notices. "Storage isn’t ready yet." is written once, in
+    `lib/workspace`.
+- **In development only, Vite's client ran inside the Semantic repetition
+  worker.** Vite rewrote the ONNX runtime's one variable `import()` with a
+  helper it imports from `/@vite/client`. On every CSS hot update, that
+  client looked for `document` and logged an error. A dev-only plugin in
+  `vite.config.ts` now wraps the variable in a template literal, which Vite
+  leaves alone, and fails if an ONNX runtime update changes the call.
+  Builds are unchanged.
 
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.

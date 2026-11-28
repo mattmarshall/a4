@@ -6,16 +6,13 @@
  */
 
 import { IdbPluginStore, type PluginStore } from "../plugin-store.ts";
+import { check, runEach } from "./contract.ts";
 
 const bytes = (...values: number[]) => new Uint8Array(values);
 
 function same(a: Uint8Array | null, b: Uint8Array | null): boolean {
   if (a === null || b === null) return a === b;
   return a.length === b.length && a.every((v, i) => v === b[i]);
-}
-
-function check(condition: boolean, message: string): void {
-  if (!condition) throw new Error(message);
 }
 
 export const PLUGIN_STORE_CONTRACT: readonly [string, (store: PluginStore) => Promise<void>][] = [
@@ -77,23 +74,6 @@ export const PLUGIN_STORE_CONTRACT: readonly [string, (store: PluginStore) => Pr
  *
  * @public
  */
-export async function runInBrowser(): Promise<Record<string, string>> {
-  const out: Record<string, string> = {};
-  for (const [name, run] of PLUGIN_STORE_CONTRACT) {
-    const dbName = `a4-plugins-contract-${crypto.randomUUID()}`;
-    try {
-      const store = new IdbPluginStore(dbName);
-      try {
-        await run(store);
-      } finally {
-        store.close();
-      }
-      out[name] = "pass";
-    } catch (error) {
-      out[name] = `FAIL: ${(error as Error).message}`;
-    } finally {
-      indexedDB.deleteDatabase(dbName);
-    }
-  }
-  return out;
+export function runInBrowser(): Promise<Record<string, string>> {
+  return runEach(PLUGIN_STORE_CONTRACT, "a4-plugins-contract", (dbName: string) => new IdbPluginStore(dbName));
 }

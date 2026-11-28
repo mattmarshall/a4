@@ -83,7 +83,7 @@ import { LibraryPoller, type PollerReport } from "./library-poller.ts";
 import { shouldReopen, type PendingFile } from "./pending.ts";
 import { openFolderFile, openLibraryPage, SlotController, type OpenPage } from "./slot-controller.ts";
 import { SlotRequests, type Ticket } from "./slot-requests.ts";
-import { describeError } from "./errors.ts";
+import { describeError, NOT_READY } from "./errors.ts";
 import {
   attempt,
   ok,
@@ -142,7 +142,7 @@ function reachedServed(reached: Reached): reached is Extract<Reached, { readonly
 
 class NotReady extends Error {
   constructor() {
-    super("Storage isn’t ready yet.");
+    super(NOT_READY);
     this.name = "NotReady";
   }
 }

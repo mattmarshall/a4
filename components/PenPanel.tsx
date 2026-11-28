@@ -105,7 +105,7 @@ export function PenPanel({
     <div className={styles.penControls}>
       {card.credentials.map((c) =>
         set[c.kind] ? (
-          <div key={c.kind} className={styles.penKey}>
+          <div key={c.kind} className={styles.field}>
             <span className={styles.status}>{copy.credentialSet(c)}</span>
             <button type="button" className="btn" onClick={() => forget(c.kind)}>
               {copy.forgetKey}
@@ -114,7 +114,7 @@ export function PenPanel({
         ) : (
           <form
             key={c.kind}
-            className={styles.penKey}
+            className={styles.field}
             onSubmit={(e) => {
               e.preventDefault();
               apply(c.kind);
@@ -129,7 +129,7 @@ export function PenPanel({
                 if (el) fields.current.set(c.kind, el);
                 else fields.current.delete(c.kind);
               }}
-              className={styles.penKeyInput}
+              className={styles.fieldInput}
               type="password"
               autoComplete="off"
               spellCheck={false}
