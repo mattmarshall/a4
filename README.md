@@ -1512,6 +1512,7 @@ tasks, are archived under `openspec/changes/archive/`:
 - `2026-11-27-finish-tech-debt-review`
 - `2026-11-27-harden-served-identity`
 - `2026-11-28-tidy-copies-and-dev-worker`
+- `2026-11-28-finish-ui-copy`
 
 ```bash
 openspec list --specs
