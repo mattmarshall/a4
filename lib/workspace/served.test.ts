@@ -7,11 +7,13 @@ import { MemoryKeyValue } from "../platform/key-value.ts";
 import { ChannelHub, fakePlatform, FakeTabs } from "../platform/testing/fakes.ts";
 import { Journal } from "../persist/autosave/journal.ts";
 import { libraryRef } from "../persist/store/refs.ts";
-import { readSetting, SETTINGS, writeSetting } from "../persist/settings.ts";
+import { readSetting, SETTINGS, servedOpenSetting, writeSetting } from "../persist/settings.ts";
 import { MemoryPageStore } from "../persist/store/key-value.ts";
 import { pageNameCodec, parsePageName } from "../persist/store/names.ts";
 import type { ServedStore } from "../persist/store/remote.ts";
+import type { LibraryId } from "../persist/store/wire.ts";
 import type { ServedConnection } from "../persist/store/served.ts";
+import { libraryIdOf } from "../persist/store/testing/library-id.ts";
 import {
   type PageName,
   type Revision,
@@ -25,8 +27,8 @@ import { Workspace } from "./workspace.ts";
 const n = parsePageName;
 const TOKEN = "t".repeat(43);
 const SERVED: ServedConnection = { address: "127.0.0.1:4320", token: TOKEN };
-const NOTES = "NotesNotesNotesNotes_1";
-const OTHER = "OtherOtherOtherOther_2";
+const NOTES = libraryIdOf("NotesNotesNotesNotes_1");
+const OTHER = libraryIdOf("OtherOtherOtherOther_2");
 
 /**
  * A memory store standing in for `a4 serve` over one library folder: it can
@@ -37,7 +39,7 @@ class ServedStandIn implements ServedStore {
   readonly kind = "served" as const;
   readonly durable = true;
   readonly pages = new MemoryPageStore();
-  readonly id: string;
+  readonly id: LibraryId;
   down = false;
   /** Answer GetLibrary as a server that can't be used for this reason. */
   refusal: UnavailableReason | null = null;
@@ -101,6 +103,51 @@ class ServedStandIn implements ServedStore {
   }
 }
 
+/** What A4 reaches at 127.0.0.1:4320: whichever folder `a4 serve` serves there now. */
+class AtAddress implements ServedStore {
+  readonly kind = "served" as const;
+  readonly durable = true;
+  readonly #serving: () => ServedStandIn;
+
+  constructor(serving: () => ServedStandIn) {
+    this.#serving = serving;
+  }
+
+  library() {
+    return this.#serving().library();
+  }
+  list() {
+    return this.#serving().list();
+  }
+  read(name: PageName) {
+    return this.#serving().read(name);
+  }
+  create(name: PageName, text: string) {
+    return this.#serving().create(name, text);
+  }
+  createUnique(desired: string, text: string) {
+    return this.#serving().createUnique(desired, text);
+  }
+  write(name: PageName, text: string, expected?: Revision | null) {
+    return this.#serving().write(name, text, expected);
+  }
+  rename(from: PageName, to: PageName) {
+    return this.#serving().rename(from, to);
+  }
+  trash(name: PageName) {
+    return this.#serving().trash(name);
+  }
+  listTrash() {
+    return this.#serving().listTrash();
+  }
+  restore(id: TrashId) {
+    return this.#serving().restore(id);
+  }
+  purge(id: TrashId) {
+    return this.#serving().purge(id);
+  }
+}
+
 /** One browser with its own library, and a served library on this machine. */
 function setup() {
   const scheduler = new FakeScheduler();
@@ -122,7 +169,7 @@ function setup() {
       welcomeText: "Welcome to A4",
       skipMigration: [],
       openStore: async () => ({ store, movedFromFallback: 0 }),
-      openServed: () => serving,
+      openServed: () => new AtAddress(() => serving),
       scheduler,
       isVisible: () => visible,
     });
@@ -145,6 +192,16 @@ function setup() {
     },
   };
 }
+
+test("open pages are kept by a library's id, which an address isn't", () => {
+  // Compile-time only: never called.
+  const byAddress = () => {
+    // @ts-expect-error: an address isn't a library id.
+    servedOpenSetting("127.0.0.1:4320", "a");
+  };
+  assert.equal(servedOpenSetting(NOTES, "a").key, `served:${NOTES}:open:a`);
+  assert.equal(typeof byAddress, "function");
+});
 
 const names = (w: Workspace<unknown>) =>
   w
@@ -582,4 +639,99 @@ test("the Connect form asks a4 serve once, and remembers nothing if it stops bef
     "the form says why, not a notice",
   );
   await workspace.dispose();
+});
+
+test("a pass that can't learn which library is served lists nothing and reports nothing", async () => {
+  for (const reason of ["not-running", "bad-answer"] as const) {
+    const s = setup();
+    await s.served.pages.create(n("Brief"), "v1");
+    const { workspace, notices } = s.open();
+    await workspace.start();
+    await workspace.connectServed(SERVED);
+    // GetLibrary fails, though listing would work.
+    s.served.refusal = reason;
+    await s.served.pages.create(n("Agent notes"), "written by an agent");
+    const before = s.served.listings;
+    await s.scheduler.advance(10_000);
+    assert.equal(s.served.listings, before, reason);
+    assert.deepEqual(names(workspace), ["Brief"]);
+    assert.equal(workspace.getSnapshot().served?.shown, true);
+    assert.ok(!notices.some((x) => x.kind === "served-unreachable" || x.kind === "served-replaced"));
+    // The next pass that learns it carries on.
+    s.served.refusal = null;
+    await s.scheduler.advance(2000);
+    assert.deepEqual(names(workspace), ["Agent notes", "Brief"]);
+    await workspace.dispose();
+  }
+});
+
+test("another library served behind the same connection is shown within 5 seconds; the first keeps its edit", async () => {
+  const s = setup();
+  await s.served.pages.create(n("Brief"), "notes v1");
+  // A copy of the folder that kept its token but not its `.a4-library`.
+  const copy = new ServedStandIn(OTHER);
+  await copy.pages.create(n("Brief"), "notes v1");
+  await copy.pages.create(n("Copied"), "only in the copy");
+  const { workspace, notices } = s.open();
+  await workspace.start();
+  await workspace.connectServed(SERVED);
+
+  // An edit that can't be saved: the server stopped.
+  s.served.down = true;
+  workspace.edit("a", "notes v2, unsaved");
+  await s.scheduler.advance(1000);
+  s.serve(copy);
+  await s.scheduler.advance(5000);
+  await settle();
+  assert.equal(workspace.getSnapshot().served?.shown, true);
+  assert.deepEqual(names(workspace), ["Brief", "Copied"]);
+  assert.equal(workspace.getSnapshot().slots.a.text, "notes v1");
+  assert.ok(notices.some((x) => x.kind === "served-replaced" && x.address === "127.0.0.1:4320"));
+  assert.equal((await copy.pages.read(n("Brief"))).text, "notes v1", "the edit isn't saved into the copy");
+  assert.ok(
+    s.keyValue.keys().some((k) => k.startsWith(`a4:served:${NOTES}:draft:`)),
+    "kept by the first id",
+  );
+
+  // The first folder, served again, is shown again with its edit recovered.
+  s.served.down = false;
+  s.serve(s.served);
+  await s.scheduler.advance(5000);
+  await settle();
+  assert.deepEqual(names(workspace), ["Brief"]);
+  assert.equal((await s.served.pages.read(n("Brief"))).text, "notes v2, unsaved");
+  assert.equal(workspace.getSnapshot().slots.a.text, "notes v2, unsaved");
+  assert.equal((await copy.pages.read(n("Brief"))).text, "notes v1");
+  assert.ok(notices.some((x) => x.kind === "recovered-library"));
+  await workspace.dispose();
+});
+
+test("a server that refuses this browser while shown: this browser's library within 5 seconds, and no page operation", async () => {
+  for (const reason of ["refused", "older-server", "newer-server"] as const) {
+    const s = setup();
+    await s.served.pages.create(n("Brief"), "served brief");
+    const { workspace, notices } = s.open();
+    await workspace.start();
+    await workspace.connectServed(SERVED);
+    workspace.edit("a", "served brief, edited");
+    // Restarted with --new-token, or from a checkout of another version.
+    s.served.refusal = reason;
+    const before = s.served.operations;
+    await s.scheduler.advance(5000);
+    await settle();
+    const snapshot = workspace.getSnapshot();
+    assert.deepEqual(snapshot.served, { address: "127.0.0.1:4320", shown: false }, "the switch is still offered");
+    assert.equal(snapshot.storage?.kind, "memory", reason);
+    assert.equal(snapshot.slots.a.name, "Welcome");
+    const notice = notices.find((x) => x.kind === "served-unreachable");
+    assert.ok(notice?.kind === "served-unreachable" && notice.reason === reason, reason);
+    await s.scheduler.advance(10_000);
+    assert.equal(s.served.operations, before, `${reason}: no page operation after the refusal`);
+    assert.equal((await s.served.pages.read(n("Brief"))).text, "served brief");
+    assert.ok(
+      s.keyValue.keys().some((k) => k.startsWith(`a4:served:${NOTES}:draft:`)),
+      "the edit is kept",
+    );
+    await workspace.dispose();
+  }
 });

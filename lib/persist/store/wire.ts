@@ -225,8 +225,14 @@ export const trashWire = {
 // ---------------------------------------------------------------------------
 // The library
 
-/** A library's id: 22 base64url characters (16 random bytes), kept in `<folder>/.a4-library`. */
-export type LibraryId = string;
+declare const libraryIdBrand: unique symbol;
+
+/**
+ * A library's id: 22 base64url characters (16 random bytes), kept in
+ * `<folder>/.a4-library`. Branded, so a connection's address can't be passed
+ * where an id is meant; `isLibraryId` is the only way to make one.
+ */
+export type LibraryId = string & { readonly [libraryIdBrand]: true };
 
 const LIBRARY_ID = /^[A-Za-z0-9_-]{22}$/;
 

@@ -8,7 +8,7 @@
 import { assertNever } from "../../lib/page/index.ts";
 import type { Recovery } from "../../lib/persist/index.ts";
 import { describeError, type WorkspaceNotice } from "../../lib/workspace/index.ts";
-import { unavailableNotice } from "../served-copy.ts";
+import { servedReplaced, unavailableNotice } from "../served-copy.ts";
 
 type Tone = "info" | "warn";
 
@@ -41,7 +41,8 @@ function failure(notice: Extract<WorkspaceNotice, { kind: "failed" }>): string {
   }
 }
 
-export function describeNotice(notice: WorkspaceNotice): NoticeCopy {
+/** A notice's sentence and tone. `pageOrigin` is the origin of the page A4 runs in, which some advice depends on. */
+export function describeNotice(notice: WorkspaceNotice, pageOrigin: string): NoticeCopy {
   switch (notice.kind) {
     case "recovered-library":
       return {
@@ -90,9 +91,11 @@ export function describeNotice(notice: WorkspaceNotice): NoticeCopy {
       return { message: `A4 still doesn’t have access to “${notice.folder}”.`, tone: "warn" };
     case "served-unreachable":
       return {
-        message: unavailableNotice(notice.reason, notice.address, describeError(notice.error)),
+        message: unavailableNotice(notice.reason, describeError(notice.error), pageOrigin),
         tone: "warn",
       };
+    case "served-replaced":
+      return { message: servedReplaced(notice.address), tone: "warn" };
     case "failed":
       return { message: failure(notice), tone: "warn" };
     default:

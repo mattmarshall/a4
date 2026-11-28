@@ -1,6 +1,6 @@
 /**
- * Brand casts: a branded id (a page name, file path, revision, trash id, or
- * plugin id) is minted only by its parser, so a cast like `x as PageName`
+ * Brand casts: a branded id (a page name, file path, revision, trash id,
+ * plugin id, or library id) is minted only by its parser, so a cast like `x as PageName`
  * anywhere else fails this check. Double casts (`as unknown as`) are listed
  * too, and fail unless the file is in DOUBLE_CASTS with the reason it needs
  * one. Run by `pnpm lint`.
@@ -13,7 +13,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 
-const BRANDS = ["PageName", "FilePath", "Revision", "TrashId", "PluginId"];
+const BRANDS = ["PageName", "FilePath", "Revision", "TrashId", "PluginId", "LibraryId"];
 
 /** The functions allowed to cast to a brand: its parsers, and the test-only forgers. */
 const PARSERS: Record<string, readonly string[]> = {

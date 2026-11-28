@@ -60,7 +60,7 @@ function useNotices(workspace: BrowserWorkspace | null, notify: Notify): void {
   useEffect(() => {
     if (!workspace) return;
     return workspace.subscribeNotices((notice) => {
-      const { message, tone } = describeNotice(notice);
+      const { message, tone } = describeNotice(notice, window.location.origin);
       notify(message, tone);
     });
   }, [workspace, notify]);
@@ -186,7 +186,7 @@ export function useWorkspaceApi(notify: Notify) {
         const result = await ws.connectServed(connection, "form");
         if (!result.ok) return describeError(result.error);
         const outcome = result.value;
-        return outcome.connected ? null : connectFailed(outcome.reason, connection.address, outcome.message);
+        return outcome.connected ? null : connectFailed(outcome.reason, outcome.message, window.location.origin);
       },
       disconnectServed: () => run(servedActions.disconnect, (w) => w.disconnectServed()),
       /** A sealed letter's exact bytes and postmark, for a share link; null for any other page. */

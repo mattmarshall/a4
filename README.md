@@ -1127,9 +1127,13 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   - It isn't secret.
   - A copied folder carries it along, and its token too: delete
     `.a4-library` and `.a4-serve-token` in the copy to make it a library of
-    its own, and open the new link it prints. A4 learns a library's id when
-    it connects or switches to it, so serving the copy behind the same
-    address and token would keep the original's id.
+    its own, and open the new link it prints.
+  - **Another library behind the same link.** A4 asks which library is
+    served each time it lists the served library, and before each save. So
+    if a different folder is served at the same address with the same
+    token (a copy that kept the token but not `.a4-library`, say), A4 shows
+    its pages within 5 seconds, and says so. Edits that couldn't be saved
+    to the first library stay with it, by its id, until it's served again.
   - If the file is edited so it no longer holds an id, `a4 serve` exits 2:
     delete it to give the library a new id.
 - **The command.** It prints its address and a link that connects A4, then
@@ -1166,8 +1170,8 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   - `GetLibrary` returns the library's id and the protocol version.
   - The served store, and the store over HTTP, pass the same contract tests
     as this browser's.
-- **Versions.** A4 and `a4 serve` must speak the same protocol version,
-  and A4 checks before it shows the library.
+- **Versions.** A4 and `a4 serve` must speak the same protocol version.
+  A4 checks before it shows the library, and again while it's shown.
   - A server from an older checkout is refused, with a note to update the
     checkout and restart it.
   - A server newer than the open A4 tab is refused, with a note to reload
@@ -1193,14 +1197,21 @@ node ~/src/a4/cli/a4.ts serve ~/notes/a4
   different folder served at the same address starts fresh. The open
   folder stays open.
 - **Changes on disk.** While the served library is shown in a visible tab,
-  A4 lists it every 2 seconds. A page added, removed, or changed on disk
+  A4 asks which library is served, then lists it, every 2 seconds. A page added, removed, or changed on disk
   shows up within 5 seconds. An open page with no unsaved edits shows the
   new text; one with unsaved edits keeps both versions when it saves, as a
   conflict with another tab does.
 - **When A4 can't use the server.** Starting on, switching to, or
   connecting to the served library then shows this browser's library,
-  changes nothing, and says why, with what to do:
-  - **not running:** start `a4 serve` and switch again;
+  changes nothing, and says why, with what to do. While the served library
+  is shown, a refused token or another version is noticed within 5 seconds
+  and handled the same way. A server that stops while shown stays shown,
+  since it may be restarting.
+  - **not running:** start `a4 serve` and switch again. A page not served
+    from `https://a4.marsh.build`, such as a development server, is told
+    the server may be running without `--origin` for it, and given the
+    command with the flag: the browser blocks a page `a4 serve` doesn't
+    allow, so A4 can't tell the two apart;
   - **refused this browser's token** (it was restarted with
     `--new-token`): open the link it printed;
   - **older or newer than this A4:** see Versions;

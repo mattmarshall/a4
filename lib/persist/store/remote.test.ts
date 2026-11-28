@@ -5,10 +5,11 @@ import { parsePageName } from "./names.ts";
 import { RemotePageStore } from "./remote.ts";
 import { folderFailure, handleStoreCall, STORE_PATH, storeHandlers } from "./serve.ts";
 import { pageStoreContract } from "./testing/contract.ts";
+import { libraryIdOf } from "./testing/library-id.ts";
 import { isStoreError, type PageStore, type UnavailableReason } from "./types.ts";
 import { STORE_PROTOCOL, type StoreHandlers } from "./wire.ts";
 
-const LIBRARY = "AbCdEfGhIjKlMnOpQrSt_-";
+const LIBRARY = libraryIdOf("AbCdEfGhIjKlMnOpQrSt_-");
 
 /** A fetch that answers store calls with `handlers`, in this process. */
 function inProcess(handlers: StoreHandlers): typeof fetch {

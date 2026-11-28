@@ -27,12 +27,19 @@ export type LibraryChoice =
   | { readonly kind: "browser" }
   | { readonly kind: "served"; readonly connection: ServedConnection };
 
-/** The library shown: this browser's, or a served one, reached and known by its id. */
-export type LibraryTarget =
-  | { readonly kind: "browser" }
-  | { readonly kind: "served"; readonly connection: ServedConnection; readonly library: LibraryId };
+export type BrowserTarget = { readonly kind: "browser" };
 
-export const BROWSER: LibraryTarget = { kind: "browser" };
+/** A served library, reached and known by its id. */
+export type ServedTarget = {
+  readonly kind: "served";
+  readonly connection: ServedConnection;
+  readonly library: LibraryId;
+};
+
+/** The library shown: this browser's, or a served one. */
+export type LibraryTarget = BrowserTarget | ServedTarget;
+
+export const BROWSER: BrowserTarget = { kind: "browser" };
 
 /** Whether `shown` is already the library `choice` picks: the same kind, and for a served one the same connection. */
 export function isShown(shown: LibraryTarget | null, choice: LibraryChoice): boolean {

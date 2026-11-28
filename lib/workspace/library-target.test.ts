@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { SETTINGS } from "../persist/settings.ts";
 import { servedConnection } from "../persist/store/served.ts";
+import { libraryIdOf } from "../persist/store/testing/library-id.ts";
 import {
   addressKeys,
   BROWSER,
@@ -13,8 +14,8 @@ import {
 } from "./library-target.ts";
 
 const TOKEN = "A".repeat(43);
-const LIBRARY = "AbCdEfGhIjKlMnOpQrSt_-";
-const OTHER_LIBRARY = "ZyXwVuTsRqPoNmLkJiHg_-";
+const LIBRARY = libraryIdOf("AbCdEfGhIjKlMnOpQrSt_-");
+const OTHER_LIBRARY = libraryIdOf("ZyXwVuTsRqPoNmLkJiHg_-");
 const connection = servedConnection("127.0.0.1:4320", TOKEN);
 if (!connection) throw new Error("the test connection should parse");
 const served: LibraryTarget = { kind: "served", connection, library: LIBRARY };

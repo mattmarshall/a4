@@ -244,18 +244,6 @@ fixed the bugs and the cheapest duplication, and records the rest below.
   record heard from another tab, and a failing poll pass.
 
 **Left for a later round:**
-- **A library's id is learned once per connection.** Serving a copied
-  folder behind the same address and token keeps the original's id, and a
-  server upgraded mid-session isn't noticed until the next switch. The
-  README now says to delete the copied token too; the poller could ask for
-  the library again when the server comes back.
-- **A refused origin looks like a stopped server.** A page served from an
-  origin `a4 serve` doesn't allow (a dev server without `--origin`) is told
-  `a4 serve` isn't running.
-- **The served library's refusal sentences are written twice.** Once in
-  `lib/` as the error's message, once in `served-copy.ts`.
-- **`LibraryId` is a plain string.** Branding it, like `PageName`, would
-  stop an address being passed where an id is meant.
 - **Smaller copies:** the two store contracts' `check` and `runInBrowser`
   loops; `PluginInstallDialog` reusing the pen panel's key classes; the page
   commands' action names written inline in `useWorkspace.ts`.
@@ -264,6 +252,26 @@ fixed the bugs and the cheapest duplication, and records the rest below.
   a helper it imports from `/@vite/client` in a module worker. On every CSS
   hot update, that client looks for `document` and logs an error. Builds
   aren't affected.
+
+**Taken up by `harden-served-identity`:**
+- **A library's id was learned once per connection.** Now:
+  - each poll pass asks `GetLibrary` before it lists the pages;
+  - another library behind the same connection (a copy that kept the token
+    but not `.a4-library`) is shown within 5 seconds, with a notice;
+  - a refused token or another version while shown shows this browser's
+    library, as a switch would;
+  - each change confirms the library first (`ConfirmedStore`), so a save
+    retried meanwhile never lands in the other folder, and its draft stays
+    with the first library's id.
+- **A refused origin looked like a stopped server.** Now a page not served
+  from `https://a4.marsh.build` that can't reach `a4 serve` is told it may
+  be running without `--origin` for it, with the command to run.
+- **The refusal sentences were written twice.** Now the error's sentence
+  from `lib/` starts every notice and form message, and `served-copy.ts`
+  adds only what to do.
+- **`LibraryId` was a plain string.** It's branded now, minted only by
+  `isLibraryId`, and `pnpm lint:casts` checks it. A compile-time test
+  refuses an address where an id is meant.
 
 The rest of this document is the review as written on 2026-11-23, with a
 status line added to each area.

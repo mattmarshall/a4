@@ -114,6 +114,12 @@ export type WorkspaceNotice =
       readonly reason: UnavailableReason | null;
       readonly error: unknown;
     }
+  /**
+   * `a4 serve` at `address` serves another library now (a different folder
+   * behind the same connection), so its pages are shown. The other library's
+   * edits stay with it, by its id.
+   */
+  | { readonly kind: "served-replaced"; readonly address: string }
   | {
       readonly kind: "failed";
       readonly action: WorkspaceAction;

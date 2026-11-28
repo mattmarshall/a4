@@ -20,6 +20,7 @@ import { formatServedConnection, parseServedConnection, type ServedConnection } 
 import { DEFAULT_PRESET, LENS_IDS, PRESET_IDS, type LensId, type PresetId } from "../page/index.ts";
 import type { IdCodec } from "./store/types.ts";
 import type { PageRef } from "./store/refs.ts";
+import type { LibraryId } from "./store/wire.ts";
 
 export interface Setting<T> {
   /** The storage key, without the `a4:` prefix. */
@@ -91,7 +92,7 @@ export type LibrarySource = "browser" | "served";
 const LIBRARY_SOURCES: readonly LibrarySource[] = ["browser", "served"];
 
 /** The page open in `slot` on the served library `library`, kept by the library's id. */
-export function servedOpenSetting(library: string, slot: "a" | "b"): Setting<PageRef | null> {
+export function servedOpenSetting(library: LibraryId, slot: "a" | "b"): Setting<PageRef | null> {
   return defineSetting({ key: `served:${library}:open:${slot}`, codec: openRefCodec, default: null });
 }
 
